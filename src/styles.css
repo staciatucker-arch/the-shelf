@@ -1,15 +1,25 @@
-/* The Shelf — scaffold styles.
+/* The Shelf — collection UI (§6b step 5).
    Mobile-first: the phone layout is the base, wider screens add columns.
-   Deliberately small; the real collection UI is §6b step 5. */
+
+   The palette is the old app's, kept deliberately so the rebuild reads as the
+   same shelf rather than a new product. Everything is a custom property, so
+   restyling later is one block of edits, not a sweep. */
 
 :root {
-  --bg: #1b1b1f;
-  --surface: #26262c;
-  --line: #37373f;
-  --text: #ecebef;
-  --muted: #9c9ba6;
-  --accent: #7aa2f7;
-  --danger: #ff8a8a;
+  --bg: #0a0a0f;
+  --surface: #13131d;
+  --surface2: #1a1a28;
+  --line: #252536;
+  --text: #e8e6e1;
+  --muted: #8a8898;
+  --accent: #d4a843;
+  --accent-glow: #d4a84333;
+  --green: #4ade80;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --tag-bg: #1e1e2e;
+  --danger: #f87171;
+  --radius: 10px;
   color-scheme: dark;
 }
 
@@ -23,14 +33,21 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-h1 { font-size: 1.25rem; margin: 0; }
+h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.08em; text-transform: uppercase; }
 .muted { color: var(--muted); }
+
 .error {
   color: var(--danger);
-  background: rgba(255, 138, 138, 0.08);
-  border: 1px solid rgba(255, 138, 138, 0.3);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.3);
   border-radius: 8px;
   padding: 0.75rem 1rem;
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+  padding: 3rem 1rem;
 }
 
 /* --- layout ------------------------------------------------------------ */
@@ -55,12 +72,47 @@ h1 { font-size: 1.25rem; margin: 0; }
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
+.bar h1 { color: var(--accent); }
 .bar-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
 .bar-right .muted { display: none; }
 @media (min-width: 560px) { .bar-right .muted { display: inline; } }
 
 main { padding: 1rem; max-width: 1400px; margin: 0 auto; }
-.count { margin-top: 0; }
+
+/* --- stats bar --------------------------------------------------------- */
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+@media (min-width: 560px) { .stats-bar { grid-template-columns: repeat(4, 1fr); } }
+
+.stat { background: var(--surface); padding: 0.7rem 0.4rem; text-align: center; }
+.stat-value { font-size: 1.15rem; font-weight: 600; color: var(--accent); line-height: 1.25; }
+.stat-value.positive { color: var(--green); }
+.stat-value.negative { color: var(--red); }
+.stat-value.unknown { color: var(--muted); }
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+/* The denominator, small and quiet — there to be checked, not read every
+   time. */
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  opacity: 0.75;
+  line-height: 1.3;
+  margin-top: 0.1rem;
+}
 
 /* --- controls ---------------------------------------------------------- */
 
@@ -70,13 +122,15 @@ input {
   width: 100%;
   padding: 0.6rem 0.7rem;
   margin-top: 0.25rem;
-  background: var(--bg);
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 1rem; /* 16px stops iOS zooming the page on focus */
 }
-input:focus-visible, button:focus-visible {
+input:focus-visible,
+button:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -85,7 +139,7 @@ button {
   margin-top: 1rem;
   padding: 0.6rem 1rem;
   background: var(--accent);
-  color: #10131c;
+  color: #1a1408;
   border: 0;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -93,7 +147,7 @@ button {
   cursor: pointer;
   min-height: 44px; /* comfortable touch target */
 }
-button:disabled { opacity: 0.6; cursor: default; }
+button:disabled { opacity: 0.5; cursor: default; }
 button.ghost {
   background: transparent;
   color: var(--text);
@@ -101,14 +155,78 @@ button.ghost {
   font-weight: 400;
 }
 
-.card {
+.controls { margin-bottom: 0.75rem; }
+.controls .search { margin-top: 0; }
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.result-count { flex: 1; font-size: 0.85rem; }
+
+.sort-select,
+.filter-toggle {
+  margin-top: 0;
+  min-height: 40px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+}
+.sort-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.filter-toggle.has-filters {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* --- filter panel ------------------------------------------------------ */
+
+.filter-panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 1.5rem;
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
 }
-.login { width: min(23rem, 100%); }
-.login p { margin-top: 0.25rem; }
+.filter-section + .filter-section { margin-top: 1.1rem; }
+.filter-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.filter-hint { font-size: 0.78rem; margin: -0.25rem 0 0.5rem; }
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.35rem 0.75rem;
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+  min-height: 32px;
+}
+.check-item input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.btn-row { display: flex; gap: 0.6rem; justify-content: flex-end; }
+.btn-row button { margin-top: 1rem; }
 
 /* --- the grid ---------------------------------------------------------- */
 
@@ -118,28 +236,72 @@ button.ghost {
   padding: 0;
   display: grid;
   gap: 0.9rem;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  align-items: start;
 }
 @media (min-width: 700px) {
-  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
 
-.film { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
-.film img,
-.film .no-poster {
+.section-divider {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 1.75rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.film-card { min-width: 0; }
+
+.film-summary {
+  margin: 0;
+  padding: 0;
   width: 100%;
-  aspect-ratio: 2 / 3;
-  object-fit: cover;
-  border-radius: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  cursor: pointer;
+  min-height: 0;
+}
+
+/* The covers are scans of real cases and run 0.71–0.85 wide-to-tall, so no
+   single aspect ratio fits them. The tile keeps a consistent box for an even
+   grid, but the image is CONTAINed inside it with a little padding: nothing is
+   ever cropped off the edge of someone's artwork. */
+.film-art {
+  position: relative;
+  aspect-ratio: 0.72;
+  padding: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
-.film .no-poster {
-  display: grid;
-  place-items: center;
+.film-art img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  display: block;
+}
+.film-art .no-poster {
   color: var(--muted);
   font-size: 0.75rem;
 }
+
 .film-title {
   font-size: 0.85rem;
   line-height: 1.3;
@@ -150,6 +312,247 @@ button.ghost {
   overflow: hidden;
 }
 .film-year { font-size: 0.75rem; color: var(--muted); }
+
+/* --- tags and badges --------------------------------------------------- */
+
+.badge-row,
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+/* The three tag rows sit close together as one block, with breathing room
+   only before the figures below them. */
+.tag-row { margin-bottom: 0.35rem; }
+.tag-row:last-of-type { margin-bottom: 0.85rem; }
+
+.format-badge,
+.meta-tag,
+.status-tag,
+.genre-chip {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--tag-bg);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.fmt-physical, .fmt-4k { color: var(--accent); border-color: var(--accent-glow); }
+.fmt-bluray { color: var(--blue); }
+.fmt-dvd { color: var(--text); }
+.fmt-vhs { color: #c9a0dc; }
+.fmt-digital { color: var(--muted); }
+
+.status-tag.keep { color: var(--green); }
+.status-tag.unwatched { color: var(--blue); }
+.status-tag.sell { color: var(--red); }
+.universe-tag { color: var(--accent); }
+.genre-chip { border-radius: 6px; }
+
+/* --- film detail panel -------------------------------------------------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(5, 5, 9, 0.75);
+  /* Flex, not grid: a centred grid track is sized by its content, so the
+     panel grew past the edge of the screen and everything inside it was laid
+     out at that too-wide size. Flex centring holds the panel to the space
+     that actually exists. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+.detail-panel {
+  width: min(46rem, 100%);
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+.detail-title { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+.detail-year { margin: 0.15rem 0 0; font-size: 0.85rem; }
+
+.detail-close {
+  margin: 0;
+  flex: none;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.detail-body {
+  padding: 1.1rem;
+  overflow-y: auto;
+  /* A flex child will not shrink below its content by default, so without
+     this the panel simply clipped a long film and nothing scrolled. */
+  min-height: 0;
+  display: grid;
+  gap: 1.1rem;
+  /* minmax(0, …) rather than a bare 1fr or auto: a grid track sized "auto"
+     grows to its content's natural width, so a 1000px poster scan would widen
+     the track past the panel and spill over everything below it. */
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+  .detail-body {
+    grid-template-columns: 200px minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.detail-art,
+.detail-facts { min-width: 0; }
+
+/* The panel's cover is the largest the artwork appears anywhere, and is
+   contained rather than cropped for the same reason the tiles are. The box
+   has a definite width and clips, so nothing can escape it. */
+/* No aspect-ratio here, deliberately. A percentage width combined with
+   aspect-ratio makes the grid size this row before it knows how wide the box
+   will be, so the row collapsed and the poster painted over the facts below
+   it. Letting the image's own proportions set the height avoids the question
+   entirely — and the box then hugs the artwork instead of letterboxing it. */
+/* Plain block layout, deliberately — no flex, no grid, no aspect-ratio.
+   Each of those derives the box's height from a child whose own size is not
+   settled when the height is needed, and every version of this box that used
+   one ended up shorter than the poster inside it, which then painted over the
+   facts below. A block box is always exactly as tall as its content. */
+.detail-art {
+  width: 100%;
+  /* On a phone the cover is the single biggest thing on screen, and at 260px
+     it pushed the facts off the bottom for any film with a few extra genres.
+     Smaller here, full size from tablet width up. The shelf grid is where the
+     artwork is meant to be admired; this is a reference thumbnail. */
+  max-width: 190px;
+  margin: 0 auto;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+  align-self: start; /* never stretched by the grid row */
+}
+.detail-art img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto; /* keeps the scan's own proportions; never cropped */
+  border-radius: 4px;
+}
+.detail-art .no-poster {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 4rem 0;
+}
+
+.film-fulltitle {
+  white-space: pre-line;
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Fixed columns rather than auto-fit, so the pairing is deliberate instead of
+   whatever the available width happens to allow. In DOM order that puts
+   Spent | Market on one row, Bought from | Acquired on the next, and
+   Last watched | TMDB on the last — related figures side by side, and half
+   the scrolling on a phone. */
+/* Three across — Spent · Market · Bought from, then Acquired · Last watched ·
+   TMDB. Below 340px the columns get narrow enough that a date breaks across
+   lines mid-value ("2019-04-" / "19"), so the smallest screens drop to two. */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 0.6rem;
+  margin: 0;
+}
+/* Three across, two rows, each row a theme:
+     Spent · Market · Status          — what it cost, what it's worth, the plan
+     Bought from · Acquired · Watched — where it came from and its life since */
+@media (min-width: 340px) {
+  .detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 560px) {
+  .detail-grid { gap: 0.7rem 0.9rem; }
+  .detail-art { max-width: 260px; }
+}
+/* Narrow columns, so a two-word label wraps rather than running into its
+   neighbour or forcing the grid wider. */
+.detail dt { overflow-wrap: break-word; }
+.detail dt {
+  /* Slightly smaller in the narrow three-column layout so a two-word label
+     stays on one line. */
+  font-size: 0.63rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+@media (min-width: 560px) {
+  .detail dt { font-size: 0.68rem; letter-spacing: 0.06em; }
+}
+.detail dd { margin: 0.1rem 0 0; font-size: 0.9rem; }
+.detail .ok { color: var(--green); font-size: 0.75rem; }
+/* Same blue as the Unwatched status tag it is read from, so the connection
+   between the two is visible rather than needing explanation. */
+.detail .derived { color: var(--blue); }
+
+.detail .up { color: var(--green); }
+.detail .down { color: var(--red); }
+
+.detail-admin {
+  margin: 1.1rem 0 0;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.detail .unverified { color: var(--accent); font-size: 0.75rem; }
+
+/* --- login card -------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+.login { width: min(23rem, 100%); }
+.login p { margin-top: 0.25rem; }
 
 /* --- update banner ----------------------------------------------------- */
 
@@ -163,10 +566,10 @@ button.ghost {
   align-items: center;
   gap: 0.6rem;
   padding: 0.6rem 0.75rem;
-  background: var(--surface);
+  background: var(--surface2);
   border: 1px solid var(--line);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
 .update-banner span { flex: 1; font-size: 0.9rem; }
 .update-banner button { margin-top: 0; padding: 0.4rem 0.8rem; min-height: 36px; }
