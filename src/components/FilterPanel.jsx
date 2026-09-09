@@ -28,6 +28,32 @@ export default function FilterPanel({ open, values, filters, onChange, onClear, 
 
   return (
     <div className="filter-panel" role="region" aria-label="Filters">
+      {/* First, not last. Measured 2026-09-09: with 107 checkboxes in the six
+          groups below, this section began 2,378px down on a 360px phone —
+          three full screens of scrolling, with nothing to suggest it was
+          there. It is the data-cleanup workflow and it is a fixed six
+          checkboxes, so it costs little at the top and was unreachable at the
+          bottom. */}
+      <div className="filter-section">
+        <div className="filter-section-label">Show blanks</div>
+        <p className="filter-hint muted">
+          Narrows the shelf to titles that are missing something — the
+          cleanup list.
+        </p>
+        <div className="check-grid">
+          {BLANK_FIELDS.map(({ value, label }) => (
+            <label className="check-item" key={value}>
+              <input
+                type="checkbox"
+                checked={filters.blanks.includes(value)}
+                onChange={() => toggle('blanks', value)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
       {GROUPS.map(({ key, label }) => {
         const options = values[key] ?? []
         if (!options.length) return null
@@ -49,26 +75,6 @@ export default function FilterPanel({ open, values, filters, onChange, onClear, 
           </div>
         )
       })}
-
-      <div className="filter-section">
-        <div className="filter-section-label">Show blanks</div>
-        <p className="filter-hint muted">
-          Narrows the shelf to titles that are missing something — the
-          cleanup list.
-        </p>
-        <div className="check-grid">
-          {BLANK_FIELDS.map(({ value, label }) => (
-            <label className="check-item" key={value}>
-              <input
-                type="checkbox"
-                checked={filters.blanks.includes(value)}
-                onChange={() => toggle('blanks', value)}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
 
       <div className="btn-row">
         <button type="button" className="ghost" onClick={onClear} disabled={!activeCount}>
