@@ -131,183 +131,184 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
         aria-label={`Edit ${displayTitle(film.title)}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="detail-head">
-          <h2 className="detail-title">Edit “{displayTitle(film.title)}”</h2>
-          <button
-            type="button"
-            className="detail-close"
-            onClick={onCancel}
-            disabled={saving}
-          >
-            <span aria-hidden="true">×</span>
-            <span className="sr-only">Cancel</span>
-          </button>
-        </div>
+        <form className="form-shell" onSubmit={onSubmit}>
+          {/* The form wraps the header rather than starting below it, so Save
+              can be an ordinary submit button while sitting up here. The
+              fields scroll under it; the buttons never scroll away. There is
+              no separate × — Cancel is the same action, said in a word. */}
+          <div className="detail-head form-head">
+            <h2 className="detail-title">Edit “{displayTitle(film.title)}”</h2>
+            <div className="detail-head-actions">
+              <button
+                type="button"
+                className="ghost form-action"
+                onClick={onCancel}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="form-action" disabled={saving || !dirty}>
+                {saving ? 'Saving…' : dirty ? 'Save changes' : 'No changes'}
+              </button>
+            </div>
+          </div>
 
-        <form className="form-body" onSubmit={onSubmit}>
-          {saveError && (
-            <p className="error" role="alert">
-              Could not save: {saveError}
+          <div className="form-body">
+            {saveError && (
+              <p className="error" role="alert">
+                Could not save: {saveError}
+              </p>
+            )}
+
+            <label htmlFor="film-title">
+              Title
+              {/* A textarea, not a text input: four box sets carry their
+                  contents list in this column across several lines, and an
+                  <input> silently collapses newlines. Editing the vendor would
+                  have destroyed the list. */}
+              <textarea
+                id="film-title"
+                ref={titleRef}
+                rows={2}
+                value={form.title}
+                onChange={(e) => set('title')(e.target.value)}
+                aria-invalid={Boolean(errors.title)}
+              />
+            </label>
+            <FieldError message={errors.title} />
+
+            <label htmlFor="film-year">
+              Year or season
+              {/* Also a textarea, and for the same reason: the other four box
+                  sets keep their contents list here instead, up to five lines
+                  of it. */}
+              <textarea
+                id="film-year"
+                rows={2}
+                value={form.year_season}
+                onChange={(e) => set('year_season')(e.target.value)}
+              />
+            </label>
+            <p className="form-hint muted">
+              Free text — “1979”, “Season 2”, or a box set’s list of titles, one
+              per line.
             </p>
-          )}
 
-          <label htmlFor="film-title">
-            Title
-            {/* A textarea, not a text input: four box sets carry their
-                contents list in this column across several lines, and an
-                <input> silently collapses newlines. Editing the vendor would
-                have destroyed the list. */}
-            <textarea
-              id="film-title"
-              ref={titleRef}
-              rows={2}
-              value={form.title}
-              onChange={(e) => set('title')(e.target.value)}
-              aria-invalid={Boolean(errors.title)}
+            <div className="form-pair">
+              <div>
+                <label htmlFor="film-cost">
+                  Spent
+                  <input
+                    id="film-cost"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="unknown"
+                    value={form.cost}
+                    onChange={(e) => set('cost')(e.target.value)}
+                    aria-invalid={Boolean(errors.cost)}
+                  />
+                </label>
+                <FieldError message={errors.cost} />
+              </div>
+              <div>
+                <label htmlFor="film-market">
+                  Market value
+                  <input
+                    id="film-market"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="unknown"
+                    value={form.market_value}
+                    onChange={(e) => set('market_value')(e.target.value)}
+                    aria-invalid={Boolean(errors.market_value)}
+                  />
+                </label>
+                <FieldError message={errors.market_value} />
+              </div>
+            </div>
+            <p className="form-hint muted">
+              Leave either blank if you don’t know it. Blank means unknown, not
+              zero — the totals count them separately.
+            </p>
+
+            <div className="form-pair">
+              <div>
+                <label htmlFor="film-acquired">
+                  Acquired
+                  <input
+                    id="film-acquired"
+                    type="date"
+                    value={form.acquired_on}
+                    onChange={(e) => set('acquired_on')(e.target.value)}
+                    aria-invalid={Boolean(errors.acquired_on)}
+                  />
+                </label>
+                <FieldError message={errors.acquired_on} />
+              </div>
+              <div>
+                <label htmlFor="film-watched">
+                  Last watched
+                  <input
+                    id="film-watched"
+                    type="date"
+                    value={form.last_watched_on}
+                    onChange={(e) => set('last_watched_on')(e.target.value)}
+                    aria-invalid={Boolean(errors.last_watched_on)}
+                  />
+                </label>
+                <FieldError message={errors.last_watched_on} />
+              </div>
+            </div>
+
+            <PickList
+              label="Status"
+              id="film-status"
+              value={form.status}
+              offered={options.status}
+              onChange={set('status')}
             />
-          </label>
-          <FieldError message={errors.title} />
-
-          <label htmlFor="film-year">
-            Year or season
-            {/* Also a textarea, and for the same reason: the other four box
-                sets keep their contents list here instead, up to five lines
-                of it. */}
-            <textarea
-              id="film-year"
-              rows={2}
-              value={form.year_season}
-              onChange={(e) => set('year_season')(e.target.value)}
+            <PickList
+              label="Type"
+              id="film-type"
+              value={form.type}
+              offered={options.type}
+              onChange={set('type')}
             />
-          </label>
-          <p className="form-hint muted">
-            Free text — “1979”, “Season 2”, or a box set’s list of titles, one
-            per line.
-          </p>
+            <PickList
+              label="Bought from"
+              id="film-vendor"
+              value={form.vendor}
+              offered={options.vendor}
+              onChange={set('vendor')}
+            />
+            <PickList
+              label="Universe"
+              id="film-universe"
+              value={form.universe}
+              offered={options.universe}
+              onChange={set('universe')}
+            />
 
-          <div className="form-pair">
-            <div>
-              <label htmlFor="film-cost">
-                Spent
-                <input
-                  id="film-cost"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="unknown"
-                  value={form.cost}
-                  onChange={(e) => set('cost')(e.target.value)}
-                  aria-invalid={Boolean(errors.cost)}
-                />
-              </label>
-              <FieldError message={errors.cost} />
-            </div>
-            <div>
-              <label htmlFor="film-market">
-                Market value
-                <input
-                  id="film-market"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="unknown"
-                  value={form.market_value}
-                  onChange={(e) => set('market_value')(e.target.value)}
-                  aria-invalid={Boolean(errors.market_value)}
-                />
-              </label>
-              <FieldError message={errors.market_value} />
-            </div>
-          </div>
-          <p className="form-hint muted">
-            Leave either blank if you don’t know it. Blank means unknown, not
-            zero — the totals count them separately.
-          </p>
+            <CheckList
+              label="Formats"
+              selected={form.formats}
+              offered={options.format}
+              onChange={set('formats')}
+            />
+            <CheckList
+              label="Genres"
+              selected={form.genres}
+              offered={options.genre}
+              onChange={set('genres')}
+            />
 
-          <div className="form-pair">
-            <div>
-              <label htmlFor="film-acquired">
-                Acquired
-                <input
-                  id="film-acquired"
-                  type="date"
-                  value={form.acquired_on}
-                  onChange={(e) => set('acquired_on')(e.target.value)}
-                  aria-invalid={Boolean(errors.acquired_on)}
-                />
-              </label>
-              <FieldError message={errors.acquired_on} />
-            </div>
-            <div>
-              <label htmlFor="film-watched">
-                Last watched
-                <input
-                  id="film-watched"
-                  type="date"
-                  value={form.last_watched_on}
-                  onChange={(e) => set('last_watched_on')(e.target.value)}
-                  aria-invalid={Boolean(errors.last_watched_on)}
-                />
-              </label>
-              <FieldError message={errors.last_watched_on} />
-            </div>
-          </div>
-
-          <PickList
-            label="Status"
-            id="film-status"
-            value={form.status}
-            offered={options.status}
-            onChange={set('status')}
-          />
-          <PickList
-            label="Type"
-            id="film-type"
-            value={form.type}
-            offered={options.type}
-            onChange={set('type')}
-          />
-          <PickList
-            label="Bought from"
-            id="film-vendor"
-            value={form.vendor}
-            offered={options.vendor}
-            onChange={set('vendor')}
-          />
-          <PickList
-            label="Universe"
-            id="film-universe"
-            value={form.universe}
-            offered={options.universe}
-            onChange={set('universe')}
-          />
-
-          <CheckList
-            label="Formats"
-            selected={form.formats}
-            offered={options.format}
-            onChange={set('formats')}
-          />
-          <CheckList
-            label="Genres"
-            selected={form.genres}
-            offered={options.genre}
-            onChange={set('genres')}
-          />
-
-          {/* Said plainly rather than shown as disabled boxes, so neither of
-              these looks like something this form forgot to save. */}
-          <p className="form-note muted">
-            The poster and the TMDB match aren’t edited here — a poster is
-            chosen in the poster window, and a TMDB match is set only by
-            confirming a candidate.
-          </p>
-
-          <div className="btn-row">
-            <button type="button" className="ghost" onClick={onCancel} disabled={saving}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving || !dirty}>
-              {saving ? 'Saving…' : dirty ? 'Save changes' : 'No changes'}
-            </button>
+            {/* Said plainly rather than shown as disabled boxes, so neither of
+                these looks like something this form forgot to save. */}
+            <p className="form-note muted">
+              The poster and the TMDB match aren’t edited here — a poster is
+              chosen in the poster window, and a TMDB match is set only by
+              confirming a candidate.
+            </p>
           </div>
         </form>
       </div>

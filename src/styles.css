@@ -678,3 +678,32 @@ button.ghost {
   font-size: 0.88rem;
   line-height: 1.5;
 }
+
+/* The edit form's own header: title left, Cancel and Save right.
+
+   The form element wraps the header as well as the fields, so Save is a plain
+   submit button rather than one reaching back into a form it sits outside.
+   Only the fields scroll, so the buttons stay put however long the form is —
+   which is the point, since the fields run well past a phone screen. */
+.form-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* let the body scroll instead of the panel growing */
+  max-height: 100%;
+}
+.form-head {
+  flex: none;
+  /* At 360px the title and two buttons do not fit on one line, so the buttons
+     drop below the title rather than squeezing it to a column of letters. */
+  flex-wrap: wrap;
+  row-gap: 0.6rem;
+}
+.form-head .detail-title { flex: 1 1 12rem; }
+
+.form-action {
+  margin: 0;
+  min-height: 40px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
