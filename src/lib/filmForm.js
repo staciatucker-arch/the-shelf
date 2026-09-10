@@ -73,8 +73,9 @@ function numberOrNull(value) {
  */
 export function formToRow(form) {
   return {
-    // Multi-line titles are real: four box sets carry their whole contents
-    // list in this column. Trimmed at the ends only, so the lines survive.
+    // Multi-line titles are real: four box sets carry their contents list in
+    // this column (four others carry it in year_season). Trimmed at the ends
+    // only, so the lines survive.
     title: String(form.title ?? '').trim(),
     year_season: textOrNull(form.year_season),
     universe: textOrNull(form.universe),

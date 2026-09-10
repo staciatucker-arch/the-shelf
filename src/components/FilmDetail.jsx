@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import {
+  contentsList,
   displayTitle,
   displayYear,
   filmGain,
@@ -67,7 +68,7 @@ export default function FilmDetail({ film, onClose, onEdit }) {
 
   const title = displayTitle(film.title)
   const year = displayYear(film.year_season)
-  const hasContentsList = film.title.includes('\n')
+  const contents = contentsList(film)
   const watched = lastWatched(film)
   const gain = filmGain(film)
 
@@ -114,11 +115,23 @@ export default function FilmDetail({ film, onClose, onEdit }) {
           </div>
 
           <div className="detail-facts">
-            {hasContentsList && (
-              // Four box sets carry their whole contents list in the title
-              // cell. Shown in full rather than reshaped — tidying them is a
-              // human edit, not something to do behind anyone's back.
-              <p className="film-fulltitle">{film.title}</p>
+            {contents.length > 0 && (
+              // Eight box sets record what they contain. Listed as a list —
+              // the entries are the useful part, and running them together as
+              // one wrapped paragraph is how four of these sets went unnoticed
+              // for a week. The wording of each entry is left exactly as
+              // recorded; tidying it is a human edit, not something to do
+              // behind anyone's back.
+              <div className="film-contents">
+                <div className="film-contents-label">
+                  Includes {contents.length} {contents.length === 1 ? 'title' : 'titles'}
+                </div>
+                <ul>
+                  {contents.map((entry, i) => (
+                    <li key={`${entry}-${i}`}>{entry}</li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <div className="tag-row">

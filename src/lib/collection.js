@@ -43,8 +43,8 @@ export function normaliseFilm(row) {
  * Sorting is the app's job, not the data's (HANDOFF, "Title conventions that
  * changed"), so both forms sort under T-h-r-e-e.
  *
- * Four titles also carry their whole box-set contents list across several
- * lines; only the first line identifies the title.
+ * Some box sets also carry their whole contents list across several lines;
+ * only the first line identifies the title. See `contentsList`.
  */
 export function titleSortKey(title) {
   const firstLine = String(title ?? '').split('\n')[0].trim().toLowerCase()
@@ -61,9 +61,47 @@ export function displayTitle(title) {
   return String(title ?? '').split('\n')[0].trim()
 }
 
-/** Same, for the free-text year/season column. */
+/**
+ * Same, for the free-text year/season column — but blank when that column is
+ * really a box set's contents list.
+ *
+ * Alien Quadrilogy's year cell reads "Alien (1979), \nAliens (1986), \n…".
+ * Showing its first line alone renders "Alien (1979)," beside the title, which
+ * states two things that are not true: that the set is from 1979, and that the
+ * trailing comma is a year. The list belongs in `contentsList`, so there is
+ * nothing left for this to say.
+ */
 export function displayYear(yearSeason) {
-  return String(yearSeason ?? '').split('\n')[0].trim()
+  const raw = String(yearSeason ?? '')
+  if (raw.includes('\n')) return ''
+  return raw.trim()
+}
+
+/**
+ * What a box set contains, whichever column happens to hold the list.
+ *
+ * The old sheet recorded this two ways and never settled on one, so of the
+ * eight sets that list their contents, four put the list in `title` under the
+ * set's name, and four put it in `year_season` with a single-line title. The
+ * two groups do not overlap. Reading only `title` — which is what the detail
+ * panel did until 2026-09-10 — makes the other four look as though their
+ * contents were never recorded at all.
+ *
+ * Returns the entries only, never the set's own name, and drops the trailing
+ * commas left over from the list having been one spreadsheet cell.
+ */
+export function contentsList(film) {
+  const title = String(film?.title ?? '')
+  const yearSeason = String(film?.year_season ?? '')
+
+  const clean = (lines) =>
+    lines.map((line) => line.trim().replace(/,$/, '').trim()).filter(Boolean)
+
+  // First line names the set; the rest are its entries.
+  if (title.includes('\n')) return clean(title.split('\n').slice(1))
+  // Here the title already names the set, so every line is an entry.
+  if (yearSeason.includes('\n')) return clean(yearSeason.split('\n'))
+  return []
 }
 
 export const EMPTY_FILTERS = {

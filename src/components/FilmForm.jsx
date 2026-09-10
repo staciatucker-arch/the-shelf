@@ -153,7 +153,7 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
 
           <label htmlFor="film-title">
             Title
-            {/* A textarea, not a text input: four box sets carry their whole
+            {/* A textarea, not a text input: four box sets carry their
                 contents list in this column across several lines, and an
                 <input> silently collapses newlines. Editing the vendor would
                 have destroyed the list. */}
@@ -170,15 +170,19 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
 
           <label htmlFor="film-year">
             Year or season
+            {/* Also a textarea, and for the same reason: the other four box
+                sets keep their contents list here instead, up to five lines
+                of it. */}
             <textarea
               id="film-year"
-              rows={1}
+              rows={2}
               value={form.year_season}
               onChange={(e) => set('year_season')(e.target.value)}
             />
           </label>
           <p className="form-hint muted">
-            Free text — “1979”, “Season 2”, or a box set’s list of years.
+            Free text — “1979”, “Season 2”, or a box set’s list of titles, one
+            per line.
           </p>
 
           <div className="form-pair">

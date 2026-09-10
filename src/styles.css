@@ -480,13 +480,6 @@ button.ghost {
   padding: 4rem 0;
 }
 
-.film-fulltitle {
-  white-space: pre-line;
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 /* Fixed columns rather than auto-fit, so the pairing is deliberate instead of
    whatever the available width happens to allow. In DOM order that puts
    Spent | Market on one row, Bought from | Acquired on the next, and
@@ -668,3 +661,20 @@ button.ghost {
   color: var(--red);
 }
 .form-body [aria-invalid='true'] { border-color: var(--red); }
+
+/* A box set's contents. Eight sets record what they hold — four in the title
+   column, four in the year column — and both now render here as a list. */
+.film-contents { margin-bottom: 0.85rem; }
+.film-contents-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.3rem;
+}
+.film-contents ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
