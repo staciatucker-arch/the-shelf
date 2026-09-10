@@ -6,6 +6,8 @@ import StatsBar from './components/StatsBar.jsx'
 import FilterPanel from './components/FilterPanel.jsx'
 import FilmCard from './components/FilmCard.jsx'
 import FilmDetail from './components/FilmDetail.jsx'
+import FilmForm from './components/FilmForm.jsx'
+import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import {
   EMPTY_FILTERS,
   SORT_MODES,
@@ -51,6 +53,12 @@ export default function App() {
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [openFilmId, setOpenFilmId] = useState(null)
+  const [editingFilmId, setEditingFilmId] = useState(null)
+
+  // The add/edit pick lists. Loaded once alongside the collection; a failure
+  // here is not fatal to browsing, so it degrades to empty lists and says so
+  // in the form rather than blocking the shelf.
+  const [options, setOptions] = useState(EMPTY_OPTIONS)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -85,6 +93,44 @@ export default function App() {
     if (session) loadFilms()
     else setFilms(null)
   }, [session, loadFilms])
+
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    loadOptions().then(({ options: loaded }) => {
+      if (!cancelled && loaded) setOptions(loaded)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [session])
+
+  /**
+   * Save one film's changed columns.
+   *
+   * The whole core invariant lives in these few lines: the update names a
+   * single row by its primary key, carries only the fields that were edited,
+   * and is awaited. Nothing is claimed to have worked until the database hands
+   * back the row it actually stored — and it is *that* row, not the form's
+   * hopeful copy, that goes into state. Where the old app rewrote the sheet
+   * from whatever the browser was holding, this cannot touch a second row even
+   * if it tried.
+   */
+  const saveFilm = useCallback(async (id, patch) => {
+    const { data, error } = await supabase
+      .from('films')
+      .update(patch)
+      .eq('id', id)
+      .select(FILM_COLUMNS)
+      .single()
+
+    if (error) return { error: error.message }
+
+    setFilms((current) =>
+      current ? current.map((f) => (f.id === id ? normaliseFilm(data) : f)) : current,
+    )
+    return { error: null }
+  }, [])
 
   const stats = useMemo(() => computeStats(films ?? []), [films])
   const filterValues = useMemo(() => availableFilterValues(films ?? []), [films])
@@ -121,6 +167,7 @@ export default function App() {
   // Looked up from the live list rather than held as its own copy, so an open
   // panel always shows the current row rather than a snapshot taken on tap.
   const openFilm = films?.find((f) => f.id === openFilmId) ?? null
+  const editingFilm = films?.find((f) => f.id === editingFilmId) ?? null
 
   return (
     <>
@@ -219,7 +266,28 @@ export default function App() {
         )}
       </main>
 
-      {openFilm && <FilmDetail film={openFilm} onClose={() => setOpenFilmId(null)} />}
+      {openFilm && !editingFilm && (
+        <FilmDetail
+          film={openFilm}
+          onClose={() => setOpenFilmId(null)}
+          onEdit={() => setEditingFilmId(openFilm.id)}
+        />
+      )}
+
+      {editingFilm && (
+        <FilmForm
+          film={editingFilm}
+          options={options}
+          onCancel={() => setEditingFilmId(null)}
+          onSaved={async (patch) => {
+            const result = await saveFilm(editingFilm.id, patch)
+            // Closed only on a confirmed write. A failed save leaves the form
+            // open with the edit still in it.
+            if (!result.error) setEditingFilmId(null)
+            return result
+          }}
+        />
+      )}
 
       <UpdateBanner />
     </>

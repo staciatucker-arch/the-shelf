@@ -41,7 +41,7 @@ function Detail({ label, children }) {
  * phone the expansion pushed everything else around. Here the rest of the
  * collection stays put and comes back untouched when the panel closes.
  */
-export default function FilmDetail({ film, onClose }) {
+export default function FilmDetail({ film, onClose, onEdit }) {
   const closeRef = useRef(null)
 
   useEffect(() => {
@@ -91,10 +91,17 @@ export default function FilmDetail({ film, onClose }) {
             <h2 className="detail-title">{title}</h2>
             {year && <p className="detail-year muted">{year}</p>}
           </div>
-          <button type="button" className="detail-close" onClick={onClose} ref={closeRef}>
-            <span aria-hidden="true">×</span>
-            <span className="sr-only">Close</span>
-          </button>
+          <div className="detail-head-actions">
+            {onEdit && (
+              <button type="button" className="ghost detail-edit" onClick={onEdit}>
+                Edit
+              </button>
+            )}
+            <button type="button" className="detail-close" onClick={onClose} ref={closeRef}>
+              <span aria-hidden="true">×</span>
+              <span className="sr-only">Close</span>
+            </button>
+          </div>
         </div>
 
         <div className="detail-body">
