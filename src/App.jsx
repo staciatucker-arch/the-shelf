@@ -29,6 +29,7 @@ const FILM_COLUMNS = [
   'release_year',
   'season',
   'season_number',
+  'edition',
   'universe',
   'genres',
   'formats',

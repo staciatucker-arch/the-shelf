@@ -10,6 +10,7 @@ export const EDITABLE_FIELDS = [
   'title',
   'release_year',
   'season',
+  'edition',
   'universe',
   'genres',
   'formats',
@@ -43,6 +44,7 @@ export function filmToForm(film) {
     // snapping back to a stale value.
     release_year: film.release_year == null ? '' : String(film.release_year),
     season: text(film.season),
+    edition: text(film.edition),
     universe: text(film.universe),
     genres: [...(film.genres ?? [])],
     formats: [...(film.formats ?? [])],
@@ -95,9 +97,11 @@ export function formToRow(form) {
     // only, so the lines survive.
     title: String(form.title ?? '').trim(),
     release_year: yearOrNull(form.release_year),
-    // Free text, and multi-line on purpose for the box sets whose contents
-    // list lives here.
+    // Written by the TMDB season picker, not typed.
     season: textOrNull(form.season),
+    // Free text, multi-line on purpose: "Volume 1", "Part 1 (2021)", or a box
+    // set's list of what is in it.
+    edition: textOrNull(form.edition),
     universe: textOrNull(form.universe),
     genres: [...form.genres],
     formats: [...form.formats],

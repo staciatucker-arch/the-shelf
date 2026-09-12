@@ -76,12 +76,18 @@ export function displayTitle(title) {
  * the disc in their hand.
  */
 export function displayYear(film) {
-  const season = String(film?.season ?? '')
-  // A multi-line value is a box set's contents list, which `contentsList`
+  const season = String(film?.season ?? '').trim()
+  if (season) return season
+
+  if (film?.release_year != null) return String(film.release_year)
+
+  // Last, the edition — "Volume 1" is the only thing distinguishing one
+  // Three Stooges disc from the other, so it has to reach the card. A
+  // multi-line edition is a box set's contents list, which `contentsList`
   // renders in full; a first line alone would state something untrue.
-  if (season.includes('\n')) return ''
-  if (season.trim()) return season.trim()
-  return film?.release_year == null ? '' : String(film.release_year)
+  const edition = String(film?.edition ?? '')
+  if (edition.includes('\n')) return ''
+  return edition.trim()
 }
 
 /**
@@ -89,8 +95,8 @@ export function displayYear(film) {
  *
  * The old sheet recorded this two ways and never settled on one, so of the
  * eight sets that list their contents, four put the list in `title` under the
- * set's name, and four put it in what is now `season`, with a single-line
- * title (the 2026-09-12 split carried those four across verbatim). The
+ * set's name, and four put it in what is now `edition`, with a single-line
+ * title (the two 2026-09-12 splits carried those four across verbatim). The
  * two groups do not overlap. Reading only `title` — which is what the detail
  * panel did until 2026-09-10 — makes the other four look as though their
  * contents were never recorded at all.
@@ -100,7 +106,7 @@ export function displayYear(film) {
  */
 export function contentsList(film) {
   const title = String(film?.title ?? '')
-  const yearSeason = String(film?.season ?? '')
+  const yearSeason = String(film?.edition ?? '')
 
   const clean = (lines) =>
     lines.map((line) => line.trim().replace(/,$/, '').trim()).filter(Boolean)

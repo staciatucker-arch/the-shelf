@@ -14,13 +14,13 @@ import { contentsList, displayYear, titleSortKey } from './collection.js'
 // year column.
 const matrix = {
   title: 'Matrix Triple Feature\nThe Matrix,\nThe Matrix Reloaded,\nThe Matrix Revolutions',
-  season: '',
+  edition: '',
 }
 
-// Four others keep it in `season`, with a single-line title.
+// Four others keep it in `edition`, with a single-line title.
 const alien = {
   title: 'Alien Quadrilogy',
-  season: 'Alien (1979), \nAliens (1986), \nAlien 3 (1992), \nAlien Resurrection (1997)',
+  edition: 'Alien (1979), \nAliens (1986), \nAlien 3 (1992), \nAlien Resurrection (1997)',
 }
 
 const ordinary = { title: 'Alien', release_year: 1979, season: '' }
@@ -33,7 +33,7 @@ test('a contents list in the title column is found', () => {
   ])
 })
 
-test('a contents list in the year column is found too', () => {
+test('a contents list in the edition column is found too', () => {
   // This is the case the detail panel missed until 2026-09-10: it looked only
   // at the title, so these four sets showed nothing at all.
   assert.deepEqual(contentsList(alien), [
@@ -53,19 +53,21 @@ test('an ordinary film has no contents list', () => {
   assert.deepEqual(contentsList({}), [])
 })
 
-test('a season column that is really a contents list shows no year', () => {
+test('an edition that is really a contents list shows no year', () => {
   // Showing its first line alone rendered "Alien (1979)," beside the title,
   // which claims both a wrong year and a comma.
   assert.equal(displayYear(alien), '')
   assert.equal(displayYear(null), '')
 })
 
-test('season beats year, and a bare year still shows', () => {
+test('season beats year, and an edition is the last resort', () => {
   // Someone holding series 3 wants "Season 3", not the year the show began.
   assert.equal(displayYear({ release_year: 1997, season: 'Season 3' }), 'Season 3')
   assert.equal(displayYear({ release_year: 1979, season: '' }), '1979')
-  assert.equal(displayYear({ release_year: null, season: 'Volume 1' }), 'Volume 1')
-  assert.equal(displayYear({ release_year: null, season: null }), '')
+  // "Volume 1" is the only thing telling the two Three Stooges discs apart,
+  // so it has to reach the card when there is nothing else to show.
+  assert.equal(displayYear({ release_year: null, season: null, edition: 'Volume 1' }), 'Volume 1')
+  assert.equal(displayYear({ release_year: null, season: null, edition: null }), '')
 })
 
 test('a leading article does not decide where a title sorts', () => {

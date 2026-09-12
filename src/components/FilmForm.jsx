@@ -94,6 +94,10 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // so its NUMBER can be stored. A number here is known; a season typed by
   // hand is not, and trigger warnings must tell those two cases apart.
   const [season, setSeason] = useState(null)
+
+  // Only a series has seasons. Anything else — Movie, Documentary, Box set —
+  // does not, so the field is not offered.
+  const isSeries = String(form.type ?? '').toLowerCase() === 'series'
   const [errors, setErrors] = useState({})
   const [saveError, setSaveError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -282,22 +286,41 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
                 </label>
                 <FieldError message={errors.release_year} />
               </div>
-              <div>
-                <label htmlFor="film-season">
-                  Season
-                  {/* A textarea, because four box sets keep their contents
-                      list in this column across several lines, and an <input>
-                      silently collapses newlines. */}
-                  <textarea
-                    id="film-season"
-                    rows={2}
-                    placeholder="optional"
-                    value={form.season}
-                    onChange={(e) => set('season')(e.target.value)}
-                  />
-                </label>
-              </div>
+              {/* Season is shown only for a series, because only a series
+                  has one. It is normally written by the TMDB picker below —
+                  a box set is not a season, and conflating the two is what
+                  sent "Volume 1" into this column in the first place. It
+                  stays typeable: when TMDB has no season list, or the lookup
+                  fails, the picker tells you to type it here, and a
+                  read-only box would make that instruction a lie. */}
+              {isSeries && (
+                <div>
+                  <label htmlFor="film-season">
+                    Season
+                    <input
+                      id="film-season"
+                      type="text"
+                      placeholder={adding ? 'pick it below' : 'optional'}
+                      value={form.season}
+                      onChange={(e) => set('season')(e.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
+
+            <label htmlFor="film-edition">
+              Edition or contents
+              {/* A textarea: four box sets list what is in them here, across
+                  several lines, and an <input> silently collapses newlines. */}
+              <textarea
+                id="film-edition"
+                rows={2}
+                placeholder="optional — “Volume 1”, or what a box set contains"
+                value={form.edition}
+                onChange={(e) => set('edition')(e.target.value)}
+              />
+            </label>
 
             {adding && (
               <TmdbMatch
