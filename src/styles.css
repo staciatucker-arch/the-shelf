@@ -869,3 +869,21 @@ button.danger {
   border-top: 1px solid var(--line);
 }
 .tmdb-season select { width: 100%; }
+
+/* The instruction block at the top of the add form. One block, read once,
+   rather than a hint beside every field — three separate notes were each
+   true and collectively ignorable. */
+.form-callout {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1.1rem;
+}
+.form-callout p {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.form-callout .form-section-title { margin: 0; }

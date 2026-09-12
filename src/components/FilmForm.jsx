@@ -162,7 +162,9 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     if (result?.error) setSaveError(result.error)
   }
 
-  const heading = adding ? 'Add a film' : `Edit “${displayTitle(film.title)}”`
+  const heading = adding
+    ? 'What are you adding to your Shelf?'
+    : `Edit “${displayTitle(film.title)}”`
 
   return (
     <div className="detail-overlay" role="presentation" onClick={() => !busy && onCancel()}>
@@ -208,14 +210,23 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               </p>
             )}
 
-            {/* Identity first: what is this, and which season. Everything
-                below it is detail that can wait, which the note after this
-                group says out loud so nobody feels obliged to fill it in now. */}
+            {/* One instruction block rather than a hint beside every field.
+                The three separate notes this replaces were each true and
+                collectively ignorable; a person adding a film reads the top
+                of the form once. */}
             {adding && (
-              <>
-                <h3 className="form-section-title">What are you adding to your Shelf?</h3>
-                <p className="form-hint muted">Start typing.</p>
-              </>
+              <div className="form-callout">
+                <h3 className="form-section-title">Search for TMDB ID</h3>
+                <p>
+                  Start typing and select <strong>Type</strong>. Searching for
+                  and selecting a TMDB title will help you fill in the details
+                  and allow for trigger-warning lookups.
+                </p>
+                <p className="muted">
+                  Only the title, type and year are searched. TMDB catalogues
+                  shows rather than seasons, so pick the season after matching.
+                </p>
+              </div>
             )}
 
             <label htmlFor="film-title">
@@ -250,12 +261,6 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               offered={options.type}
               onChange={set('type')}
             />
-            {adding && (
-              <p className="form-hint muted">
-                Set this first. <strong>Series</strong> searches television,
-                anything else searches film — the same title can be both.
-              </p>
-            )}
 
             {/* Year and season are separate fields as of 2026-09-12. One box
                 doing both jobs misled a person in use: "Season 1" typed into a
@@ -269,7 +274,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
                     id="film-year"
                     type="text"
                     inputMode="numeric"
-                    placeholder="unknown"
+                    placeholder="optional"
                     value={form.release_year}
                     onChange={(e) => set('release_year')(e.target.value)}
                     aria-invalid={Boolean(errors.release_year)}
@@ -294,16 +299,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               </div>
             </div>
             <p className="form-hint muted">
-              Both optional. A season shows on the card instead of the year —
-              “Season 2” rather than the year the show began.
-              {adding && (
-                <>
-                  {' '}
-                  <strong>Only the year is sent to TMDB.</strong> TMDB
-                  catalogues shows, not seasons, so pick the season below
-                  after matching rather than typing it here.
-                </>
-              )}
+              Both optional. A season shows on the card instead of the year.
             </p>
 
             {adding && (
