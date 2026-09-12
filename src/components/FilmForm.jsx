@@ -5,6 +5,7 @@ import {
   blankForm,
   changedFields,
   filmToForm,
+  matchPatch,
   newFilmRow,
   validateForm,
   withCurrent,
@@ -94,6 +95,10 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // so its NUMBER can be stored. A number here is known; a season typed by
   // hand is not, and trigger warnings must tell those two cases apart.
   const [season, setSeason] = useState(null)
+  // Whether the match was deliberately changed in this editing session. Null
+  // means untouched — and an untouched match must not appear in the patch at
+  // all, or every ordinary save would rewrite the film's identity.
+  const [matchTouched, setMatchTouched] = useState(false)
 
   // Only a series has seasons. Anything else — Movie, Documentary, Box set —
   // does not, so the field is not offered.
@@ -138,7 +143,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     () => (film ? changedFields(film, form) : null),
     [film, form],
   )
-  const dirty = adding || patch !== null
+  const dirty = adding || patch !== null || matchTouched
 
   async function onSubmit(e) {
     e.preventDefault()
@@ -151,14 +156,16 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     // Editing, with nothing changed: closing is the honest outcome, and
     // writing a row to say so would only bump updated_at and invite a
     // pointless conflict.
-    if (!adding && !patch) {
+    if (!adding && !patch && !matchTouched) {
       onCancel()
       return
     }
 
     setSaving(true)
     const result = await onSaved(
-      adding ? newFilmRow(form, { id: draftId, match, season }) : patch,
+      adding
+        ? newFilmRow(form, { id: draftId, match, season })
+        : { ...(patch ?? {}), ...(matchTouched ? matchPatch(match, { season }) : {}) },
     )
     setSaving(false)
     // The panel stays open on failure, holding the entry, so a rejected save
@@ -322,30 +329,37 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               />
             </label>
 
-            {adding && (
-              <TmdbMatch
-                title={form.title}
-                year={form.release_year}
-                type={form.type}
-                match={match}
-                season={season}
-                onConfirm={(candidate) => {
-                  setMatch(candidate)
-                  setSeason(null)
-                  // Writes the accurate title, and offers the year. Never the
-                  // poster, and never a year somebody already typed.
-                  setForm((f) => applyMatch(f, candidate))
-                }}
-                onSeason={(picked) => {
-                  setSeason(picked)
-                  setForm((f) => applyMatch(f, match, { season: picked }))
-                }}
-                onClear={() => {
-                  setMatch(null)
-                  setSeason(null)
-                }}
-              />
-            )}
+            {/* Shown when editing too, not only when adding. It is the only
+                way in the app to correct one of the 213 inherited ids, or to
+                clear a box set that should never have had one — until now
+                that was only possible through the CSV checklists. */}
+            <TmdbMatch
+              title={form.title}
+              year={form.release_year}
+              type={form.type}
+              match={match}
+              season={season}
+              existingId={!adding && !matchTouched ? film.tmdb_id : null}
+              existingVerified={!adding ? film.tmdb_verified : false}
+              onConfirm={(candidate) => {
+                setMatch(candidate)
+                setSeason(null)
+                setMatchTouched(true)
+                // Writes the accurate title, and offers the year. Never the
+                // poster, and never a year somebody already typed.
+                setForm((f) => applyMatch(f, candidate))
+              }}
+              onSeason={(picked) => {
+                setSeason(picked)
+                setMatchTouched(true)
+                setForm((f) => applyMatch(f, match, { season: picked }))
+              }}
+              onClear={() => {
+                setMatch(null)
+                setSeason(null)
+                setMatchTouched(true)
+              }}
+            />
 
             {adding && (
               <p className="form-note muted">

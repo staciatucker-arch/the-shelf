@@ -14,7 +14,8 @@ import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
  * default. Leaving it unmatched is a supported answer and says so.
  */
 export default function TmdbMatch({
-  title, year, type, match, season, onConfirm, onSeason, onClear,
+  title, year, type, match, season, existingId, existingVerified,
+  onConfirm, onSeason, onClear,
 }) {
   const [candidates, setCandidates] = useState(null)
   const [searching, setSearching] = useState(false)
@@ -142,6 +143,48 @@ export default function TmdbMatch({
             )}
           </div>
         )}
+      </fieldset>
+    )
+  }
+
+  // Editing a film that already carries an id, which nobody has touched in
+  // this session. It is shown rather than silently kept, because roughly one
+  // inherited id in twelve names a different film — and because a box set
+  // should have none at all.
+  if (existingId && !match) {
+    return (
+      <fieldset className="form-fieldset tmdb-block">
+        <div className="tmdb-confirmed">
+          <div>
+            <strong>TMDB {existingId}</strong>
+            <p className="form-hint muted">
+              {existingVerified
+                ? 'Confirmed by a person.'
+                : 'Never confirmed — inherited from the old app, where about one id in twelve names a different film.'}
+            </p>
+          </div>
+          <div className="tmdb-existing-actions">
+            <button
+              type="button"
+              className="ghost form-action"
+              onClick={() => {
+                onClear()
+                runSearch()
+              }}
+            >
+              Re-match
+            </button>
+            <button type="button" className="ghost form-action" onClick={onClear}>
+              Clear
+            </button>
+          </div>
+        </div>
+        <p className="form-hint muted">
+          Clearing leaves the film unmatched, which reads “not yet checked”.
+          For a box set that is the correct answer — TMDB has no record of a
+          set, and pointing one at a single disc would show that disc’s
+          warnings as though they covered the whole box.
+        </p>
       </fieldset>
     )
   }

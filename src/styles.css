@@ -899,3 +899,7 @@ button.danger {
 @media (min-width: 560px) {
   .tmdb-search { width: auto; min-width: 190px; }
 }
+
+/* Re-match / Clear, on a film that already carries a TMDB id. */
+.tmdb-existing-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.tmdb-existing-actions .form-action { margin-top: 0; }

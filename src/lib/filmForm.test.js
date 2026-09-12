@@ -12,6 +12,7 @@ import assert from 'node:assert/strict'
 
 import {
   applyMatch,
+  matchPatch,
   blankForm,
   changedFields,
   filmToForm,
@@ -245,4 +246,31 @@ test('a match with no year still names the film, but invents no year', () => {
 test('no match at all changes nothing', () => {
   const form = { ...blankForm(), title: 'Some Unreleased Thing' }
   assert.deepEqual(applyMatch(form, null), form)
+})
+
+test('changing a match clears the cached trigger data', () => {
+  // dtdd_media_id points at warnings cached for the film the OLD id named.
+  // Left in place while the id moves, it would show one title's content
+  // warnings under another title's name — silently, at step 9, long after
+  // the edit that caused it.
+  const patch = matchPatch({ tmdb_id: 95, title: 'Buffy the Vampire Slayer' })
+  assert.equal(patch.tmdb_id, 95)
+  assert.equal(patch.tmdb_verified, true)
+  assert.equal(patch.dtdd_media_id, null)
+})
+
+test('clearing a match leaves the film honestly unmatched', () => {
+  // What a box set needs: no id at all, reading "not yet checked".
+  const patch = matchPatch(null)
+  assert.equal(patch.tmdb_id, null)
+  assert.equal(patch.tmdb_verified, false)
+  assert.equal(patch.dtdd_media_id, null)
+  assert.equal(patch.season_number, null)
+})
+
+test('a match patch never carries a poster or an editable field', () => {
+  const patch = matchPatch({ tmdb_id: 95, title: 'x', poster_url: 'http://tmdb/x.jpg' })
+  for (const forbidden of ['poster_url', 'poster_source', 'poster_storage_path', 'title']) {
+    assert.equal(forbidden in patch, false, `${forbidden} must not be in a match patch`)
+  }
 })

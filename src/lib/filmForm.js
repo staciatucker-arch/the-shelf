@@ -304,6 +304,35 @@ export function seasonLabel(season) {
  * is what left 213 inherited ids unverified, roughly one in twelve of them
  * pointing at a different film.
  */
+/**
+ * The patch for a match that a person deliberately changed while editing.
+ *
+ * Kept out of `changedFields` on purpose: EDITABLE_FIELDS must never contain
+ * `tmdb_id`, or an ordinary edit could move a film's identity as a side
+ * effect of changing its vendor. This is the one, explicit route, and it is
+ * only called when somebody confirmed or cleared a match by hand.
+ *
+ * **It always clears `dtdd_media_id`.** That column points at trigger data
+ * cached for the film the OLD id named. Leaving it in place while the id
+ * moves would show one title's content warnings under another title's name,
+ * which is the exact failure the trigger design exists to prevent — and it
+ * would appear silently, at step 9, long after the edit.
+ */
+export function matchPatch(match, { season = null } = {}) {
+  if (!match) {
+    // Cleared. "Not yet checked" is honest; a stale id is not.
+    return { tmdb_id: null, tmdb_verified: false, dtdd_media_id: null, season_number: null }
+  }
+  return {
+    tmdb_id: match.tmdb_id,
+    // True because a human just confirmed this candidate, which is the only
+    // thing that ever sets it.
+    tmdb_verified: true,
+    dtdd_media_id: null,
+    season_number: seasonNumber(season),
+  }
+}
+
 export function newFilmRow(form, { id, match = null, season = null } = {}) {
   const row = formToRow(form)
 
