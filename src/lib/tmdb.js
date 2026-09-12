@@ -50,3 +50,25 @@ export async function searchTmdb({ title, year, type }) {
     error: null,
   }
 }
+
+/**
+ * The full record for one confirmed match, which is where seasons live.
+ *
+ * A search result never carries them — only `/tv/{id}` does — so this is a
+ * second call, made once after a human has confirmed which show it is. That
+ * ordering matters: asking TMDB to enumerate seasons before anyone has said
+ * which show it is would be picking on their behalf.
+ *
+ * Returns `{ details, error }`. `details.seasons` is an array for television
+ * and null for film.
+ */
+export async function lookupTmdb({ tmdb_id, kind }) {
+  const { data, error } = await supabase.functions.invoke('tmdb-search', {
+    body: { action: 'lookup', tmdb_id, type: kind === 'tv' ? 'series' : 'movie' },
+  })
+
+  if (error) return { details: null, error: error.message }
+  if (data?.error) return { details: null, error: String(data.error) }
+  if (data && data.found === false) return { details: null, error: 'TMDB no longer has that record.' }
+  return { details: data ?? null, error: null }
+}

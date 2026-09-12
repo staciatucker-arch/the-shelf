@@ -6,7 +6,7 @@ import { displayTitle, displayYear, isPhysicalFormat } from '../lib/collection.j
  */
 export default function FilmCard({ film, onOpen }) {
   const title = displayTitle(film.title)
-  const year = displayYear(film.year_season)
+  const year = displayYear(film)
 
   const hasPhysical = film.formats.some(isPhysicalFormat)
   const hasDigital = film.formats.some((f) => !isPhysicalFormat(f))

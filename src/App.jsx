@@ -26,7 +26,9 @@ import {
 const FILM_COLUMNS = [
   'id',
   'title',
-  'year_season',
+  'release_year',
+  'season',
+  'season_number',
   'universe',
   'genres',
   'formats',

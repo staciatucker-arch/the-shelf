@@ -25,7 +25,8 @@ import {
 const film = {
   id: 'u1',
   title: 'Alien',
-  year_season: '1979',
+  release_year: 1979,
+  season: null,
   universe: 'Alien',
   genres: ['Horror', 'Sci-Fi'],
   formats: ['Blu-ray'],
@@ -185,28 +186,63 @@ test('tmdb_verified is true only when a human confirmed a candidate', () => {
   assert.equal(matched.tmdb_verified, true)
 })
 
-test('confirming a match fills an empty year and nothing else', () => {
+test('confirming a match fills an empty year, and never the poster', () => {
   const before = { ...blankForm(), title: 'Alien' }
   const after = applyMatch(before, confirmedMatch)
 
-  assert.equal(after.year_season, '1979')
-  assert.equal(after.title, 'Alien')
+  assert.equal(after.release_year, '1979')
   // Above all: the poster is not the match's business.
   assert.equal('poster_url' in after, false)
+  assert.equal('poster_source' in after, false)
 })
 
-test('confirming a match never overwrites a year somebody typed', () => {
+test('confirming a match replaces the typed title with the accurate one', () => {
+  // What gets typed is a search fragment, not the name for the shelf. This is
+  // the bug that left a card reading "Battlestar".
+  const typed = { ...blankForm(), title: 'battlestar' }
+  const match = { tmdb_id: 1972, title: 'Battlestar Galactica', year: 2004, kind: 'tv' }
+
+  assert.equal(applyMatch(typed, match).title, 'Battlestar Galactica')
+})
+
+test('a chosen season beats both the year and whatever was typed', () => {
+  const typed = { ...blankForm(), title: 'battlestar', release_year: '2004' }
+  const match = { tmdb_id: 1972, title: 'Battlestar Galactica', year: 2004, kind: 'tv' }
+
+  // TMDB's own label is used where it has one.
+  const s1 = applyMatch(typed, match, { season: { season_number: 1, name: 'Season 1' } })
+  assert.equal(s1.season, 'Season 1')
+
+  // Season 0 is "Specials" on TMDB, and is not rewritten into "Season 0".
+  const sp = applyMatch(typed, match, { season: { season_number: 0, name: 'Specials' } })
+  assert.equal(sp.season, 'Specials')
+
+  // A bare number is accepted too.
+  assert.equal(applyMatch(typed, match, { season: 3 }).season, 'Season 3')
+})
+
+test('without a season, a match never overwrites a year somebody typed', () => {
   // The box set is a 2003 edition of a 1979 film; the human is right.
-  const typed = { ...blankForm(), title: 'Alien', year_season: '2003' }
-  assert.equal(applyMatch(typed, confirmedMatch).year_season, '2003')
+  const typed = { ...blankForm(), title: 'Alien', release_year: '2003' }
+  assert.equal(applyMatch(typed, confirmedMatch).release_year, '2003')
 
   // And a contents list in that column is certainly not to be replaced.
-  const contents = { ...blankForm(), year_season: 'Alien (1979),\nAliens (1986),' }
-  assert.equal(applyMatch(contents, confirmedMatch).year_season, contents.year_season)
+  const contents = { ...blankForm(), season: 'Alien (1979),\nAliens (1986),' }
+  assert.equal(applyMatch(contents, confirmedMatch).season, contents.season)
 })
 
-test('a match with no year leaves the form alone', () => {
+test('a match with no year still names the film, but invents no year', () => {
+  const form = { ...blankForm(), title: 'some unreleased thing' }
+
+  // TMDB knows what it is called even when it has no release date yet, so the
+  // title is still worth taking; the empty year stays empty rather than being
+  // filled with a guess.
+  const after = applyMatch(form, { tmdb_id: 1, title: 'Some Unreleased Thing', year: null })
+  assert.equal(after.title, 'Some Unreleased Thing')
+  assert.equal(after.release_year, '')
+})
+
+test('no match at all changes nothing', () => {
   const form = { ...blankForm(), title: 'Some Unreleased Thing' }
-  assert.deepEqual(applyMatch(form, { tmdb_id: 1, title: 'x', year: null }), form)
   assert.deepEqual(applyMatch(form, null), form)
 })

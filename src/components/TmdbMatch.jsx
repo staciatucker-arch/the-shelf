@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { searchTmdb } from '../lib/tmdb.js'
+import { useEffect, useState } from 'react'
+import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
 
 /**
  * Deciding which film this is.
@@ -13,11 +13,15 @@ import { searchTmdb } from '../lib/tmdb.js'
  * So: candidates are listed, a person picks one, and nothing is chosen by
  * default. Leaving it unmatched is a supported answer and says so.
  */
-export default function TmdbMatch({ title, year, type, match, onConfirm, onClear }) {
+export default function TmdbMatch({
+  title, year, type, match, season, onConfirm, onSeason, onClear,
+}) {
   const [candidates, setCandidates] = useState(null)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState(null)
   const [usedYear, setUsedYear] = useState(false)
+  const [seasons, setSeasons] = useState(null)
+  const [seasonError, setSeasonError] = useState(null)
 
   const queryTitle = String(title ?? '').split('\n')[0].trim()
   // The year column is free text — "Season 2", or a box set's contents list.
@@ -38,6 +42,32 @@ export default function TmdbMatch({ title, year, type, match, onConfirm, onClear
     setCandidates(result.candidates)
   }
 
+  // Seasons arrive only from /tv/{id}, so they are fetched after a person has
+  // confirmed which show it is — never before, because enumerating seasons for
+  // a show nobody has chosen would be choosing on their behalf.
+  useEffect(() => {
+    let cancelled = false
+    if (!match || match.kind !== 'tv') {
+      setSeasons(null)
+      setSeasonError(null)
+      return undefined
+    }
+    setSeasonError(null)
+    lookupTmdb({ tmdb_id: match.tmdb_id, kind: match.kind }).then((res) => {
+      if (cancelled) return
+      if (res.error) {
+        // A failure here must not read as "this show has no seasons".
+        setSeasonError(res.error)
+        setSeasons(null)
+        return
+      }
+      setSeasons(res.details?.seasons ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [match])
+
   if (match) {
     return (
       <fieldset className="form-fieldset tmdb-block">
@@ -55,6 +85,59 @@ export default function TmdbMatch({ title, year, type, match, onConfirm, onClear
             Change
           </button>
         </div>
+
+        {/* TMDB catalogues shows, not seasons — there is no id for "Buffy
+            series 3". The show is the match; the season is a separate choice
+            made here, and it is what lets trigger warnings answer for the
+            disc in your hand rather than for seven years of television. */}
+        {match.kind === 'tv' && (
+          <div className="tmdb-season">
+            {seasonError && (
+              <p className="form-hint muted">
+                Could not load the season list: {seasonError}. You can still
+                type the season in the box above.
+              </p>
+            )}
+
+            {!seasonError && seasons === null && (
+              <p className="form-hint muted">Looking for seasons…</p>
+            )}
+
+            {seasons && seasons.length > 0 && (
+              <label htmlFor="tmdb-season-select">
+                Which season is this?
+                <select
+                  id="tmdb-season-select"
+                  value={season?.season_number ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    onSeason(
+                      raw === ''
+                        ? null
+                        : seasons.find((se) => String(se.season_number) === raw) ?? null,
+                    )
+                  }}
+                >
+                  {/* No season is pre-selected: a box set of the whole run is
+                      a real answer, and guessing "Season 1" would put a
+                      number on the row that nobody chose. */}
+                  <option value="">Not a single season</option>
+                  {seasons.map((se) => (
+                    <option key={se.season_number} value={se.season_number}>
+                      {se.name || `Season ${se.season_number}`}
+                      {se.year ? ` — ${se.year}` : ''}
+                      {se.episode_count ? ` (${se.episode_count} episodes)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {seasons && seasons.length === 0 && (
+              <p className="form-hint muted">TMDB lists no seasons for this show.</p>
+            )}
+          </div>
+        )}
       </fieldset>
     )
   }

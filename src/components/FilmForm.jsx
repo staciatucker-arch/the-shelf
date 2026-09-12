@@ -90,6 +90,10 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
 
   const [form, setForm] = useState(() => (film ? filmToForm(film) : blankForm()))
   const [match, setMatch] = useState(null)
+  // The season picked from TMDB's list, kept apart from the label in the form
+  // so its NUMBER can be stored. A number here is known; a season typed by
+  // hand is not, and trigger warnings must tell those two cases apart.
+  const [season, setSeason] = useState(null)
   const [errors, setErrors] = useState({})
   const [saveError, setSaveError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -149,7 +153,9 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     }
 
     setSaving(true)
-    const result = await onSaved(adding ? newFilmRow(form, { id: draftId, match }) : patch)
+    const result = await onSaved(
+      adding ? newFilmRow(form, { id: draftId, match, season }) : patch,
+    )
     setSaving(false)
     // The panel stays open on failure, holding the entry, so a rejected save
     // never looks like a successful one and nobody loses their typing.
@@ -202,6 +208,16 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               </p>
             )}
 
+            {/* Identity first: what is this, and which season. Everything
+                below it is detail that can wait, which the note after this
+                group says out loud so nobody feels obliged to fill it in now. */}
+            {adding && (
+              <>
+                <h3 className="form-section-title">What are you adding to your Shelf?</h3>
+                <p className="form-hint muted">Start typing.</p>
+              </>
+            )}
+
             <label htmlFor="film-title">
               Title
               {/* A textarea, not a text input: four box sets carry their
@@ -219,22 +235,77 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
             </label>
             <FieldError message={errors.title} />
 
-            <label htmlFor="film-year">
-              Year or season
-              {/* Also a textarea, and for the same reason: the other four box
-                  sets keep their contents list here instead, up to five lines
-                  of it. */}
-              <textarea
-                id="film-year"
-                rows={2}
-                value={form.year_season}
-                onChange={(e) => set('year_season')(e.target.value)}
-              />
-            </label>
+            {/* Year and season are separate fields as of 2026-09-12. One box
+                doing both jobs misled a person in use: "Season 1" typed into a
+                field that TMDB search reads as a year. Only the year is ever
+                sent to TMDB; the season never is. */}
+            <div className="form-pair">
+              <div>
+                <label htmlFor="film-year">
+                  Year
+                  <input
+                    id="film-year"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="unknown"
+                    value={form.release_year}
+                    onChange={(e) => set('release_year')(e.target.value)}
+                    aria-invalid={Boolean(errors.release_year)}
+                  />
+                </label>
+                <FieldError message={errors.release_year} />
+              </div>
+              <div>
+                <label htmlFor="film-season">
+                  Season
+                  {/* A textarea, because four box sets keep their contents
+                      list in this column across several lines, and an <input>
+                      silently collapses newlines. */}
+                  <textarea
+                    id="film-season"
+                    rows={2}
+                    placeholder="optional"
+                    value={form.season}
+                    onChange={(e) => set('season')(e.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
             <p className="form-hint muted">
-              Free text — “1979”, “Season 2”, or a box set’s list of titles, one
-              per line.
+              Both optional. A season shows on the card instead of the year —
+              “Season 2” rather than the year the show began.
             </p>
+
+            {adding && (
+              <TmdbMatch
+                title={form.title}
+                year={form.release_year}
+                type={form.type}
+                match={match}
+                season={season}
+                onConfirm={(candidate) => {
+                  setMatch(candidate)
+                  setSeason(null)
+                  // Writes the accurate title, and offers the year. Never the
+                  // poster, and never a year somebody already typed.
+                  setForm((f) => applyMatch(f, candidate))
+                }}
+                onSeason={(picked) => {
+                  setSeason(picked)
+                  setForm((f) => applyMatch(f, match, { season: picked }))
+                }}
+                onClear={() => {
+                  setMatch(null)
+                  setSeason(null)
+                }}
+              />
+            )}
+
+            {adding && (
+              <p className="form-note muted">
+                You can come back and edit everything below at any time.
+              </p>
+            )}
 
             <div className="form-pair">
               <div>
@@ -343,22 +414,6 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               offered={options.genre}
               onChange={set('genres')}
             />
-
-            {adding && (
-              <TmdbMatch
-                title={form.title}
-                year={form.year_season}
-                type={form.type}
-                match={match}
-                onConfirm={(candidate) => {
-                  setMatch(candidate)
-                  // Confirming fills an empty year and nothing else — never
-                  // the poster, never a year somebody already typed.
-                  setForm((f) => applyMatch(f, candidate))
-                }}
-                onClear={() => setMatch(null)}
-              />
-            )}
 
             {!adding && onDelete && (
               <div className="form-danger">

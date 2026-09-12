@@ -65,16 +65,23 @@ export function displayTitle(title) {
  * Same, for the free-text year/season column — but blank when that column is
  * really a box set's contents list.
  *
- * Alien Quadrilogy's year cell reads "Alien (1979), \nAliens (1986), \n…".
+ * Alien Quadrilogy's season cell reads "Alien (1979), \nAliens (1986), \n…".
  * Showing its first line alone renders "Alien (1979)," beside the title, which
  * states two things that are not true: that the set is from 1979, and that the
  * trailing comma is a year. The list belongs in `contentsList`, so there is
  * nothing left for this to say.
+ *
+ * **Season beats year** when both are known: someone holding Buffy series 3
+ * wants to see "Season 3", not "1997", which describes the show rather than
+ * the disc in their hand.
  */
-export function displayYear(yearSeason) {
-  const raw = String(yearSeason ?? '')
-  if (raw.includes('\n')) return ''
-  return raw.trim()
+export function displayYear(film) {
+  const season = String(film?.season ?? '')
+  // A multi-line value is a box set's contents list, which `contentsList`
+  // renders in full; a first line alone would state something untrue.
+  if (season.includes('\n')) return ''
+  if (season.trim()) return season.trim()
+  return film?.release_year == null ? '' : String(film.release_year)
 }
 
 /**
@@ -82,7 +89,8 @@ export function displayYear(yearSeason) {
  *
  * The old sheet recorded this two ways and never settled on one, so of the
  * eight sets that list their contents, four put the list in `title` under the
- * set's name, and four put it in `year_season` with a single-line title. The
+ * set's name, and four put it in what is now `season`, with a single-line
+ * title (the 2026-09-12 split carried those four across verbatim). The
  * two groups do not overlap. Reading only `title` — which is what the detail
  * panel did until 2026-09-10 — makes the other four look as though their
  * contents were never recorded at all.
@@ -92,7 +100,7 @@ export function displayYear(yearSeason) {
  */
 export function contentsList(film) {
   const title = String(film?.title ?? '')
-  const yearSeason = String(film?.year_season ?? '')
+  const yearSeason = String(film?.season ?? '')
 
   const clean = (lines) =>
     lines.map((line) => line.trim().replace(/,$/, '').trim()).filter(Boolean)

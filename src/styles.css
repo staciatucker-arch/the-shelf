@@ -851,3 +851,21 @@ button.danger {
 .option-actions { display: flex; gap: 0.4rem; flex: none; }
 .option-actions .form-action { margin-top: 0; min-height: 34px; font-size: 0.78rem; padding: 0.25rem 0.6rem; }
 .option-delete { color: var(--danger); }
+
+/* The identity group at the top of the add form: what is this, and which
+   season. Given a heading because it answers a different question from the
+   detail fields below it. */
+.form-section-title {
+  margin: 0 0 0.15rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+.form-section-title + .form-hint { margin-top: 0; }
+
+/* The season picker, shown only once a television match is confirmed. */
+.tmdb-season {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.tmdb-season select { width: 100%; }

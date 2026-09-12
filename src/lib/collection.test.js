@@ -14,16 +14,16 @@ import { contentsList, displayYear, titleSortKey } from './collection.js'
 // year column.
 const matrix = {
   title: 'Matrix Triple Feature\nThe Matrix,\nThe Matrix Reloaded,\nThe Matrix Revolutions',
-  year_season: '',
+  season: '',
 }
 
-// Four others keep it in `year_season`, with a single-line title.
+// Four others keep it in `season`, with a single-line title.
 const alien = {
   title: 'Alien Quadrilogy',
-  year_season: 'Alien (1979), \nAliens (1986), \nAlien 3 (1992), \nAlien Resurrection (1997)',
+  season: 'Alien (1979), \nAliens (1986), \nAlien 3 (1992), \nAlien Resurrection (1997)',
 }
 
-const ordinary = { title: 'Alien', year_season: '1979' }
+const ordinary = { title: 'Alien', release_year: 1979, season: '' }
 
 test('a contents list in the title column is found', () => {
   assert.deepEqual(contentsList(matrix), [
@@ -53,12 +53,19 @@ test('an ordinary film has no contents list', () => {
   assert.deepEqual(contentsList({}), [])
 })
 
-test('a year column that is really a contents list shows no year', () => {
+test('a season column that is really a contents list shows no year', () => {
   // Showing its first line alone rendered "Alien (1979)," beside the title,
   // which claims both a wrong year and a comma.
-  assert.equal(displayYear(alien.year_season), '')
-  assert.equal(displayYear('1979'), '1979')
+  assert.equal(displayYear(alien), '')
   assert.equal(displayYear(null), '')
+})
+
+test('season beats year, and a bare year still shows', () => {
+  // Someone holding series 3 wants "Season 3", not the year the show began.
+  assert.equal(displayYear({ release_year: 1997, season: 'Season 3' }), 'Season 3')
+  assert.equal(displayYear({ release_year: 1979, season: '' }), '1979')
+  assert.equal(displayYear({ release_year: null, season: 'Volume 1' }), 'Volume 1')
+  assert.equal(displayYear({ release_year: null, season: null }), '')
 })
 
 test('a leading article does not decide where a title sorts', () => {

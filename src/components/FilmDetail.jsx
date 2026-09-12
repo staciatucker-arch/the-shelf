@@ -67,7 +67,7 @@ export default function FilmDetail({ film, onClose, onEdit }) {
   if (!film) return null
 
   const title = displayTitle(film.title)
-  const year = displayYear(film.year_season)
+  const year = displayYear(film)
   const contents = contentsList(film)
   const watched = lastWatched(film)
   const gain = filmGain(film)

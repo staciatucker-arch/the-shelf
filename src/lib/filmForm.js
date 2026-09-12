@@ -8,7 +8,8 @@
 /** Columns this form owns. Deliberately NOT the whole row — see below. */
 export const EDITABLE_FIELDS = [
   'title',
-  'year_season',
+  'release_year',
+  'season',
   'universe',
   'genres',
   'formats',
@@ -38,7 +39,10 @@ export function filmToForm(film) {
   const text = (v) => (v == null ? '' : String(v))
   return {
     title: text(film.title),
-    year_season: text(film.year_season),
+    // Both edited as text so that clearing a box means "unknown" rather than
+    // snapping back to a stale value.
+    release_year: film.release_year == null ? '' : String(film.release_year),
+    season: text(film.season),
     universe: text(film.universe),
     genres: [...(film.genres ?? [])],
     formats: [...(film.formats ?? [])],
@@ -68,16 +72,32 @@ function numberOrNull(value) {
 }
 
 /**
+ * A release year, or null.
+ *
+ * Refuses anything that is not four digits rather than coercing it. "199" and
+ * "nineteen ninety" are mistakes, and storing 199 would put a film two
+ * millennia in the past while looking like a real answer. `validateForm`
+ * reports the mistake; this just declines to invent a number from it.
+ */
+function yearOrNull(value) {
+  const trimmed = String(value ?? '').trim()
+  return /^\d{4}$/.test(trimmed) ? Number(trimmed) : null
+}
+
+/**
  * What the form is asking the row to become — every editable column, resolved
  * to the types the database expects.
  */
 export function formToRow(form) {
   return {
     // Multi-line titles are real: four box sets carry their contents list in
-    // this column (four others carry it in year_season). Trimmed at the ends
+    // this column (four others carry it in `season`). Trimmed at the ends
     // only, so the lines survive.
     title: String(form.title ?? '').trim(),
-    year_season: textOrNull(form.year_season),
+    release_year: yearOrNull(form.release_year),
+    // Free text, and multi-line on purpose for the box sets whose contents
+    // list lives here.
+    season: textOrNull(form.season),
     universe: textOrNull(form.universe),
     genres: [...form.genres],
     formats: [...form.formats],
@@ -104,6 +124,15 @@ export function validateForm(form) {
 
   if (String(form.title ?? '').trim() === '') {
     errors.title = 'A title is required.'
+  }
+
+  // A year is four digits or nothing. Refusing "199" matters because
+  // yearOrNull would otherwise store null silently and the box would appear
+  // to have been accepted; saying so is the difference between a blank
+  // meaning "unknown" and a blank meaning "your typing was discarded".
+  const year = String(form.release_year ?? '').trim()
+  if (year !== '' && !/^\d{4}$/.test(year)) {
+    errors.release_year = 'A year is four digits, like 1999 — or leave it blank.'
   }
 
   for (const [field, label] of [['cost', 'Spent'], ['market_value', 'Market value']]) {
@@ -202,21 +231,58 @@ export function blankForm() {
 /**
  * What a confirmed TMDB match is allowed to change about the form.
  *
- * Only the year, and only when the box is empty. Two deliberate limits:
+ * Writes the accurate title, and either the chosen season or the year.
  *
- *   It never touches the poster. Confirming "this is Alien (1979)" says what
- *   the film *is*; it says nothing about which picture belongs on the shelf,
- *   and a scan beats TMDB art permanently rather than until the next time
- *   somebody confirms a match (HANDOFF, "Identity and artwork").
+ *   **The title is replaced.** What somebody types into the search box is a
+ *   fragment meant to find the film — "battlestar", "2001 space" — not the
+ *   name they want on the shelf. Leaving it as typed is how a card ended up
+ *   reading "Battlestar" instead of "Battlestar Galactica". Getting the
+ *   accurate title is half the reason for searching at all; it stays editable
+ *   afterwards for the cases that need their own wording.
  *
- *   It never overwrites something a person typed. A year already in the box
- *   is a human statement about a specific edition; TMDB's is a guess about
- *   which record matched. Filling a blank is help, replacing an answer is not.
+ *   **A chosen season beats a year.** Picking season 3 is a deliberate act
+ *   performed a moment ago, so it wins over whatever the box held. The year,
+ *   by contrast, is only ever *offered*: it fills a blank and never replaces
+ *   something a person typed, because a year already in the box is a human
+ *   statement about a specific edition while TMDB's is a guess about which
+ *   record matched.
+ *
+ *   **It never touches the poster.** Confirming "this is Alien (1979)" says
+ *   what the film *is*; it says nothing about which picture belongs on the
+ *   shelf, and a scan beats TMDB art permanently rather than until the next
+ *   time somebody confirms a match (HANDOFF, "Identity and artwork").
  */
-export function applyMatch(form, match) {
-  if (!match || match.year == null) return form
-  if (String(form.year_season ?? '').trim() !== '') return form
-  return { ...form, year_season: String(match.year) }
+export function applyMatch(form, match, { season = null } = {}) {
+  if (!match) return form
+  const next = { ...form }
+
+  if (match.title) next.title = String(match.title)
+
+  // The year is offered, never imposed: it fills a blank and leaves alone a
+  // year somebody typed, which is a statement about a specific edition.
+  if (match.year != null && String(form.release_year ?? '').trim() === '') {
+    next.release_year = String(match.year)
+  }
+
+  // A season is a deliberate choice made a moment ago, so it wins outright.
+  if (season != null) next.season = seasonLabel(season)
+
+  return next
+}
+
+/**
+ * How a season is written into `season`.
+ *
+ * TMDB names most seasons "Season 1" already, and names season 0 "Specials",
+ * so its own label is used where there is one rather than inventing a format
+ * that disagrees with the source. A bare number is accepted for convenience.
+ */
+export function seasonLabel(season) {
+  if (season == null) return ''
+  if (typeof season === 'number') return `Season ${season}`
+  const name = String(season.name ?? '').trim()
+  if (name) return name
+  return season.season_number == null ? '' : `Season ${season.season_number}`
 }
 
 /**
@@ -234,7 +300,7 @@ export function applyMatch(form, match) {
  * is what left 213 inherited ids unverified, roughly one in twelve of them
  * pointing at a different film.
  */
-export function newFilmRow(form, { id, match = null } = {}) {
+export function newFilmRow(form, { id, match = null, season = null } = {}) {
   const row = formToRow(form)
 
   // Poster columns are absent, not null: a poster is written by the poster
@@ -244,5 +310,17 @@ export function newFilmRow(form, { id, match = null } = {}) {
     id,
     tmdb_id: match ? match.tmdb_id : null,
     tmdb_verified: Boolean(match),
+    // Set only when a human picked the season from TMDB's list, so a number
+    // here is known rather than parsed out of free text. Null makes trigger
+    // warnings fall back to the whole series, which the badge must then say.
+    season_number: seasonNumber(season),
   }
+}
+
+/** The number of a picked season, or null. Season 0 is "Specials" and real. */
+export function seasonNumber(season) {
+  if (season == null) return null
+  if (typeof season === 'number') return Number.isInteger(season) ? season : null
+  const n = season.season_number
+  return Number.isInteger(n) ? n : null
 }
