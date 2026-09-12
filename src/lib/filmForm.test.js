@@ -11,9 +11,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  applyMatch,
+  blankForm,
   changedFields,
   filmToForm,
   formToRow,
+  newFilmRow,
   validateForm,
   withCurrent,
 } from './filmForm.js'
@@ -120,4 +123,90 @@ test('formToRow resolves every editable column to a database-ready value', () =>
   assert.equal(row.vendor, null)
   assert.equal(row.last_watched_on, '2024-01-02')
   assert.deepEqual(row.genres, ['Horror', 'Sci-Fi'])
+})
+
+/* --- adding a new film (§6b step 6, second part) ------------------------- */
+
+const confirmedMatch = {
+  tmdb_id: 348,
+  kind: 'movie',
+  title: 'Alien',
+  year: 1979,
+  poster_url: 'https://image.tmdb.org/t/p/w342/alien.jpg',
+}
+
+test('a blank form carries no values and no arrays borrowed from elsewhere', () => {
+  const a = blankForm()
+  const b = blankForm()
+  assert.equal(a.title, '')
+  assert.equal(a.cost, '')
+  assert.deepEqual(a.genres, [])
+  // Two blank forms must not share one array, or typing in the second window
+  // would change the first.
+  a.genres.push('Horror')
+  assert.deepEqual(b.genres, [])
+})
+
+test('a new row carries the minted id and every editable column', () => {
+  const form = { ...blankForm(), title: 'Alien', cost: '12.50', genres: ['Horror'] }
+  const row = newFilmRow(form, { id: 'uuid-1', match: null })
+
+  assert.equal(row.id, 'uuid-1')
+  assert.equal(row.title, 'Alien')
+  assert.equal(row.cost, 12.5)
+  assert.deepEqual(row.genres, ['Horror'])
+  // Blank stays unknown on an insert exactly as it does on a patch.
+  assert.equal(row.market_value, null)
+  assert.equal(row.vendor, null)
+})
+
+test('a new row never carries a poster column, even with a match confirmed', () => {
+  const row = newFilmRow({ ...blankForm(), title: 'Alien' }, {
+    id: 'uuid-1',
+    match: confirmedMatch,
+  })
+
+  // The match has a poster_url on it; the row must not.
+  for (const column of ['poster_url', 'poster_source', 'poster_storage_path']) {
+    assert.equal(column in row, false, `${column} must not reach the insert`)
+  }
+})
+
+test('tmdb_verified is true only when a human confirmed a candidate', () => {
+  const unmatched = newFilmRow({ ...blankForm(), title: 'Alien' }, { id: 'u', match: null })
+  assert.equal(unmatched.tmdb_id, null)
+  assert.equal(unmatched.tmdb_verified, false)
+
+  const matched = newFilmRow({ ...blankForm(), title: 'Alien' }, {
+    id: 'u',
+    match: confirmedMatch,
+  })
+  assert.equal(matched.tmdb_id, 348)
+  assert.equal(matched.tmdb_verified, true)
+})
+
+test('confirming a match fills an empty year and nothing else', () => {
+  const before = { ...blankForm(), title: 'Alien' }
+  const after = applyMatch(before, confirmedMatch)
+
+  assert.equal(after.year_season, '1979')
+  assert.equal(after.title, 'Alien')
+  // Above all: the poster is not the match's business.
+  assert.equal('poster_url' in after, false)
+})
+
+test('confirming a match never overwrites a year somebody typed', () => {
+  // The box set is a 2003 edition of a 1979 film; the human is right.
+  const typed = { ...blankForm(), title: 'Alien', year_season: '2003' }
+  assert.equal(applyMatch(typed, confirmedMatch).year_season, '2003')
+
+  // And a contents list in that column is certainly not to be replaced.
+  const contents = { ...blankForm(), year_season: 'Alien (1979),\nAliens (1986),' }
+  assert.equal(applyMatch(contents, confirmedMatch).year_season, contents.year_season)
+})
+
+test('a match with no year leaves the form alone', () => {
+  const form = { ...blankForm(), title: 'Some Unreleased Thing' }
+  assert.deepEqual(applyMatch(form, { tmdb_id: 1, title: 'x', year: null }), form)
+  assert.deepEqual(applyMatch(form, null), form)
 })

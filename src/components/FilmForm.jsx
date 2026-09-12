@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { displayTitle } from '../lib/collection.js'
-import { changedFields, filmToForm, validateForm, withCurrent } from '../lib/filmForm.js'
+import {
+  applyMatch,
+  blankForm,
+  changedFields,
+  filmToForm,
+  newFilmRow,
+  validateForm,
+  withCurrent,
+} from '../lib/filmForm.js'
+import TmdbMatch from './TmdbMatch.jsx'
 
 /** A single-value pick list that can still show a value the list has dropped. */
 function PickList({ label, id, value, offered, onChange }) {
@@ -65,26 +74,47 @@ function FieldError({ message }) {
 }
 
 /**
- * Editing one film.
+ * One film's details — a new one, or one that already exists.
  *
- * Saves a patch of only what changed, waits for the database to confirm it,
- * and hands the confirmed row back — the caller never assumes a write worked.
- * Poster and TMDB fields are absent by design; see `lib/filmForm.js`.
+ * Both halves share this form because they are the same twelve columns and the
+ * same rules; what differs is what leaves at the end. Editing sends a patch of
+ * only what changed and waits for the database to confirm it. Adding sends one
+ * complete row, id and all, so a film is never briefly half-written.
+ *
+ * Poster columns are absent from both; see `lib/filmForm.js`. The TMDB match
+ * appears only when adding, because it is the one moment a human is already
+ * deciding what this film is.
  */
-export default function FilmForm({ film, options, onCancel, onSaved }) {
-  const [form, setForm] = useState(() => filmToForm(film))
+export default function FilmForm({ film, options, onCancel, onSaved, onDelete }) {
+  const adding = !film
+
+  const [form, setForm] = useState(() => (film ? filmToForm(film) : blankForm()))
+  const [match, setMatch] = useState(null)
   const [errors, setErrors] = useState({})
   const [saveError, setSaveError] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
   const titleRef = useRef(null)
+
+  // Minted once, here, and kept for the life of this form. The poster upload
+  // (§6b step 7) will want the same id before the row exists, so that a cover
+  // can be stored against the film it belongs to and arrive on the very first
+  // insert rather than in a second write.
+  const draftId = useMemo(() => (adding ? crypto.randomUUID() : null), [adding])
+
+  // Anything in flight freezes the exits: closing a panel whose write is
+  // still unanswered leaves nobody to hear whether it worked.
+  const busy = saving || deleting
 
   const set = (field) => (value) => setForm((f) => ({ ...f, [field]: value }))
 
   useEffect(() => {
     function onKeyDown(e) {
-      // Escape abandons the edit — but not mid-save, when the write is already
+      // Escape abandons the form — but not mid-save, when the write is already
       // in flight and closing would leave nobody watching for its result.
-      if (e.key === 'Escape' && !saving) onCancel()
+      if (e.key === 'Escape' && !busy) onCancel()
     }
     document.addEventListener('keydown', onKeyDown)
     const previousOverflow = document.body.style.overflow
@@ -94,10 +124,13 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [onCancel, saving])
+  }, [onCancel, busy])
 
-  const patch = useMemo(() => changedFields(film, form), [film, form])
-  const dirty = patch !== null
+  const patch = useMemo(
+    () => (film ? changedFields(film, form) : null),
+    [film, form],
+  )
+  const dirty = adding || patch !== null
 
   async function onSubmit(e) {
     e.preventDefault()
@@ -107,28 +140,31 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
-    // Nothing changed: closing is the honest outcome, and writing a row to say
-    // so would only bump updated_at and invite a pointless conflict.
-    if (!patch) {
+    // Editing, with nothing changed: closing is the honest outcome, and
+    // writing a row to say so would only bump updated_at and invite a
+    // pointless conflict.
+    if (!adding && !patch) {
       onCancel()
       return
     }
 
     setSaving(true)
-    const result = await onSaved(patch)
+    const result = await onSaved(adding ? newFilmRow(form, { id: draftId, match }) : patch)
     setSaving(false)
-    // The panel stays open on failure, holding the edit, so a rejected save
+    // The panel stays open on failure, holding the entry, so a rejected save
     // never looks like a successful one and nobody loses their typing.
     if (result?.error) setSaveError(result.error)
   }
 
+  const heading = adding ? 'Add a film' : `Edit “${displayTitle(film.title)}”`
+
   return (
-    <div className="detail-overlay" role="presentation" onClick={() => !saving && onCancel()}>
+    <div className="detail-overlay" role="presentation" onClick={() => !busy && onCancel()}>
       <div
         className="detail-panel"
         role="dialog"
         aria-modal="true"
-        aria-label={`Edit ${displayTitle(film.title)}`}
+        aria-label={heading}
         onClick={(e) => e.stopPropagation()}
       >
         <form className="form-shell" onSubmit={onSubmit}>
@@ -137,18 +173,24 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
               fields scroll under it; the buttons never scroll away. There is
               no separate × — Cancel is the same action, said in a word. */}
           <div className="detail-head form-head">
-            <h2 className="detail-title">Edit “{displayTitle(film.title)}”</h2>
+            <h2 className="detail-title">{heading}</h2>
             <div className="detail-head-actions">
               <button
                 type="button"
                 className="ghost form-action"
                 onClick={onCancel}
-                disabled={saving}
+                disabled={busy}
               >
                 Cancel
               </button>
-              <button type="submit" className="form-action" disabled={saving || !dirty}>
-                {saving ? 'Saving…' : dirty ? 'Save changes' : 'No changes'}
+              <button type="submit" className="form-action" disabled={busy || !dirty}>
+                {saving
+                  ? 'Saving…'
+                  : adding
+                    ? 'Add to the shelf'
+                    : dirty
+                      ? 'Save changes'
+                      : 'No changes'}
               </button>
             </div>
           </div>
@@ -302,12 +344,85 @@ export default function FilmForm({ film, options, onCancel, onSaved }) {
               onChange={set('genres')}
             />
 
+            {adding && (
+              <TmdbMatch
+                title={form.title}
+                year={form.year_season}
+                type={form.type}
+                match={match}
+                onConfirm={(candidate) => {
+                  setMatch(candidate)
+                  // Confirming fills an empty year and nothing else — never
+                  // the poster, never a year somebody already typed.
+                  setForm((f) => applyMatch(f, candidate))
+                }}
+                onClear={() => setMatch(null)}
+              />
+            )}
+
+            {!adding && onDelete && (
+              <div className="form-danger">
+                {deleteError && (
+                  <p className="error" role="alert">
+                    Could not delete: {deleteError}
+                  </p>
+                )}
+
+                {confirmingDelete ? (
+                  <>
+                    {/* The title is spelled out rather than called "this film".
+                        A confirmation that does not name what it is about is
+                        not a confirmation; it is a second button. */}
+                    <p className="form-danger-ask">
+                      Permanently remove <strong>“{displayTitle(film.title)}”</strong>{' '}
+                      from the shelf? This cannot be undone.
+                    </p>
+                    <div className="form-danger-actions">
+                      <button
+                        type="button"
+                        className="ghost form-action"
+                        onClick={() => setConfirmingDelete(false)}
+                        disabled={deleting}
+                      >
+                        Keep it
+                      </button>
+                      <button
+                        type="button"
+                        className="danger form-action"
+                        disabled={deleting}
+                        onClick={async () => {
+                          setDeleteError(null)
+                          setDeleting(true)
+                          const result = await onDelete()
+                          setDeleting(false)
+                          // Same rule as saving: the panel stays put unless
+                          // the database confirmed the row is gone.
+                          if (result?.error) setDeleteError(result.error)
+                        }}
+                      >
+                        {deleting ? 'Removing…' : 'Remove for good'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="ghost form-danger-open"
+                    onClick={() => setConfirmingDelete(true)}
+                    disabled={busy}
+                  >
+                    Remove this film from the shelf
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Said plainly rather than shown as disabled boxes, so neither of
                 these looks like something this form forgot to save. */}
             <p className="form-note muted">
-              The poster and the TMDB match aren’t edited here — a poster is
-              chosen in the poster window, and a TMDB match is set only by
-              confirming a candidate.
+              {adding
+                ? 'The cover is added separately, in the poster window — so a new film starts without one.'
+                : 'The poster and the TMDB match aren’t edited here — a poster is chosen in the poster window, and a TMDB match is set only by confirming a candidate.'}
             </p>
           </div>
         </form>

@@ -7,6 +7,7 @@ import FilterPanel from './components/FilterPanel.jsx'
 import FilmCard from './components/FilmCard.jsx'
 import FilmDetail from './components/FilmDetail.jsx'
 import FilmForm from './components/FilmForm.jsx'
+import OptionsManager from './components/OptionsManager.jsx'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import {
   EMPTY_FILTERS,
@@ -54,6 +55,8 @@ export default function App() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [openFilmId, setOpenFilmId] = useState(null)
   const [editingFilmId, setEditingFilmId] = useState(null)
+  const [addingFilm, setAddingFilm] = useState(false)
+  const [managingOptions, setManagingOptions] = useState(false)
 
   // The add/edit pick lists. Loaded once alongside the collection; a failure
   // here is not fatal to browsing, so it degrades to empty lists and says so
@@ -94,16 +97,14 @@ export default function App() {
     else setFilms(null)
   }, [session, loadFilms])
 
+  const refreshOptions = useCallback(async () => {
+    const { options: loaded } = await loadOptions()
+    if (loaded) setOptions(loaded)
+  }, [])
+
   useEffect(() => {
-    if (!session) return
-    let cancelled = false
-    loadOptions().then(({ options: loaded }) => {
-      if (!cancelled && loaded) setOptions(loaded)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [session])
+    if (session) refreshOptions()
+  }, [session, refreshOptions])
 
   /**
    * Save one film's changed columns.
@@ -129,6 +130,41 @@ export default function App() {
     setFilms((current) =>
       current ? current.map((f) => (f.id === id ? normaliseFilm(data) : f)) : current,
     )
+    return { error: null }
+  }, [])
+
+  /**
+   * Add one film — a single insert carrying the whole row.
+   *
+   * The id was minted in the browser, so this is one statement rather than an
+   * insert followed by a patch: the film either exists complete or does not
+   * exist. A row that is briefly on the shelf with nothing on it is a state
+   * nobody should be able to see, and (once posters land in step 7) a state
+   * where a cover could be uploaded against a film that never arrived.
+   *
+   * The stored row is what goes into state, never the form's hopeful copy —
+   * so a default the database applied is visible immediately.
+   */
+  const addFilm = useCallback(async (row) => {
+    const { data, error } = await supabase
+      .from('films')
+      .insert(row)
+      .select(FILM_COLUMNS)
+      .single()
+
+    if (error) return { error: error.message, film: null }
+
+    const film = normaliseFilm(data)
+    setFilms((current) => (current ? [...current, film] : current))
+    return { error: null, film }
+  }, [])
+
+  /** Remove one named row, and only once the database says it is gone. */
+  const deleteFilm = useCallback(async (id) => {
+    const { error } = await supabase.from('films').delete().eq('id', id)
+    if (error) return { error: error.message }
+
+    setFilms((current) => (current ? current.filter((f) => f.id !== id) : current))
     return { error: null }
   }, [])
 
@@ -175,6 +211,9 @@ export default function App() {
         <h1>The Shelf</h1>
         <div className="bar-right">
           <span className="muted">{session.user.email}</span>
+          <button className="ghost" onClick={() => setManagingOptions(true)}>
+            Pick lists
+          </button>
           <button className="ghost" onClick={() => supabase.auth.signOut()}>
             Sign out
           </button>
@@ -222,6 +261,10 @@ export default function App() {
                   ))}
                 </select>
 
+                <button type="button" className="add-film" onClick={() => setAddingFilm(true)}>
+                  <span aria-hidden="true">+</span> Add film
+                </button>
+
                 <button
                   type="button"
                   className={'ghost filter-toggle' + (activeFilterCount ? ' has-filters' : '')}
@@ -266,7 +309,7 @@ export default function App() {
         )}
       </main>
 
-      {openFilm && !editingFilm && (
+      {openFilm && !editingFilm && !addingFilm && (
         <FilmDetail
           film={openFilm}
           onClose={() => setOpenFilmId(null)}
@@ -286,6 +329,42 @@ export default function App() {
             if (!result.error) setEditingFilmId(null)
             return result
           }}
+          onDelete={async () => {
+            const result = await deleteFilm(editingFilm.id)
+            // Both panels close together: the detail behind this one is about
+            // a film that no longer exists.
+            if (!result.error) {
+              setEditingFilmId(null)
+              setOpenFilmId(null)
+            }
+            return result
+          }}
+        />
+      )}
+
+      {addingFilm && (
+        <FilmForm
+          film={null}
+          options={options}
+          onCancel={() => setAddingFilm(false)}
+          onSaved={async (row) => {
+            const result = await addFilm(row)
+            // The new film opens on success, so the thing just added is the
+            // thing on screen — and its missing cover is visible immediately
+            // rather than discovered later.
+            if (!result.error) {
+              setAddingFilm(false)
+              setOpenFilmId(result.film.id)
+            }
+            return result
+          }}
+        />
+      )}
+
+      {managingOptions && (
+        <OptionsManager
+          onClose={() => setManagingOptions(false)}
+          onChanged={refreshOptions}
         />
       )}
 

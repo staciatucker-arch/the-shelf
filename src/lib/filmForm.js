@@ -189,3 +189,60 @@ export function withCurrent(offered, current) {
   const extras = (current ?? []).filter((value) => value && !offered.includes(value))
   return [...offered, ...extras.sort((a, b) => a.localeCompare(b))]
 }
+
+/* ---------------------------------------------------------------------------
+   Adding a new film (§6b step 6, second part)
+   ------------------------------------------------------------------------ */
+
+/** A form holding nothing — the starting state for a new film. */
+export function blankForm() {
+  return filmToForm({})
+}
+
+/**
+ * What a confirmed TMDB match is allowed to change about the form.
+ *
+ * Only the year, and only when the box is empty. Two deliberate limits:
+ *
+ *   It never touches the poster. Confirming "this is Alien (1979)" says what
+ *   the film *is*; it says nothing about which picture belongs on the shelf,
+ *   and a scan beats TMDB art permanently rather than until the next time
+ *   somebody confirms a match (HANDOFF, "Identity and artwork").
+ *
+ *   It never overwrites something a person typed. A year already in the box
+ *   is a human statement about a specific edition; TMDB's is a guess about
+ *   which record matched. Filling a blank is help, replacing an answer is not.
+ */
+export function applyMatch(form, match) {
+  if (!match || match.year == null) return form
+  if (String(form.year_season ?? '').trim() !== '') return form
+  return { ...form, year_season: String(match.year) }
+}
+
+/**
+ * The complete row for a brand-new film — written once, with everything on it.
+ *
+ * The id is minted here, in the browser, rather than left to the database's
+ * default. That is what lets the insert be a single statement carrying the
+ * title, the pick lists, the confirmed match and (later, §6b step 7) a poster
+ * already uploaded against this id — instead of an insert followed by a patch.
+ * A half-written film that exists for a moment with nothing on it is the
+ * failure mode this shape rules out.
+ *
+ * `tmdb_verified` is true only when a human confirmed a candidate, and false
+ * otherwise. It is never set as a side effect of anything else: that coupling
+ * is what left 213 inherited ids unverified, roughly one in twelve of them
+ * pointing at a different film.
+ */
+export function newFilmRow(form, { id, match = null } = {}) {
+  const row = formToRow(form)
+
+  // Poster columns are absent, not null: a poster is written by the poster
+  // modal, which sets url, source and storage path together or not at all.
+  return {
+    ...row,
+    id,
+    tmdb_id: match ? match.tmdb_id : null,
+    tmdb_verified: Boolean(match),
+  }
+}

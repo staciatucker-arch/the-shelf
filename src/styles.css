@@ -707,3 +707,147 @@ button.ghost {
   font-size: 0.85rem;
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------------------------
+   Adding a film, deleting one, and the pick lists (§6b step 6)
+   --------------------------------------------------------------------------- */
+
+/* Four controls do not fit on one 320px line, so they wrap rather than
+   squeezing the sort menu down to an arrow. */
+.controls-row { flex-wrap: wrap; }
+
+.add-film {
+  margin-top: 0;
+  min-height: 40px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* --- the TMDB match block ---------------------------------------------- */
+
+.tmdb-block { margin-top: 1.4rem; }
+.tmdb-lead { margin: 0 0 0.7rem; }
+.tmdb-block .form-action { margin-top: 0; }
+
+.tmdb-confirmed {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.tmdb-confirmed .form-hint { margin-top: 0.2rem; }
+
+.tmdb-results {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+  /* Eight candidates with artwork is taller than a phone; the list scrolls
+     inside the form rather than burying the rest of the fields. */
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.tmdb-candidate {
+  margin-top: 0;
+  width: 100%;
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.5rem;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  font-weight: 400;
+  font-size: 0.85rem;
+  min-height: 0;
+}
+.tmdb-candidate:hover { border-color: var(--accent); }
+
+.tmdb-candidate img,
+.tmdb-noart {
+  flex: none;
+  width: 46px;
+  height: 69px; /* the 2:3 every poster is cropped to elsewhere */
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--tag-bg);
+}
+
+.tmdb-candidate-text { display: block; min-width: 0; }
+.tmdb-candidate-title { display: block; font-weight: 600; }
+.tmdb-candidate-blurb {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+/* --- removing a film ---------------------------------------------------- */
+
+button.danger {
+  background: var(--danger);
+  color: #2a0b0b;
+}
+
+.form-danger {
+  margin-top: 1.6rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.form-danger-open {
+  margin-top: 0;
+  width: 100%;
+  color: var(--danger);
+  font-size: 0.85rem;
+  min-height: 40px;
+}
+.form-danger-ask { margin: 0 0 0.75rem; font-size: 0.88rem; line-height: 1.5; }
+.form-danger-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.form-danger-actions .form-action { flex: 1 1 auto; }
+
+/* --- the pick-list manager ---------------------------------------------- */
+
+.option-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+}
+.option-add input { margin-top: 0; }
+.option-add .form-action { margin-top: 0; flex: none; }
+
+.option-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.7rem;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+/* Archived reads as set aside, not as deleted — it is still a real value on
+   real films, and the count beside it says so. */
+.option-row.is-archived { opacity: 0.62; }
+.option-row.is-drifted { border-color: var(--accent); }
+
+.option-name { min-width: 0; }
+.option-meta { display: block; font-size: 0.72rem; margin-top: 0.1rem; }
+
+.option-actions { display: flex; gap: 0.4rem; flex: none; }
+.option-actions .form-action { margin-top: 0; min-height: 34px; font-size: 0.78rem; padding: 0.25rem 0.6rem; }
+.option-delete { color: var(--danger); }
