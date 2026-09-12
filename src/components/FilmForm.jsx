@@ -298,9 +298,6 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
                 </label>
               </div>
             </div>
-            <p className="form-hint muted">
-              Both optional. A season shows on the card instead of the year.
-            </p>
 
             {adding && (
               <TmdbMatch

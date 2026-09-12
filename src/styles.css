@@ -887,3 +887,15 @@ button.danger {
   line-height: 1.45;
 }
 .form-callout .form-section-title { margin: 0; }
+
+/* Search TMDB: the primary action of the top section, so it carries the same
+   gold as "Add to the shelf" rather than the ghost outline it had. Dropping
+   `ghost` is what makes it gold; this adds the weight and the width. */
+.tmdb-search {
+  font-weight: 700;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+@media (min-width: 560px) {
+  .tmdb-search { width: auto; min-width: 190px; }
+}

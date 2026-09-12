@@ -31,6 +31,10 @@ export default function TmdbMatch({
 
   async function runSearch() {
     setError(null)
+    if (queryTitle === '') {
+      setError('Type a title above first.')
+      return
+    }
     setSearching(true)
     const result = await searchTmdb({ title: queryTitle, year, type })
     setSearching(false)
@@ -142,30 +146,29 @@ export default function TmdbMatch({
     )
   }
 
+  // No legend and no lead paragraph: the callout at the top of the form
+  // already says what matching is for and that it does not touch the cover.
+  // Saying it twice on one screen made the second one furniture. The
+  // affordance that had to survive — that leaving a film unmatched is a real
+  // answer — is said where it is actually needed, beside the results and
+  // beside an empty result.
   return (
     <fieldset className="form-fieldset tmdb-block">
-      <legend>Which film is this?</legend>
-
-      <p className="form-hint muted tmdb-lead">
-        Matching a title to TMDB is what lets the app look up trigger warnings
-        later. It doesn’t change the cover. You can leave it unmatched.
-      </p>
-
+      {/* Enabled even with an empty title, and says why on the press. A
+          disabled button with its explanation removed is a dead end: nothing
+          happens and nothing tells you what to do about it. */}
       <button
         type="button"
-        className="ghost form-action"
+        className="form-action tmdb-search"
         onClick={runSearch}
-        disabled={searching || queryTitle === ''}
+        disabled={searching}
       >
         {searching ? 'Searching…' : candidates ? 'Search again' : 'Search TMDB'}
       </button>
-      {queryTitle === '' && (
-        <p className="form-hint muted">Type a title above first.</p>
-      )}
 
       {error && (
         <p className="error" role="alert">
-          Could not reach TMDB: {error}
+          {error === 'Type a title above first.' ? error : `Could not reach TMDB: ${error}`}
         </p>
       )}
 
