@@ -235,6 +235,28 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
             </label>
             <FieldError message={errors.title} />
 
+            {/* Type sits here, above the search, because it decides WHICH
+                CATALOGUE is searched — TMDB keeps films and television in
+                separate id namespaces and the same number means different
+                things in each. It was below the search until 2026-09-12, and
+                a search for "Buffy" duly returned the 1992 film rather than
+                the 1997 series, because nobody had been shown this control
+                yet. Three of the confirmed-wrong inherited ids are this same
+                mistake. */}
+            <PickList
+              label="Type"
+              id="film-type"
+              value={form.type}
+              offered={options.type}
+              onChange={set('type')}
+            />
+            {adding && (
+              <p className="form-hint muted">
+                Set this first. <strong>Series</strong> searches television,
+                anything else searches film — the same title can be both.
+              </p>
+            )}
+
             {/* Year and season are separate fields as of 2026-09-12. One box
                 doing both jobs misled a person in use: "Season 1" typed into a
                 field that TMDB search reads as a year. Only the year is ever
@@ -274,6 +296,14 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
             <p className="form-hint muted">
               Both optional. A season shows on the card instead of the year —
               “Season 2” rather than the year the show began.
+              {adding && (
+                <>
+                  {' '}
+                  <strong>Only the year is sent to TMDB.</strong> TMDB
+                  catalogues shows, not seasons, so pick the season below
+                  after matching rather than typing it here.
+                </>
+              )}
             </p>
 
             {adding && (
@@ -379,13 +409,6 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               value={form.status}
               offered={options.status}
               onChange={set('status')}
-            />
-            <PickList
-              label="Type"
-              id="film-type"
-              value={form.type}
-              offered={options.type}
-              onChange={set('type')}
             />
             <PickList
               label="Bought from"
