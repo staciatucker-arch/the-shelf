@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Login from './components/Login.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import UpdateBanner from './components/UpdateBanner.jsx'
 import StatsBar from './components/StatsBar.jsx'
 import FilterPanel from './components/FilterPanel.jsx'
@@ -44,6 +45,15 @@ const FILM_COLUMNS = [
   'tmdb_id',
   'tmdb_verified',
 ].join(',')
+
+/* What a crashed form says about a save that may or may not have happened.
+   The one thing it must never do is imply the save succeeded: a write can be
+   in flight when the panel dies, and "saved" would be a guess. "Unknown" is
+   the honest word, and it tells somebody what to actually do about it. */
+const SAVE_UNKNOWN =
+  'The rest of the collection is fine — only this window stopped working. ' +
+  'If you were part-way through saving, whether it went through is unknown: ' +
+  'reload and check the film before entering it again.'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -313,62 +323,96 @@ export default function App() {
       </main>
 
       {openFilm && !editingFilm && !addingFilm && (
-        <FilmDetail
-          film={openFilm}
-          onClose={() => setOpenFilmId(null)}
-          onEdit={() => setEditingFilmId(openFilm.id)}
-        />
+        <ErrorBoundary
+          key={`detail-${openFilm.id}`}
+          overlay
+          title="This film’s details stopped working."
+          detail="The rest of the collection is fine — only this window broke. Nothing was being saved, so nothing has changed."
+          onDismiss={() => setOpenFilmId(null)}
+          dismissLabel="Close"
+        >
+          <FilmDetail
+            film={openFilm}
+            onClose={() => setOpenFilmId(null)}
+            onEdit={() => setEditingFilmId(openFilm.id)}
+          />
+        </ErrorBoundary>
       )}
 
       {editingFilm && (
-        <FilmForm
-          film={editingFilm}
-          options={options}
-          onCancel={() => setEditingFilmId(null)}
-          onSaved={async (patch) => {
-            const result = await saveFilm(editingFilm.id, patch)
-            // Closed only on a confirmed write. A failed save leaves the form
-            // open with the edit still in it.
-            if (!result.error) setEditingFilmId(null)
-            return result
-          }}
-          onDelete={async () => {
-            const result = await deleteFilm(editingFilm.id)
-            // Both panels close together: the detail behind this one is about
-            // a film that no longer exists.
-            if (!result.error) {
-              setEditingFilmId(null)
-              setOpenFilmId(null)
-            }
-            return result
-          }}
-        />
+        <ErrorBoundary
+          key={`edit-${editingFilm.id}`}
+          overlay
+          title="The edit form stopped working."
+          detail={SAVE_UNKNOWN}
+          onDismiss={() => setEditingFilmId(null)}
+          dismissLabel="Close the form"
+        >
+          <FilmForm
+            film={editingFilm}
+            options={options}
+            onCancel={() => setEditingFilmId(null)}
+            onSaved={async (patch) => {
+              const result = await saveFilm(editingFilm.id, patch)
+              // Closed only on a confirmed write. A failed save leaves the form
+              // open with the edit still in it.
+              if (!result.error) setEditingFilmId(null)
+              return result
+            }}
+            onDelete={async () => {
+              const result = await deleteFilm(editingFilm.id)
+              // Both panels close together: the detail behind this one is about
+              // a film that no longer exists.
+              if (!result.error) {
+                setEditingFilmId(null)
+                setOpenFilmId(null)
+              }
+              return result
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {addingFilm && (
-        <FilmForm
-          film={null}
-          options={options}
-          onCancel={() => setAddingFilm(false)}
-          onSaved={async (row) => {
-            const result = await addFilm(row)
-            // The new film opens on success, so the thing just added is the
-            // thing on screen — and its missing cover is visible immediately
-            // rather than discovered later.
-            if (!result.error) {
-              setAddingFilm(false)
-              setOpenFilmId(result.film.id)
-            }
-            return result
-          }}
-        />
+        <ErrorBoundary
+          overlay
+          title="The add form stopped working."
+          detail={SAVE_UNKNOWN}
+          onDismiss={() => setAddingFilm(false)}
+          dismissLabel="Close the form"
+        >
+          <FilmForm
+            film={null}
+            options={options}
+            onCancel={() => setAddingFilm(false)}
+            onSaved={async (row) => {
+              const result = await addFilm(row)
+              // The new film opens on success, so the thing just added is the
+              // thing on screen — and its missing cover is visible immediately
+              // rather than discovered later.
+              if (!result.error) {
+                setAddingFilm(false)
+                setOpenFilmId(result.film.id)
+              }
+              return result
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {managingOptions && (
-        <OptionsManager
-          onClose={() => setManagingOptions(false)}
-          onChanged={refreshOptions}
-        />
+        <ErrorBoundary
+          overlay
+          title="Pick lists stopped working."
+          detail="The rest of the collection is fine. If you were part-way through adding or renaming a value, whether it went through is unknown — reopen Pick lists and check before trying again."
+          onDismiss={() => setManagingOptions(false)}
+          dismissLabel="Close"
+        >
+          <OptionsManager
+            onClose={() => setManagingOptions(false)}
+            onChanged={refreshOptions}
+          />
+        </ErrorBoundary>
       )}
 
       <UpdateBanner />
