@@ -279,13 +279,18 @@ test('a match patch never carries a poster or an editable field', () => {
 
 /* --- what a confirmed match fills in, and what it says about it ---------- */
 
+/* The shelf's genre list, abridged. Passed in explicitly because the mapping
+   follows the LIVE list rather than a table in the source — see
+   lib/tmdbGenres.js. Omitting it maps nothing, which is the point. */
+const GENRE_LIST = ['action', 'adventure', 'drama', 'fantasy', 'sci-fi', 'vampire']
+
 test('a match adds genres but never unticks one somebody chose', () => {
   const form = { ...blankForm(), genres: ['vampire'] }
   const next = applyMatch(form, {
     tmdb_id: 95,
     title: 'Buffy the Vampire Slayer',
     genres: [{ name: 'Drama' }, { name: 'Sci-Fi & Fantasy' }],
-  })
+  }, { genreOptions: GENRE_LIST })
   assert.equal(next.genres.includes('vampire'), true, 'a chosen genre survives')
   assert.deepEqual(next.genres, ['vampire', 'drama', 'sci-fi', 'fantasy'])
 })
@@ -294,13 +299,15 @@ test('a match with no genre list leaves the genres alone', () => {
   // `tmdb-search` omits `genres` until it is redeployed to include them, and
   // an absent list must not read as "this film has no genres".
   const form = { ...blankForm(), genres: ['vampire'] }
-  const next = applyMatch(form, { tmdb_id: 95, title: 'Buffy the Vampire Slayer' })
+  const next = applyMatch(form, { tmdb_id: 95, title: 'Buffy the Vampire Slayer' },
+    { genreOptions: GENRE_LIST })
   assert.deepEqual(next.genres, ['vampire'])
 })
 
 test('a genre the shelf has no word for never reaches the form', () => {
   const form = blankForm()
-  const next = applyMatch(form, { tmdb_id: 1, title: 'x', genres: [{ name: 'Horror' }] })
+  const next = applyMatch(form, { tmdb_id: 1, title: 'x', genres: [{ name: 'Horror' }] },
+    { genreOptions: GENRE_LIST })
   assert.deepEqual(next.genres, [])
 })
 
@@ -311,7 +318,7 @@ test('the receipt names what the match actually changed', () => {
     title: 'Buffy the Vampire Slayer',
     year: 1997,
     genres: [{ name: 'Drama' }, { name: 'Action & Adventure' }],
-  })
+  }, { genreOptions: GENRE_LIST })
   assert.deepEqual(describeFill(before, after), ['the title', 'the year', '3 genres'])
 })
 
@@ -324,7 +331,8 @@ test('the receipt says nothing about a year somebody typed themselves', () => {
 
 test('one genre is said as "one genre", not "1 genres"', () => {
   const before = blankForm()
-  const after = applyMatch(before, { tmdb_id: 1, title: 'x', genres: [{ name: 'Drama' }] })
+  const after = applyMatch(before, { tmdb_id: 1, title: 'x', genres: [{ name: 'Drama' }] },
+    { genreOptions: GENRE_LIST })
   assert.deepEqual(describeFill(before, after), ['the title', 'one genre'])
 })
 

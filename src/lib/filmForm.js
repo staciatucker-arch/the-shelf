@@ -260,10 +260,14 @@ export function blankForm() {
  *
  *   **Genres are added, never removed.** TMDB's genres are broad and the
  *   shelf's are personal, so a match may only ever suggest: anything already
- *   ticked stays ticked, whatever TMDB thinks. `lib/tmdbGenres.js` holds which
- *   of its genres the shelf has a word for, and which are left alone.
+ *   ticked stays ticked, whatever TMDB thinks.
+ *
+ *   `genreOptions` is the shelf's **live** genre list, and passing it is what
+ *   makes the mapping follow the list rather than a table in the source. Left
+ *   out, nothing maps — which is the right answer for a caller that does not
+ *   know what genres exist, and never a reason to fall back on a guess.
  */
-export function applyMatch(form, match, { season = null } = {}) {
+export function applyMatch(form, match, { season = null, genreOptions = null } = {}) {
   if (!match) return form
   const next = { ...form }
 
@@ -278,10 +282,11 @@ export function applyMatch(form, match, { season = null } = {}) {
   // A season is a deliberate choice made a moment ago, so it wins outright.
   if (season != null) next.season = seasonLabel(season)
 
-  // Only ever what TMDB actually sent. `tmdb-search` omits `genres` entirely
-  // until it is redeployed to include them, and an absent list has to add
-  // nothing rather than read as "this film has no genres".
-  const gained = genresToAdd(form.genres, match.genres)
+  // Only ever what TMDB actually sent, and only what this shelf has a word
+  // for. `tmdb-search` omits `genres` entirely until it is redeployed to
+  // include them, and an absent list has to add nothing rather than read as
+  // "this film has no genres".
+  const gained = genresToAdd(form.genres, match.genres, genreOptions)
   if (gained.length > 0) next.genres = [...(form.genres ?? []), ...gained]
 
   return next

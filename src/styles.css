@@ -997,11 +997,82 @@ button.danger {
   color: var(--accent);
 }
 
-/* A genre the confirmed match ticked. Marked rather than merely checked, so
-   nothing arrives on the row without saying where it came from. */
-.check-item.from-tmdb {
+/* --- a long list, shown as what you chose ------------------------------- */
+
+/* Genres is forty-seven values; as a checkbox grid that is ~900px on a phone,
+   two and a half screens of boxes in the middle of the form. This shows the
+   chosen ones and finds the rest by typing, so what is on screen is
+   proportional to what you picked rather than to how long the list has grown.
+   Formats, at five, keeps its checkboxes — it was never the problem. */
+.token-field { padding-bottom: 0.9rem; }
+.token-count { color: var(--accent); text-transform: none; letter-spacing: 0; }
+
+.token-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+/* A chosen value. It is a button because pressing it removes it — the × is
+   the affordance, and the whole chip is the target, which at 360px matters
+   more than a 10px glyph would. */
+.token-chip {
+  margin: 0;
+  min-height: 32px;
+  padding: 0.25rem 0.5rem 0.25rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--tag-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.token-chip:hover { border-color: var(--red); }
+.token-x { color: var(--muted); font-size: 1rem; line-height: 1; }
+.token-chip:hover .token-x { color: var(--red); }
+
+/* Ticked by a confirmed match rather than by a person. Marked, so nothing
+   arrives on the row without saying where it came from. */
+.token-chip.is-auto {
+  border-color: var(--accent);
   color: var(--accent);
-  font-weight: 600;
+  background: var(--accent-glow);
+}
+
+.token-search { margin-top: 0; }
+.token-input { margin-top: 0; }
+
+.token-matches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+}
+
+.token-option {
+  margin: 0;
+  min-height: 32px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--text);
+  background: transparent;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.token-option:hover { border-style: solid; border-color: var(--accent); color: var(--accent); }
+
+.token-toggle {
+  margin-top: 0.6rem;
+  min-height: 34px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
 }
 
 /* Re-match / Clear, on a film that already carries a TMDB id. */

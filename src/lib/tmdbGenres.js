@@ -1,40 +1,40 @@
 // TMDB's genre vocabulary, translated into the shelf's own.
 //
 // These are two different lists written by different people for different
-// reasons. TMDB has 19 broad genres for every film ever made; the shelf has 47
-// that describe what Stacia and Ingrid actually sort by — `slasher`, `kaiju`,
-// `mecha`, `school life`, `time travel`. The overlap is real but partial, and
-// this module is deliberately the only place that knows how they line up.
+// reasons. TMDB has nineteen broad genres for every film ever made; the shelf
+// has its own, describing what Stacia and Ingrid actually sort by — `slasher`,
+// `kaiju`, `mecha`, `school life`, `time travel`.
 //
-// **Only names already on the shelf's list appear on the right.** A mapping
-// that invented a genre would put a value on a film that no filter offers and
-// no option list contains, which is how a tag becomes unfindable.
+// **The shelf's list is read from the database, never hardcoded here.** That
+// is the whole design. An earlier version of this file listed all thirteen
+// mappings by hand, which meant the translation lived in code while the genre
+// list lived in the `options` table — so adding `horror` through Manage lists
+// did nothing until somebody edited this file and redeployed the app. The two
+// drifted apart by construction.
 //
-// What TMDB says and the shelf has no word for — Horror, Thriller, Family,
-// Western, Music, TV Movie — is absent on purpose, not forgotten. See
-// UNMAPPED below.
+// Now a TMDB genre is matched against the shelf's actual list **by name**, and
+// the table below holds only the genuine exceptions: the handful where the two
+// lists use different words for the same thing, or where TMDB pairs two of the
+// shelf's genres into one of its own. Everything else needs no rule at all,
+// and a genre added to the list starts mapping the moment it is saved — no
+// code change, no deploy.
 
 /**
- * TMDB genre name → the shelf's genre, or genres.
+ * The only genres that need a rule written down.
  *
- * Television is the reason some entries are arrays: TMDB's TV list pairs
- * genres that its film list keeps apart ("Sci-Fi & Fantasy"), and a show
- * tagged with the pair is honestly both.
+ * Everything absent from this table is matched by name instead, so this stays
+ * short on purpose: each entry is a place where TMDB and the shelf genuinely
+ * disagree about wording, not a place where they happen to agree.
+ *
+ * The arrays are why television needs its own entries: TMDB's TV list pairs
+ * genres that its film list keeps apart, and a show tagged "Sci-Fi & Fantasy"
+ * is honestly both.
+ *
+ * A rule's targets are still checked against the live list — a rule may not
+ * conjure a genre that has been archived or was never there.
  */
-export const TMDB_TO_SHELF = {
-  // Straight through — same word on both lists.
-  Action: ['action'],
-  Adventure: ['adventure'],
-  Comedy: ['comedy'],
-  Crime: ['crime'],
-  Documentary: ['documentary'],
-  Drama: ['drama'],
-  Fantasy: ['fantasy'],
-  Mystery: ['mystery'],
-  Romance: ['romance'],
-  War: ['war'],
-
-  // The same genre under a different name.
+export const RENAMES = {
+  // The same genre, a different word.
   Animation: ['animated'],
   History: ['historical'],
   'Science Fiction': ['sci-fi'],
@@ -46,68 +46,74 @@ export const TMDB_TO_SHELF = {
 }
 
 /**
- * TMDB genres the shelf has no equivalent for, and why each is left alone.
+ * TMDB categories that are not genres at all, dropped without comment.
  *
- * Exported so the decision is visible in the code rather than implied by an
- * absence — and so that adding one later is a deliberate edit here plus a new
- * value on the `genre` option list, never a silent behaviour change.
- *
- *   Horror     — the shelf splits this into `slasher`, `zombie`, `creature`,
- *                `paranormal`, `supernatural` and `psychological`, which is
- *                more useful than the blunt label. Guessing which one TMDB
- *                meant would be wrong more often than right.
- *   Thriller   — no equivalent, and the nearest words on the list
- *                (`psychological`, `crime`) mean something narrower.
- *   Music      — TMDB uses it for both concert films and films about music;
- *                the shelf's `concert` and `musical` are each narrower than
- *                that, so either guess would be wrong about half the time.
- *   Family     — no equivalent.
- *   Western    — no equivalent.
- *   'TV Movie' — a format, not a genre.
- *   Kids, News, Reality, Soap, Talk — television categories for programming
- *                this collection does not hold.
+ * Everything else that fails to match is *reported* rather than discarded, so
+ * the form can say "TMDB also called this Horror, which isn't on your list"
+ * and the gap becomes a prompt instead of a silent loss. These would only ever
+ * be noise: "TV Movie" is a format, and the rest are television programming
+ * categories for things this collection does not hold.
  */
-export const UNMAPPED = [
-  'Horror',
-  'Thriller',
-  'Music',
-  'Family',
-  'Western',
-  'TV Movie',
-  'Kids',
-  'News',
-  'Reality',
-  'Soap',
-  'Talk',
-]
+export const IGNORED = ['TV Movie', 'Kids', 'News', 'Reality', 'Soap', 'Talk']
+
+/** The name as it is compared: case and surrounding space carry no meaning. */
+const key = (value) => String(value ?? '').trim().toLowerCase()
 
 /**
- * The shelf genres a TMDB record implies — de-duplicated, order preserved.
+ * What a TMDB record's genres mean on this shelf.
  *
- * Takes whatever TMDB returned: `[{ id, name }]` from a lookup, or bare
- * strings. Anything unrecognised is dropped rather than passed through, so a
- * genre TMDB adds next year cannot arrive on a film as a value nothing on the
- * shelf offers.
+ * Takes whatever TMDB returned — `[{ id, name }]` from a lookup, or bare
+ * strings — together with **the shelf's current genre list**, and returns:
+ *
+ *   `matched`   — the shelf's own genres, in the shelf's own spelling
+ *   `unmatched` — TMDB's names that this list has no word for
+ *
+ * Nothing is ever invented. A name that matches nothing is reported, never
+ * passed through, because a genre no filter offers and no option list contains
+ * is a tag nobody can ever find again.
  */
-export function shelfGenresFor(tmdbGenres) {
-  const out = []
+export function mapTmdbGenres(tmdbGenres, offered) {
+  // The shelf's own spelling, found by a case-insensitive name. Built from the
+  // live list, so what is mappable today depends on what is on the list today.
+  const bySpelling = new Map()
+  for (const value of offered ?? []) {
+    if (value) bySpelling.set(key(value), value)
+  }
+
+  const ignored = new Set(IGNORED.map(key))
+  const matched = []
+  const unmatched = []
+
   for (const entry of tmdbGenres ?? []) {
-    const name = typeof entry === 'string' ? entry : entry?.name
-    for (const shelf of TMDB_TO_SHELF[String(name ?? '').trim()] ?? []) {
-      if (!out.includes(shelf)) out.push(shelf)
+    const name = String((typeof entry === 'string' ? entry : entry?.name) ?? '').trim()
+    if (name === '' || ignored.has(key(name))) continue
+
+    // A rule first, if there is one — then, and only then, the name itself.
+    const rule = RENAMES[name]
+    const hits = rule
+      ? rule.map((g) => bySpelling.get(key(g))).filter(Boolean)
+      : [bySpelling.get(key(name))].filter(Boolean)
+
+    if (hits.length === 0) {
+      if (!unmatched.includes(name)) unmatched.push(name)
+      continue
+    }
+    for (const hit of hits) {
+      if (!matched.includes(hit)) matched.push(hit)
     }
   }
-  return out
+
+  return { matched, unmatched }
 }
 
 /**
  * The genres a match would add to what somebody has already ticked.
  *
- * Additive only, and that is the whole point: a confirmed match may suggest,
- * but it may never untick a genre a person chose. Returns just the new ones,
- * so the form can say how many arrived and mark which they were.
+ * Additive only, and that is the point: a confirmed match may suggest, but it
+ * may never untick a genre a person chose. TMDB knows nothing about why
+ * somebody tagged a film `vampire`.
  */
-export function genresToAdd(current, tmdbGenres) {
+export function genresToAdd(current, tmdbGenres, offered) {
   const have = current ?? []
-  return shelfGenresFor(tmdbGenres).filter((g) => !have.includes(g))
+  return mapTmdbGenres(tmdbGenres, offered).matched.filter((g) => !have.includes(g))
 }

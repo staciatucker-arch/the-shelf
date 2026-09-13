@@ -11,6 +11,7 @@ import {
   validateForm,
   withCurrent,
 } from '../lib/filmForm.js'
+import { mapTmdbGenres } from '../lib/tmdbGenres.js'
 import TmdbMatch from './TmdbMatch.jsx'
 
 /** A single-value pick list that can still show a value the list has dropped. */
@@ -84,9 +85,8 @@ function FieldError({ message }) {
 }
 
 /** A multi-value pick list, matching the filter panel's checkbox idiom. */
-function CheckList({ label, selected, offered, onChange, note, highlight }) {
+function CheckList({ label, selected, offered, onChange, note }) {
   const choices = withCurrent(offered, selected)
-  const lit = highlight ?? []
 
   function toggle(choice) {
     onChange(
@@ -104,10 +104,7 @@ function CheckList({ label, selected, offered, onChange, note, highlight }) {
       ) : (
         <div className="check-grid">
           {choices.map((choice) => (
-            <label
-              className={`check-item${lit.includes(choice) ? ' from-tmdb' : ''}`}
-              key={choice}
-            >
+            <label className="check-item" key={choice}>
               <input
                 type="checkbox"
                 checked={selected.includes(choice)}
@@ -118,6 +115,144 @@ function CheckList({ label, selected, offered, onChange, note, highlight }) {
           ))}
         </div>
       )}
+      {note && <p className="form-hint muted">{note}</p>}
+    </fieldset>
+  )
+}
+
+/** How many matches are listed before the rest are left to the filter box. */
+const MATCH_LIMIT = 14
+
+/**
+ * A long multi-value list, shown as what you chose rather than what you could.
+ *
+ * The genre list is forty-seven values. As a checkbox grid that is two columns
+ * by twenty-four rows — roughly 900px on a 360px phone, about two and a half
+ * screens of checkboxes sitting in the middle of the form, and far and away
+ * the heaviest thing on it. Formats, at five, has no such problem and keeps
+ * its checkboxes.
+ *
+ * A native `<select multiple>` would be worse rather than better: on a phone
+ * it is a cramped scrolling list that never shows what is already chosen, and
+ * on a desktop it needs ⌘-click to pick a second value and silently discards
+ * the first when somebody does not know that. It also has nowhere to mark
+ * which values arrived from TMDB.
+ *
+ * So: the chosen values sit at the top as chips you can remove, a filter box
+ * finds the rest by typing, and the whole list is one press away for browsing.
+ * What is on screen is proportional to what you picked, not to how long the
+ * list has grown.
+ */
+function TokenPicker({ id, label, selected, offered, onChange, highlight, note }) {
+  const [query, setQuery] = useState('')
+  const [showAll, setShowAll] = useState(false)
+  const choices = withCurrent(offered, selected)
+  const lit = highlight ?? []
+
+  const unpicked = choices.filter((c) => !selected.includes(c))
+  const q = query.trim().toLowerCase()
+  const hits = q === '' ? unpicked : unpicked.filter((c) => c.toLowerCase().includes(q))
+  // With nothing typed the list stays shut unless somebody asks for it, which
+  // is the point of the control; typing opens it on what was typed.
+  const visible = q === '' && !showAll ? [] : hits.slice(0, MATCH_LIMIT)
+  const hidden = (q === '' && !showAll ? 0 : hits.length) - visible.length
+
+  function add(choice) {
+    onChange([...selected, choice])
+    setQuery('')
+  }
+
+  return (
+    <fieldset className="form-fieldset token-field">
+      <legend>
+        {label}
+        {selected.length > 0 && (
+          <span className="token-count"> — {selected.length} chosen</span>
+        )}
+      </legend>
+
+      {selected.length > 0 && (
+        <div className="token-chips">
+          {selected.map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              className={`token-chip${lit.includes(choice) ? ' is-auto' : ''}`}
+              onClick={() => onChange(selected.filter((v) => v !== choice))}
+            >
+              {choice}
+              <span className="token-x" aria-hidden="true">×</span>
+              <span className="sr-only"> — remove</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {choices.length === 0 ? (
+        <p className="muted form-hint">No values on the list yet.</p>
+      ) : (
+        <>
+          <label htmlFor={id} className="token-search">
+            <span className="sr-only">Find a {label.toLowerCase()}</span>
+            <input
+              id={id}
+              type="text"
+              className="token-input"
+              placeholder={`Type to find a ${label.toLowerCase().replace(/s$/, '')}…`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter inside a form submits it. Here it means "add the first
+                // match", so the default has to be stopped either way — an add
+                // form that saves itself because somebody pressed Enter while
+                // typing "zom" would be a genuinely bad surprise.
+                if (e.key !== 'Enter') return
+                e.preventDefault()
+                if (hits.length > 0) add(hits[0])
+              }}
+            />
+          </label>
+
+          {visible.length > 0 && (
+            <div className="token-matches">
+              {visible.map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  className="token-option"
+                  onClick={() => add(choice)}
+                >
+                  {choice}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {q !== '' && hits.length === 0 && (
+            <p className="form-hint muted">
+              Nothing on the list matches “{query.trim()}”. New values are added
+              under Manage lists.
+            </p>
+          )}
+
+          {hidden > 0 && (
+            <p className="form-hint muted">
+              …and {hidden} more. Keep typing to narrow it down.
+            </p>
+          )}
+
+          {q === '' && unpicked.length > 0 && (
+            <button
+              type="button"
+              className="ghost token-toggle"
+              onClick={() => setShowAll((v) => !v)}
+            >
+              {showAll ? 'Hide the list' : `Show all ${unpicked.length}`}
+            </button>
+          )}
+        </>
+      )}
+
       {note && <p className="form-hint muted">{note}</p>}
     </fieldset>
   )
@@ -160,6 +295,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // silently in fields nobody is looking at.
   const [filled, setFilled] = useState([])
   const [autoGenres, setAutoGenres] = useState([])
+  const [unmappedGenres, setUnmappedGenres] = useState([])
 
   // Only a series has seasons. Anything else — Movie, Documentary, Box set —
   // does not, so the field is not offered.
@@ -240,12 +376,17 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // and after here — rather than inside a state updater, which React may run
   // twice — is what lets the panel name what changed.
   function confirmMatch(candidate) {
-    const next = applyMatch(form, candidate)
+    const next = applyMatch(form, candidate, { genreOptions: options.genre })
     setMatch(candidate)
     setSeason(null)
     setMatchTouched(true)
     setFilled(describeFill(form, next))
     setAutoGenres((next.genres ?? []).filter((g) => !(form.genres ?? []).includes(g)))
+    // What TMDB called this film that the shelf has no word for. Reported
+    // rather than dropped in silence: it is the moment somebody would actually
+    // want to know their list is missing something, and adding the word under
+    // Manage lists is all it takes to make it map from then on.
+    setUnmappedGenres(mapTmdbGenres(candidate.genres, options.genre).unmatched)
     setForm(next)
   }
 
@@ -308,7 +449,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
       onSeason={(picked) => {
         setSeason(picked)
         setMatchTouched(true)
-        setForm((f) => applyMatch(f, match, { season: picked }))
+        setForm((f) => applyMatch(f, match, { season: picked, genreOptions: options.genre }))
       }}
       onClear={() => {
         setMatch(null)
@@ -316,6 +457,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
         setMatchTouched(true)
         setFilled([])
         setAutoGenres([])
+        setUnmappedGenres([])
       }}
     />
   )
@@ -530,7 +672,8 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               onChange={set('universe')}
             />
 
-            <CheckList
+            <TokenPicker
+              id="film-genres"
               label="Genres"
               selected={form.genres}
               offered={options.genre}
@@ -538,10 +681,30 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               highlight={autoGenres}
               note={
                 autoGenres.length > 0
-                  ? 'The marked ones came from TMDB. Untick any that are wrong, and add your own.'
+                  ? 'The marked ones came from TMDB. Tap any to remove it.'
                   : null
               }
             />
+
+            {/* A gap in the list, said where somebody would care about it.
+                Silently dropping these is what made the old mapping drift:
+                the genre list lives in the database and the translation lived
+                in code, so a missing word stayed missing for ever. */}
+            {unmappedGenres.length > 0 && (
+              <p className="form-hint muted">
+                TMDB also called this{' '}
+                {unmappedGenres.map((name, i) => (
+                  <span key={name}>
+                    {i > 0 && (i === unmappedGenres.length - 1 ? ' and ' : ', ')}
+                    <strong>{name}</strong>
+                  </span>
+                ))}
+                {unmappedGenres.length === 1 ? ', which isn’t' : ', which aren’t'} on
+                your list. Add {unmappedGenres.length === 1 ? 'it' : 'them'} under
+                Manage lists and TMDB will tick {unmappedGenres.length === 1 ? 'it' : 'them'}{' '}
+                from then on.
+              </p>
+            )}
 
             {!adding && onDelete && (
               <div className="form-danger">
