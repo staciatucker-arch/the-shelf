@@ -11,6 +11,7 @@ import {
   validateForm,
   withCurrent,
 } from '../lib/filmForm.js'
+import { newId } from '../lib/ids.js'
 import { mapTmdbGenres } from '../lib/tmdbGenres.js'
 import TmdbMatch from './TmdbMatch.jsx'
 
@@ -312,7 +313,11 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // (§6b step 7) will want the same id before the row exists, so that a cover
   // can be stored against the film it belongs to and arrive on the very first
   // insert rather than in a second write.
-  const draftId = useMemo(() => (adding ? crypto.randomUUID() : null), [adding])
+  // `newId`, not `crypto.randomUUID` — the latter is undefined on a plain-http
+  // address, which is what `npm run dev --host` prints for testing on a phone,
+  // and calling it here threw during render and blanked the screen. See
+  // lib/ids.js.
+  const draftId = useMemo(() => (adding ? newId() : null), [adding])
 
   // Anything in flight freezes the exits: closing a panel whose write is
   // still unanswered leaves nobody to hear whether it worked.
