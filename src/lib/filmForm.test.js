@@ -12,6 +12,8 @@ import assert from 'node:assert/strict'
 
 import {
   applyMatch,
+  describeFill,
+  joinPhrases,
   matchPatch,
   blankForm,
   changedFields,
@@ -273,4 +275,65 @@ test('a match patch never carries a poster or an editable field', () => {
   for (const forbidden of ['poster_url', 'poster_source', 'poster_storage_path', 'title']) {
     assert.equal(forbidden in patch, false, `${forbidden} must not be in a match patch`)
   }
+})
+
+/* --- what a confirmed match fills in, and what it says about it ---------- */
+
+test('a match adds genres but never unticks one somebody chose', () => {
+  const form = { ...blankForm(), genres: ['vampire'] }
+  const next = applyMatch(form, {
+    tmdb_id: 95,
+    title: 'Buffy the Vampire Slayer',
+    genres: [{ name: 'Drama' }, { name: 'Sci-Fi & Fantasy' }],
+  })
+  assert.equal(next.genres.includes('vampire'), true, 'a chosen genre survives')
+  assert.deepEqual(next.genres, ['vampire', 'drama', 'sci-fi', 'fantasy'])
+})
+
+test('a match with no genre list leaves the genres alone', () => {
+  // `tmdb-search` omits `genres` until it is redeployed to include them, and
+  // an absent list must not read as "this film has no genres".
+  const form = { ...blankForm(), genres: ['vampire'] }
+  const next = applyMatch(form, { tmdb_id: 95, title: 'Buffy the Vampire Slayer' })
+  assert.deepEqual(next.genres, ['vampire'])
+})
+
+test('a genre the shelf has no word for never reaches the form', () => {
+  const form = blankForm()
+  const next = applyMatch(form, { tmdb_id: 1, title: 'x', genres: [{ name: 'Horror' }] })
+  assert.deepEqual(next.genres, [])
+})
+
+test('the receipt names what the match actually changed', () => {
+  const before = { ...blankForm(), title: 'buffy the vamp' }
+  const after = applyMatch(before, {
+    tmdb_id: 95,
+    title: 'Buffy the Vampire Slayer',
+    year: 1997,
+    genres: [{ name: 'Drama' }, { name: 'Action & Adventure' }],
+  })
+  assert.deepEqual(describeFill(before, after), ['the title', 'the year', '3 genres'])
+})
+
+test('the receipt says nothing about a year somebody typed themselves', () => {
+  // The year is offered, never imposed, so it must not be claimed either.
+  const before = { ...blankForm(), title: 'Alien', release_year: '1979' }
+  const after = applyMatch(before, { tmdb_id: 348, title: 'Alien', year: 1979 })
+  assert.deepEqual(describeFill(before, after), [])
+})
+
+test('one genre is said as "one genre", not "1 genres"', () => {
+  const before = blankForm()
+  const after = applyMatch(before, { tmdb_id: 1, title: 'x', genres: [{ name: 'Drama' }] })
+  assert.deepEqual(describeFill(before, after), ['the title', 'one genre'])
+})
+
+test('phrases join the way the shelf writes lists', () => {
+  assert.equal(joinPhrases([]), '')
+  assert.equal(joinPhrases(['the title']), 'the title')
+  assert.equal(joinPhrases(['the title', 'the year']), 'the title and the year')
+  assert.equal(
+    joinPhrases(['the title', 'the year', '3 genres']),
+    'the title, the year and 3 genres',
+  )
 })

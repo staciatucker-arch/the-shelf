@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { joinPhrases } from '../lib/filmForm.js'
 import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
 
 /**
@@ -12,9 +13,16 @@ import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
  *
  * So: candidates are listed, a person picks one, and nothing is chosen by
  * default. Leaving it unmatched is a supported answer and says so.
+ *
+ * The copy is written for somebody who has never heard of TMDB and has no
+ * reason to care what it is. What they want is not an id — it is not having to
+ * type the whole title or know the year. So the button says what it does for
+ * them, and the catalogue is named only where the name is genuinely useful: on
+ * a confirmed record, where it is provenance.
  */
 export default function TmdbMatch({
   title, year, type, match, season, existingId, existingVerified,
+  yearField, filled,
   onConfirm, onSeason, onClear,
 }) {
   const [candidates, setCandidates] = useState(null)
@@ -29,11 +37,25 @@ export default function TmdbMatch({
   // Only a bare year is ever sent to TMDB, so only a bare year can be the
   // thing a search fell back from.
   const searchedYear = /^\d{4}$/.test(String(year ?? '').trim())
+  const chosenType = String(type ?? '').trim()
+  const isBoxSet = chosenType.toLowerCase() === 'box set'
+
+  // Both refusals are worded as instructions rather than complaints, and are
+  // matched by prefix below so they are not dressed up as network failures.
+  const NEED_TITLE = 'Type a few words of the title first.'
+  const NEED_TYPE = 'Choose what it is first — that’s what decides where we look.'
 
   async function runSearch() {
     setError(null)
     if (queryTitle === '') {
-      setError('Type a title above first.')
+      setError(NEED_TITLE)
+      return
+    }
+    // Refused rather than guessed. Type decides which of TMDB's two catalogues
+    // is searched, and quietly defaulting to film is exactly how a search for
+    // Buffy returned the 1992 film to somebody holding the 1997 series.
+    if (chosenType === '') {
+      setError(NEED_TYPE)
       return
     }
     setSearching(true)
@@ -75,16 +97,18 @@ export default function TmdbMatch({
 
   if (match) {
     return (
-      <fieldset className="form-fieldset tmdb-block">
-        <legend>Which film is this?</legend>
+      <div className="tmdb-block tmdb-matched">
         <div className="tmdb-confirmed">
-          <div>
-            <strong>{match.title}</strong>
-            {match.year ? ` (${match.year})` : ''}
-            <p className="form-hint muted">
-              Matched on TMDB · id {match.tmdb_id} ·{' '}
-              {match.kind === 'tv' ? 'television' : 'film'}
-            </p>
+          <div className="tmdb-confirmed-what">
+            <span className="tmdb-tick" aria-hidden="true">✓</span>
+            <div>
+              <strong>{match.title}</strong>
+              {match.year ? ` (${match.year})` : ''}
+              <p className="form-hint muted">
+                {match.kind === 'tv' ? 'Television' : 'Film'} · TMDB{' '}
+                {match.tmdb_id} · confirmed by you
+              </p>
+            </div>
           </div>
           <button type="button" className="ghost form-action" onClick={onClear}>
             Change
@@ -99,8 +123,8 @@ export default function TmdbMatch({
           <div className="tmdb-season">
             {seasonError && (
               <p className="form-hint muted">
-                Could not load the season list: {seasonError}. You can still
-                type the season in the box above.
+                Could not load the season list: {seasonError}. You can still type
+                the season in the Season box below.
               </p>
             )}
 
@@ -135,15 +159,32 @@ export default function TmdbMatch({
                     </option>
                   ))}
                 </select>
+                <span className="form-hint muted">
+                  Shows are listed whole, so pick the disc you own.
+                </span>
               </label>
             )}
 
             {seasons && seasons.length === 0 && (
-              <p className="form-hint muted">TMDB lists no seasons for this show.</p>
+              <p className="form-hint muted">
+                TMDB lists no seasons for this show — type it in the Season box
+                below instead.
+              </p>
             )}
           </div>
         )}
-      </fieldset>
+
+        {/* What confirming just did, named. It rewrites the title, fills the
+            year and ticks genres in fields that are either scrolled away or
+            not yet reached; help nobody can see reads as a glitch, and a box
+            filled in silently is one nobody thinks to check. */}
+        {filled && filled.length > 0 && (
+          <p className="tmdb-receipt">
+            Filled in for you: <strong>{joinPhrases(filled)}</strong>. Change any
+            of it below.
+          </p>
+        )}
+      </div>
     )
   }
 
@@ -153,15 +194,17 @@ export default function TmdbMatch({
   // should have none at all.
   if (existingId && !match) {
     return (
-      <fieldset className="form-fieldset tmdb-block">
+      <div className="tmdb-block tmdb-matched">
         <div className="tmdb-confirmed">
-          <div>
-            <strong>TMDB {existingId}</strong>
-            <p className="form-hint muted">
-              {existingVerified
-                ? 'Confirmed by a person.'
-                : 'Never confirmed — inherited from the old app, where about one id in twelve names a different film.'}
-            </p>
+          <div className="tmdb-confirmed-what">
+            <div>
+              <strong>TMDB {existingId}</strong>
+              <p className="form-hint muted">
+                {existingVerified
+                  ? 'Confirmed by a person.'
+                  : 'Never confirmed — inherited from the old app, where about one id in twelve names a different film.'}
+              </p>
+            </div>
           </div>
           <div className="tmdb-existing-actions">
             <button
@@ -180,55 +223,67 @@ export default function TmdbMatch({
           </div>
         </div>
         <p className="form-hint muted">
-          Clearing leaves the film unmatched, which reads “not yet checked”.
-          For a box set that is the correct answer — TMDB has no record of a
-          set, and pointing one at a single disc would show that disc’s
-          warnings as though they covered the whole box.
+          Clearing leaves it unmatched, which reads “not yet checked”. For a box
+          set that is the right answer — TMDB has no record of a set, and
+          pointing one at a single disc would show that disc’s warnings as
+          though they covered the whole box.
         </p>
-      </fieldset>
+      </div>
     )
   }
 
-  // No legend and no lead paragraph: the callout at the top of the form
-  // already says what matching is for and that it does not touch the cover.
-  // Saying it twice on one screen made the second one furniture. The
-  // affordance that had to survive — that leaving a film unmatched is a real
-  // answer — is said where it is actually needed, beside the results and
-  // beside an empty result.
+  // The search itself. No heading of its own: it sits inside the "start with
+  // the title" card, which has already said what this is for. Saying it twice
+  // on one screen is what turned the second one into furniture.
   return (
-    <fieldset className="form-fieldset tmdb-block">
-      {/* Enabled even with an empty title, and says why on the press. A
-          disabled button with its explanation removed is a dead end: nothing
-          happens and nothing tells you what to do about it. */}
+    <div className="tmdb-block">
       <button
         type="button"
         className="form-action tmdb-search"
         onClick={runSearch}
         disabled={searching}
       >
-        {searching ? 'Searching…' : candidates ? 'Search again' : 'Search TMDB'}
+        {searching ? 'Searching…' : candidates ? 'Search again' : 'Find this title'}
       </button>
+
+      {/* The year sits here, under the button, rather than above the search
+          that exists to fill it in. It still narrows a search — "Total Recall"
+          is ambiguous where "Total Recall 1990" is not — so it stays; it is
+          just no longer the second thing a newcomer is asked for. */}
+      {yearField}
+
+      {/* Shown only when Box set is chosen, because only then is it true. A
+          set is in none of TMDB's catalogues, and saying so at the moment of
+          the choice saves a search that was always going to come back empty. */}
+      {isBoxSet && !candidates && (
+        <p className="form-hint muted">
+          Box sets usually aren’t listed. Type the name and skip the search —
+          unmatched is the right answer for a set.
+        </p>
+      )}
 
       {error && (
         <p className="error" role="alert">
-          {error === 'Type a title above first.' ? error : `Could not reach TMDB: ${error}`}
+          {error === NEED_TITLE || error === NEED_TYPE
+            ? error
+            : `Could not reach TMDB: ${error}`}
         </p>
       )}
 
       {candidates && candidates.length === 0 && !error && (
         // Distinct from a failure on purpose — see lib/tmdb.js.
         <p className="form-hint muted">
-          Nothing on TMDB matched “{queryTitle}”. Box sets often have no record
-          at all, which is fine: leave it unmatched.
+          Nothing matched “{queryTitle}”. That’s fine — leave it unmatched and
+          fill the details in yourself.
         </p>
       )}
 
       {candidates && candidates.length > 0 && (
-        <>
+        <div className="tmdb-results-block">
+          <p className="tmdb-results-title">Which one is yours?</p>
           {!usedYear && searchedYear && (
             <p className="form-hint muted">
-              Nothing matched that year, so these are matches on the title
-              alone.
+              Nothing matched that year, so these are matches on the title alone.
             </p>
           )}
           <ul className="tmdb-results">
@@ -261,11 +316,11 @@ export default function TmdbMatch({
             ))}
           </ul>
           <p className="form-hint muted">
-            None of these? Leave it unmatched — an unmatched film reads “not yet
-            checked”, which is honest. A wrong match is not.
+            None of these? Leave it unmatched. It’ll read “not yet checked”,
+            which is honest — a wrong match isn’t.
           </p>
-        </>
+        </div>
       )}
-    </fieldset>
+    </div>
   )
 }

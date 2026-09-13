@@ -1,3 +1,5 @@
+import { genresToAdd } from './tmdbGenres.js'
+
 // Pure helpers for the add/edit form (§6b step 6) — no React, no Supabase.
 //
 // The form's job is to turn one film row into editable strings and back into a
@@ -255,6 +257,11 @@ export function blankForm() {
  *   what the film *is*; it says nothing about which picture belongs on the
  *   shelf, and a scan beats TMDB art permanently rather than until the next
  *   time somebody confirms a match (HANDOFF, "Identity and artwork").
+ *
+ *   **Genres are added, never removed.** TMDB's genres are broad and the
+ *   shelf's are personal, so a match may only ever suggest: anything already
+ *   ticked stays ticked, whatever TMDB thinks. `lib/tmdbGenres.js` holds which
+ *   of its genres the shelf has a word for, and which are left alone.
  */
 export function applyMatch(form, match, { season = null } = {}) {
   if (!match) return form
@@ -271,7 +278,47 @@ export function applyMatch(form, match, { season = null } = {}) {
   // A season is a deliberate choice made a moment ago, so it wins outright.
   if (season != null) next.season = seasonLabel(season)
 
+  // Only ever what TMDB actually sent. `tmdb-search` omits `genres` entirely
+  // until it is redeployed to include them, and an absent list has to add
+  // nothing rather than read as "this film has no genres".
+  const gained = genresToAdd(form.genres, match.genres)
+  if (gained.length > 0) next.genres = [...(form.genres ?? []), ...gained]
+
   return next
+}
+
+/**
+ * What a confirmed match just changed about the form, in words.
+ *
+ * Confirming rewrites the title, may fill the year, may set the season and may
+ * tick genres — all at once, in fields that are either scrolled away or not
+ * yet reached. Help that nobody can see reads as a glitch, and a field filled
+ * in silently is one nobody thinks to check. So the form says what it did.
+ *
+ * Returns the changed things as phrases, in the order they appear on screen;
+ * an empty array when the match changed nothing visible.
+ */
+export function describeFill(before, after) {
+  const parts = []
+  const text = (v) => String(v ?? '')
+
+  if (text(after.title) !== text(before.title)) parts.push('the title')
+  if (text(after.release_year) !== text(before.release_year)) parts.push('the year')
+  if (text(after.season) !== text(before.season)) parts.push('the season')
+
+  const gained = (after.genres ?? []).filter((g) => !(before.genres ?? []).includes(g))
+  if (gained.length === 1) parts.push('one genre')
+  else if (gained.length > 1) parts.push(`${gained.length} genres`)
+
+  return parts
+}
+
+/** "a", "a and b", "a, b and c" — how the shelf's copy lists things. */
+export function joinPhrases(parts) {
+  const list = (parts ?? []).filter(Boolean)
+  if (list.length === 0) return ''
+  if (list.length === 1) return list[0]
+  return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`
 }
 
 /**

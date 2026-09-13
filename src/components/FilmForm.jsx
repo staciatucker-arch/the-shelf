@@ -4,6 +4,7 @@ import {
   applyMatch,
   blankForm,
   changedFields,
+  describeFill,
   filmToForm,
   matchPatch,
   newFilmRow,
@@ -30,9 +31,62 @@ function PickList({ label, id, value, offered, onChange }) {
   )
 }
 
+/**
+ * What this is — Movie, Series, Documentary or Box set — as visible buttons.
+ *
+ * It was a `<select>` until now, and that was the wrong control for this job.
+ * This is not a preference among equals: it decides **which of TMDB's two
+ * catalogues gets searched**, and films and television have separate id
+ * namespaces where the same number means different things. A collapsed select
+ * showing "— none —" makes the most consequential choice on the screen look
+ * like one more optional field, which is exactly how a search for "Buffy"
+ * returned the 1992 film to somebody holding the 1997 series.
+ *
+ * Four options fit on one or two lines at 360px, so there is no reason to hide
+ * them. Pressing the chosen one again clears it, which keeps "unset" reachable
+ * without a "— none —" button competing for space with the real answers.
+ */
+function TypeChooser({ value, offered, onChange }) {
+  const choices = withCurrent(offered, value ? [value] : [])
+  return (
+    <fieldset className="form-fieldset type-chooser">
+      <legend>What is it?</legend>
+      <div className="seg-row">
+        {choices.map((choice) => {
+          const on = value === choice
+          return (
+            <button
+              key={choice}
+              type="button"
+              className={`seg-btn${on ? ' is-on' : ''}`}
+              aria-pressed={on}
+              onClick={() => onChange(on ? '' : choice)}
+            >
+              {choice}
+            </button>
+          )
+        })}
+      </div>
+      <p className="form-hint muted">
+        Films and shows are listed separately, so this decides where we look.
+      </p>
+    </fieldset>
+  )
+}
+
+function FieldError({ message }) {
+  if (!message) return null
+  return (
+    <p className="field-error" role="alert">
+      {message}
+    </p>
+  )
+}
+
 /** A multi-value pick list, matching the filter panel's checkbox idiom. */
-function CheckList({ label, selected, offered, onChange }) {
+function CheckList({ label, selected, offered, onChange, note, highlight }) {
   const choices = withCurrent(offered, selected)
+  const lit = highlight ?? []
 
   function toggle(choice) {
     onChange(
@@ -50,7 +104,10 @@ function CheckList({ label, selected, offered, onChange }) {
       ) : (
         <div className="check-grid">
           {choices.map((choice) => (
-            <label className="check-item" key={choice}>
+            <label
+              className={`check-item${lit.includes(choice) ? ' from-tmdb' : ''}`}
+              key={choice}
+            >
               <input
                 type="checkbox"
                 checked={selected.includes(choice)}
@@ -61,16 +118,8 @@ function CheckList({ label, selected, offered, onChange }) {
           ))}
         </div>
       )}
+      {note && <p className="form-hint muted">{note}</p>}
     </fieldset>
-  )
-}
-
-function FieldError({ message }) {
-  if (!message) return null
-  return (
-    <p className="field-error" role="alert">
-      {message}
-    </p>
   )
 }
 
@@ -82,9 +131,16 @@ function FieldError({ message }) {
  * only what changed and waits for the database to confirm it. Adding sends one
  * complete row, id and all, so a film is never briefly half-written.
  *
- * Poster columns are absent from both; see `lib/filmForm.js`. The TMDB match
- * appears only when adding, because it is the one moment a human is already
- * deciding what this film is.
+ * Poster columns are absent from both; see `lib/filmForm.js`.
+ *
+ * **The shape of the add screen**, rewritten for somebody who has never opened
+ * the app: one bordered card at the top holding the three things the search
+ * actually uses — the title, what it is, and an optional year — with the
+ * button right there beside them. Then a divider saying the rest is optional,
+ * because only the title is required and fifteen controls in a flat scroll
+ * make them all look equally expected. Before this, the button that does the
+ * useful work was the sixth control down, below fields the search exists to
+ * fill in.
  */
 export default function FilmForm({ film, options, onCancel, onSaved, onDelete }) {
   const adding = !film
@@ -99,6 +155,11 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // means untouched — and an untouched match must not appear in the patch at
   // all, or every ordinary save would rewrite the film's identity.
   const [matchTouched, setMatchTouched] = useState(false)
+  // What the last confirmed match filled in, as phrases, and which genres it
+  // ticked. Both exist so the form can say what it did rather than do it
+  // silently in fields nobody is looking at.
+  const [filled, setFilled] = useState([])
+  const [autoGenres, setAutoGenres] = useState([])
 
   // Only a series has seasons. Anything else — Movie, Documentary, Box set —
   // does not, so the field is not offered.
@@ -173,9 +234,91 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     if (result?.error) setSaveError(result.error)
   }
 
-  const heading = adding
-    ? 'What are you adding to your Shelf?'
-    : `Edit “${displayTitle(film.title)}”`
+  const heading = adding ? 'Add to the Shelf' : `Edit “${displayTitle(film.title)}”`
+
+  // Confirming a match rewrites several fields at once. Computing the before
+  // and after here — rather than inside a state updater, which React may run
+  // twice — is what lets the panel name what changed.
+  function confirmMatch(candidate) {
+    const next = applyMatch(form, candidate)
+    setMatch(candidate)
+    setSeason(null)
+    setMatchTouched(true)
+    setFilled(describeFill(form, next))
+    setAutoGenres((next.genres ?? []).filter((g) => !(form.genres ?? []).includes(g)))
+    setForm(next)
+  }
+
+  const titleField = (
+    <>
+      <label htmlFor="film-title">
+        Title
+        {/* A textarea, not a text input: four box sets carry their contents
+            list in this column across several lines, and an <input> silently
+            collapses newlines. Editing the vendor would have destroyed the
+            list. */}
+        <textarea
+          id="film-title"
+          ref={titleRef}
+          rows={2}
+          value={form.title}
+          onChange={(e) => set('title')(e.target.value)}
+          aria-invalid={Boolean(errors.title)}
+        />
+      </label>
+      <FieldError message={errors.title} />
+    </>
+  )
+
+  const typeField = (
+    <TypeChooser value={form.type} offered={options.type} onChange={set('type')} />
+  )
+
+  const yearField = (
+    <div className="year-field">
+      <label htmlFor="film-year">
+        Year <span className="label-aside">— optional, narrows the search</span>
+        <input
+          id="film-year"
+          type="text"
+          inputMode="numeric"
+          value={form.release_year}
+          onChange={(e) => set('release_year')(e.target.value)}
+          aria-invalid={Boolean(errors.release_year)}
+        />
+      </label>
+      <FieldError message={errors.release_year} />
+    </div>
+  )
+
+  const matchBlock = (
+    <TmdbMatch
+      title={form.title}
+      year={form.release_year}
+      type={form.type}
+      match={match}
+      season={season}
+      existingId={!adding && !matchTouched ? film.tmdb_id : null}
+      existingVerified={!adding ? film.tmdb_verified : false}
+      // Only while adding: when editing, the year belongs with the other
+      // details rather than tucked under a button that may not be shown.
+      yearField={adding ? yearField : null}
+      filled={filled}
+      onConfirm={confirmMatch}
+      onSeason={(picked) => {
+        setSeason(picked)
+        setMatchTouched(true)
+        setForm((f) => applyMatch(f, match, { season: picked }))
+      }}
+      onClear={() => {
+        setMatch(null)
+        setSeason(null)
+        setMatchTouched(true)
+        setFilled([])
+        setAutoGenres([])
+      }}
+    />
+  )
 
   return (
     <div className="detail-overlay" role="presentation" onClick={() => !busy && onCancel()}>
@@ -221,100 +364,48 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               </p>
             )}
 
-            {/* One instruction block rather than a hint beside every field.
-                The three separate notes this replaces were each true and
-                collectively ignorable; a person adding a film reads the top
-                of the form once. */}
-            {adding && (
-              <div className="form-callout">
-                <h3 className="form-section-title">Search for TMDB ID</h3>
-                <p>
-                  Start typing and select <strong>Type</strong>. Searching for
-                  and selecting a TMDB title will help you fill in the details
-                  and allow for trigger-warning lookups.
+            {adding ? (
+              /* One card holding everything the search uses, with the button
+                 inside it. The old layout put its instructions at the top and
+                 the button five fields below them, so on a phone the last step
+                 of a three-step instruction was off the screen. */
+              <div className="find-card">
+                <h3 className="form-section-title">
+                  Start with the title — we’ll fill in the rest
+                </h3>
+                <p className="find-lede">
+                  Type a few words. You don’t need the whole title, and you don’t
+                  need the year — picking your film from the list fills those in.
                 </p>
-                <p className="muted">
-                  Only the title, type and year are searched. TMDB catalogues
-                  shows rather than seasons, so pick the season after matching.
-                </p>
+                {titleField}
+                {typeField}
+                {matchBlock}
               </div>
+            ) : (
+              <>
+                {titleField}
+                {typeField}
+                {yearField}
+                {matchBlock}
+              </>
             )}
 
-            <label htmlFor="film-title">
-              Title
-              {/* A textarea, not a text input: four box sets carry their
-                  contents list in this column across several lines, and an
-                  <input> silently collapses newlines. Editing the vendor would
-                  have destroyed the list. */}
-              <textarea
-                id="film-title"
-                ref={titleRef}
-                rows={2}
-                value={form.title}
-                onChange={(e) => set('title')(e.target.value)}
-                aria-invalid={Boolean(errors.title)}
-              />
-            </label>
-            <FieldError message={errors.title} />
-
-            {/* Type sits here, above the search, because it decides WHICH
-                CATALOGUE is searched — TMDB keeps films and television in
-                separate id namespaces and the same number means different
-                things in each. It was below the search until 2026-09-12, and
-                a search for "Buffy" duly returned the 1992 film rather than
-                the 1997 series, because nobody had been shown this control
-                yet. Three of the confirmed-wrong inherited ids are this same
-                mistake. */}
-            <PickList
-              label="Type"
-              id="film-type"
-              value={form.type}
-              offered={options.type}
-              onChange={set('type')}
-            />
-
-            {/* Year and season are separate fields as of 2026-09-12. One box
-                doing both jobs misled a person in use: "Season 1" typed into a
-                field that TMDB search reads as a year. Only the year is ever
-                sent to TMDB; the season never is. */}
-            <div className="form-pair">
-              <div>
-                <label htmlFor="film-year">
-                  Year
-                  <input
-                    id="film-year"
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="optional"
-                    value={form.release_year}
-                    onChange={(e) => set('release_year')(e.target.value)}
-                    aria-invalid={Boolean(errors.release_year)}
-                  />
-                </label>
-                <FieldError message={errors.release_year} />
-              </div>
-              {/* Season is shown only for a series, because only a series
-                  has one. It is normally written by the TMDB picker below —
-                  a box set is not a season, and conflating the two is what
-                  sent "Volume 1" into this column in the first place. It
-                  stays typeable: when TMDB has no season list, or the lookup
-                  fails, the picker tells you to type it here, and a
-                  read-only box would make that instruction a lie. */}
-              {isSeries && (
-                <div>
-                  <label htmlFor="film-season">
-                    Season
-                    <input
-                      id="film-season"
-                      type="text"
-                      placeholder={adding ? 'pick it below' : 'optional'}
-                      value={form.season}
-                      onChange={(e) => set('season')(e.target.value)}
-                    />
-                  </label>
-                </div>
-              )}
+            {/* Only the title is required. Saying so outright is what stops
+                the fourteen controls below reading as fourteen more questions
+                that have to be answered before anything can be saved. */}
+            <div className="form-divider">
+              <strong>That’s the part that matters.</strong>
+              Everything below is optional — add it now, or any time later.
             </div>
+
+            <p className="group-label">Your copy</p>
+
+            <CheckList
+              label="Formats"
+              selected={form.formats}
+              offered={options.format}
+              onChange={set('formats')}
+            />
 
             <label htmlFor="film-edition">
               Edition or contents
@@ -329,43 +420,39 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               />
             </label>
 
-            {/* Shown when editing too, not only when adding. It is the only
-                way in the app to correct one of the 213 inherited ids, or to
-                clear a box set that should never have had one — until now
-                that was only possible through the CSV checklists. */}
-            <TmdbMatch
-              title={form.title}
-              year={form.release_year}
-              type={form.type}
-              match={match}
-              season={season}
-              existingId={!adding && !matchTouched ? film.tmdb_id : null}
-              existingVerified={!adding ? film.tmdb_verified : false}
-              onConfirm={(candidate) => {
-                setMatch(candidate)
-                setSeason(null)
-                setMatchTouched(true)
-                // Writes the accurate title, and offers the year. Never the
-                // poster, and never a year somebody already typed.
-                setForm((f) => applyMatch(f, candidate))
-              }}
-              onSeason={(picked) => {
-                setSeason(picked)
-                setMatchTouched(true)
-                setForm((f) => applyMatch(f, match, { season: picked }))
-              }}
-              onClear={() => {
-                setMatch(null)
-                setSeason(null)
-                setMatchTouched(true)
-              }}
-            />
-
-            {adding && (
-              <p className="form-note muted">
-                You can come back and edit everything below at any time.
-              </p>
+            {/* Shown only for a series, because only a series has one. It is
+                normally written by the TMDB picker above — a box set is not a
+                season, and conflating the two is what sent "Volume 1" into
+                this column in the first place. It stays typeable: when TMDB
+                has no season list, or the lookup fails, the picker says to
+                type it here, and a read-only box would make that a lie. */}
+            {isSeries && (
+              <label htmlFor="film-season">
+                Season
+                <input
+                  id="film-season"
+                  type="text"
+                  placeholder={adding ? 'picked above, or type it' : 'optional'}
+                  value={form.season}
+                  onChange={(e) => set('season')(e.target.value)}
+                />
+              </label>
             )}
+
+            <PickList
+              label="Status"
+              id="film-status"
+              value={form.status}
+              offered={options.status}
+              onChange={set('status')}
+            />
+            <PickList
+              label="Bought from"
+              id="film-vendor"
+              value={form.vendor}
+              offered={options.vendor}
+              onChange={set('vendor')}
+            />
 
             <div className="form-pair">
               <div>
@@ -433,20 +520,8 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               </div>
             </div>
 
-            <PickList
-              label="Status"
-              id="film-status"
-              value={form.status}
-              offered={options.status}
-              onChange={set('status')}
-            />
-            <PickList
-              label="Bought from"
-              id="film-vendor"
-              value={form.vendor}
-              offered={options.vendor}
-              onChange={set('vendor')}
-            />
+            <p className="group-label">Tags</p>
+
             <PickList
               label="Universe"
               id="film-universe"
@@ -456,16 +531,16 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
             />
 
             <CheckList
-              label="Formats"
-              selected={form.formats}
-              offered={options.format}
-              onChange={set('formats')}
-            />
-            <CheckList
               label="Genres"
               selected={form.genres}
               offered={options.genre}
               onChange={set('genres')}
+              highlight={autoGenres}
+              note={
+                autoGenres.length > 0
+                  ? 'The marked ones came from TMDB. Untick any that are wrong, and add your own.'
+                  : null
+              }
             />
 
             {!adding && onDelete && (
@@ -529,8 +604,8 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
                 these looks like something this form forgot to save. */}
             <p className="form-note muted">
               {adding
-                ? 'The cover is added separately, in the poster window — so a new film starts without one.'
-                : 'The poster and the TMDB match aren’t edited here — a poster is chosen in the poster window, and a TMDB match is set only by confirming a candidate.'}
+                ? 'Covers are added separately, so a new title starts without one.'
+                : 'The cover isn’t edited here — a cover is chosen in the poster window.'}
             </p>
           </div>
         </form>

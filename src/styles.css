@@ -727,7 +727,6 @@ button.ghost {
 /* --- the TMDB match block ---------------------------------------------- */
 
 .tmdb-block { margin-top: 1.4rem; }
-.tmdb-lead { margin: 0 0 0.7rem; }
 .tmdb-block .form-action { margin-top: 0; }
 
 .tmdb-confirmed {
@@ -870,27 +869,70 @@ button.danger {
 }
 .tmdb-season select { width: 100%; }
 
-/* The instruction block at the top of the add form. One block, read once,
-   rather than a hint beside every field — three separate notes were each
-   true and collectively ignorable. */
-.form-callout {
+/* --- the add screen's opening card ------------------------------------- */
+
+/* Everything the search actually uses — the title, what it is, the optional
+   year — inside one bordered block with the button. It is the only lifted
+   surface on the form, and the lift is the instruction: start here. Before
+   this the button sat five fields below the text that told you to press it,
+   which on a phone put the last step of a three-step instruction off-screen. */
+.find-card {
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.9rem 1rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.find-card > label:first-of-type { margin-top: 0.9rem; }
+.find-card .form-fieldset { background: var(--surface); }
+
+.find-lede {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* The year, demoted: it still narrows a search, so it stays, but it no longer
+   sits above the tool whose whole purpose is to fill it in. */
+.year-field { margin-top: 0.9rem; }
+.label-aside { font-weight: 400; color: var(--muted); }
+
+/* --- what it is, as buttons rather than a dropdown --------------------- */
+
+/* This control picks which of TMDB's two catalogues gets searched, so it is
+   shown rather than collapsed. See TypeChooser in FilmForm.jsx. */
+.type-chooser { margin-top: 0.9rem; }
+
+.seg-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+.seg-btn {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 0.75rem 0.9rem;
-  margin-bottom: 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
 }
-.form-callout p {
-  margin: 0.35rem 0 0;
-  font-size: 0.85rem;
-  line-height: 1.45;
+.seg-btn:hover { border-color: var(--muted); color: var(--text); }
+.seg-btn.is-on {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
 }
-.form-callout .form-section-title { margin: 0; }
+.seg-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Search TMDB: the primary action of the top section, so it carries the same
-   gold as "Add to the shelf" rather than the ghost outline it had. Dropping
-   `ghost` is what makes it gold; this adds the weight and the width. */
+/* --- the search button and its results --------------------------------- */
+
+/* The primary action of the card, so it carries the same gold as "Add to the
+   shelf". Dropping `ghost` is what makes it gold; this adds weight and width. */
 .tmdb-search {
   font-weight: 700;
   width: 100%;
@@ -898,6 +940,68 @@ button.danger {
 }
 @media (min-width: 560px) {
   .tmdb-search { width: auto; min-width: 190px; }
+}
+
+.tmdb-results-block { margin-top: 0.9rem; }
+.tmdb-results-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* --- a confirmed match ------------------------------------------------- */
+
+.tmdb-matched {
+  background: var(--surface);
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.85rem;
+}
+.tmdb-confirmed-what { display: flex; gap: 0.55rem; align-items: flex-start; min-width: 0; }
+.tmdb-tick { color: var(--green); font-size: 1.05rem; line-height: 1.35; flex: none; }
+
+/* What confirming just did, named — the title rewritten, the year filled,
+   genres ticked. Help nobody can see reads as a glitch. */
+.tmdb-receipt {
+  margin: 0.8rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.tmdb-receipt strong { color: var(--accent); }
+
+/* --- where "required" ends --------------------------------------------- */
+
+/* Only the title is required. Fifteen controls in one flat scroll make them
+   all look equally expected, so the divider says so outright. */
+.form-divider {
+  margin: 1.5rem 0 0.4rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.form-divider strong { display: block; color: var(--text); }
+
+.group-label {
+  margin: 1.4rem 0 0.1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* A genre the confirmed match ticked. Marked rather than merely checked, so
+   nothing arrives on the row without saying where it came from. */
+.check-item.from-tmdb {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Re-match / Clear, on a film that already carries a TMDB id. */
