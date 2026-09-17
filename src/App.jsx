@@ -42,6 +42,13 @@ const FILM_COLUMNS = [
   'type',
   'last_watched_on',
   'poster_url',
+  // The other two poster columns are needed for their own sake, not for
+  // display: `poster_storage_path` is the file a replacement has to delete,
+  // and `poster_source` is what says the file belongs to this app at all. A
+  // row loaded without them looks exactly like a film whose cover came from
+  // somewhere else, and every replaced poster would be left in the bucket.
+  'poster_source',
+  'poster_storage_path',
   'tmdb_id',
   'tmdb_verified',
 ].join(',')

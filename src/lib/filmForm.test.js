@@ -176,6 +176,45 @@ test('a new row never carries a poster column, even with a match confirmed', () 
   }
 })
 
+test('a new row carries an uploaded poster as a complete set of three', () => {
+  // The whole point of minting the id in the browser: a cover uploaded
+  // against that id arrives on the film's very first insert, so a film is
+  // never briefly on the shelf without the poster that was chosen for it.
+  const row = newFilmRow({ ...blankForm(), title: 'Alien' }, {
+    id: 'uuid-1',
+    poster: {
+      publicUrl: 'https://x.supabase.co/storage/v1/object/public/posters/u/cover-1.jpg',
+      path: 'u/cover-1.jpg',
+    },
+  })
+
+  assert.equal(row.poster_source, 'upload')
+  assert.equal(row.poster_storage_path, 'u/cover-1.jpg')
+  assert.match(row.poster_url, /cover-1\.jpg$/)
+})
+
+test('a half-described poster fails the insert rather than writing two columns', () => {
+  assert.throws(() =>
+    newFilmRow({ ...blankForm(), title: 'Alien' }, {
+      id: 'uuid-1',
+      poster: { publicUrl: 'https://x/y.jpg' },
+    }),
+  )
+})
+
+test('a confirmed match still cannot put its own art on a new row', () => {
+  // Uploading a poster does not relax the rule it sits beside: TMDB art is
+  // shown while choosing and never saved.
+  const row = newFilmRow({ ...blankForm(), title: 'Alien' }, {
+    id: 'uuid-1',
+    match: confirmedMatch,
+    poster: { publicUrl: 'https://x/mine.jpg', path: 'u/mine.jpg' },
+  })
+
+  assert.equal(row.poster_url, 'https://x/mine.jpg')
+  assert.notEqual(row.poster_url, confirmedMatch.poster_url)
+})
+
 test('tmdb_verified is true only when a human confirmed a candidate', () => {
   const unmatched = newFilmRow({ ...blankForm(), title: 'Alien' }, { id: 'u', match: null })
   assert.equal(unmatched.tmdb_id, null)

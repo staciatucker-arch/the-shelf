@@ -1,3 +1,4 @@
+import { posterColumns } from './poster.js'
 import { genresToAdd } from './tmdbGenres.js'
 
 // Pure helpers for the add/edit form (§6b step 6) — no React, no Supabase.
@@ -27,10 +28,13 @@ export const EDITABLE_FIELDS = [
 
 // What this form must never write, and why it is absent rather than disabled:
 //
-//   poster_url, poster_source, poster_storage_path — a poster is chosen in the
-//   poster modal (§6b step 7), which writes all three together. An edit form
-//   that could set poster_url alone would be able to leave a row claiming an
-//   uploaded poster with no file behind it.
+//   poster_url, poster_source, poster_storage_path — a poster comes from the
+//   poster control (§6b step 7) by way of `posterColumns` in lib/poster.js,
+//   which writes all three together or throws. `changedFields` must never
+//   carry them: an edit form that could set poster_url alone would be able to
+//   leave a row claiming an uploaded poster with no file behind it. The
+//   poster joins the same single write at the call site, exactly as a
+//   deliberately changed TMDB match does.
 //
 //   tmdb_id, tmdb_verified — identity is decided by a human confirming a
 //   candidate, never as a side effect of editing something else. That coupling
@@ -385,13 +389,17 @@ export function matchPatch(match, { season = null } = {}) {
   }
 }
 
-export function newFilmRow(form, { id, match = null, season = null } = {}) {
+export function newFilmRow(form, { id, match = null, season = null, poster = null } = {}) {
   const row = formToRow(form)
 
-  // Poster columns are absent, not null: a poster is written by the poster
-  // modal, which sets url, source and storage path together or not at all.
+  // Poster columns are absent unless a poster was actually stored against
+  // this id, and then they arrive as a complete set of three built by
+  // `posterColumns` — the only thing that can make one, and which throws
+  // rather than hand back a partial set. The form still cannot write a
+  // poster; it can only carry one that has already been uploaded.
   return {
     ...row,
+    ...(poster ? posterColumns(poster) : {}),
     id,
     tmdb_id: match ? match.tmdb_id : null,
     tmdb_verified: Boolean(match),

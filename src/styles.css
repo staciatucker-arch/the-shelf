@@ -431,10 +431,7 @@ button.ghost {
   grid-template-columns: minmax(0, 1fr);
 }
 @media (min-width: 640px) {
-  .detail-body {
-    grid-template-columns: 200px minmax(0, 1fr);
-    align-items: start;
-  }
+  .detail-body { align-items: start; }
 }
 .detail-art,
 .detail-facts { min-width: 0; }
@@ -456,8 +453,12 @@ button.ghost {
   width: 100%;
   /* On a phone the cover is the single biggest thing on screen, and at 260px
      it pushed the facts off the bottom for any film with a few extra genres.
-     Smaller here, full size from tablet width up. The shelf grid is where the
-     artwork is meant to be admired; this is a reference thumbnail. */
+     So: 190px on a phone, and bigger at every width above it — see the two
+     media queries under `.detail-body`, which raise this and the column it
+     sits in together. This used to call itself "a reference thumbnail", on
+     the grounds that the grid was where artwork was admired. That was wrong
+     about what opening a film is for, and it was the excuse that let the
+     column/max-width mismatch go unnoticed. */
   max-width: 190px;
   margin: 0 auto;
   padding: 8px;
@@ -478,6 +479,34 @@ button.ghost {
   color: var(--muted);
   font-size: 0.8rem;
   padding: 4rem 0;
+}
+
+/* Every width the cover takes, and the column it sits in, in one place.
+   They have to move together and they did not: the column was 200px while
+   the max-width said 260px, so the column won and the cover came out ~182px
+   — the same size as the card that was clicked to open it. Opening a film
+   made its cover no bigger, which is the one thing opening a film is for.
+   The 260px rule also lived further down the file, where source order let it
+   silently outrank a later, larger one. Both numbers now live here, so the
+   pairing is visible and nothing downstream can quietly win. */
+/* 700px, not 560 or 640: below this the cover and the facts fight over the
+   same few hundred pixels and both lose. Measured at 640px with a 260px
+   cover, the three-column fact grid fell to 88px a cell — narrow enough for
+   "2019-04-19" to break across lines, which is the exact failure the 340px
+   note further down already warns about. Stacked is the better answer until
+   there is genuinely room for two columns. */
+@media (min-width: 700px) {
+  .detail-body { grid-template-columns: 260px minmax(0, 1fr); }
+  .detail-art { max-width: 260px; }
+}
+/* Room enough to be worth looking at. The panel widens with it, so the facts
+   beside the cover get MORE space rather than less — at the old 46rem a
+   bigger cover would have squeezed the three-column fact grid until a date
+   broke across lines mid-value. */
+@media (min-width: 1000px) {
+  .detail-panel { width: min(60rem, 100%); }
+  .detail-body { grid-template-columns: 340px minmax(0, 1fr); }
+  .detail-art { max-width: 340px; }
 }
 
 /* Fixed columns rather than auto-fit, so the pairing is deliberate instead of
@@ -502,7 +531,6 @@ button.ghost {
 }
 @media (min-width: 560px) {
   .detail-grid { gap: 0.7rem 0.9rem; }
-  .detail-art { max-width: 260px; }
 }
 /* Narrow columns, so a two-word label wraps rather than running into its
    neighbour or forcing the grid wider. */
@@ -1125,3 +1153,76 @@ button.danger {
 
 .crash-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .crash-actions .form-action { margin-top: 0; }
+
+/* --- The cover picker (§6b step 7) ------------------------------------- */
+
+/* A thumbnail and a button on one line, rather than the large dashed drop
+   zone this started as. On a phone the form is already long, and a cover is
+   one line of it — not a fifth of the screen. The row is also the drop and
+   paste target, which is invisible and costs nothing. */
+.poster-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  margin-bottom: 0.9rem;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  transition: border-color 0.15s, background 0.15s;
+}
+.poster-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Dropping a file anywhere in a browser normally navigates away from the
+   page. Saying so visually is half of stopping that; the handlers that
+   preventDefault are the other half. */
+.poster-row.is-dragging {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* Fixed box, so the row does not change height when a cover appears — and a
+   portrait DVD cover and a square scan both sit in the same footprint. */
+.poster-thumb {
+  flex: 0 0 auto;
+  width: 54px;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.poster-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* the scan's own proportions, never cropped */
+  display: block;
+}
+.poster-thumb-empty {
+  font-size: 1.4rem;
+  opacity: 0.35;
+}
+
+.poster-controls {
+  flex: 1 1 auto;
+  min-width: 0; /* lets the caption wrap instead of stretching the row */
+}
+
+/* Wraps rather than shrinking: at 320px "Edit cover" and "Remove" side by
+   side would each break across two lines. */
+.poster-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.poster-caption {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  margin: 0.4rem 0 0;
+}

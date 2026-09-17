@@ -12,7 +12,10 @@ import {
   withCurrent,
 } from '../lib/filmForm.js'
 import { newId } from '../lib/ids.js'
+import { clearedPosterColumns, ownedObjectPath } from '../lib/poster.js'
+import { removePoster, uploadPoster } from '../lib/posterStorage.js'
 import { mapTmdbGenres } from '../lib/tmdbGenres.js'
+import PosterPicker from './PosterPicker.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
 
 /** A single-value pick list that can still show a value the list has dropped. */
@@ -267,7 +270,10 @@ function TokenPicker({ id, label, selected, offered, onChange, highlight, note }
  * only what changed and waits for the database to confirm it. Adding sends one
  * complete row, id and all, so a film is never briefly half-written.
  *
- * Poster columns are absent from both; see `lib/filmForm.js`.
+ * The poster travels with that same single write, and only when somebody
+ * actually chose one — see `PosterPicker` and the ordering note on
+ * `onSubmit`. The form's own field list still cannot touch a poster column;
+ * see `lib/filmForm.js`.
  *
  * **The shape of the add screen**, rewritten for somebody who has never opened
  * the app: one bordered card at the top holding the three things the search
@@ -291,6 +297,15 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // means untouched — and an untouched match must not appear in the patch at
   // all, or every ordinary save would rewrite the film's identity.
   const [matchTouched, setMatchTouched] = useState(false)
+  // The cover chosen in this session, and nothing else. Three possible
+  // values, and the difference between the last two matters:
+  //   null                     the poster was not touched — it must not
+  //                            appear in the write at all, or every ordinary
+  //                            save would rewrite the film's artwork
+  //   { blob, width, height }  a new picture, prepared but not yet uploaded
+  //   { cleared: true }        "remove the cover", which is a real instruction
+  //                            and not the same as having chosen nothing
+  const [poster, setPoster] = useState(null)
   // What the last confirmed match filled in, as phrases, and which genres it
   // ticked. Both exist so the form can say what it did rather than do it
   // silently in fields nobody is looking at.
@@ -345,8 +360,27 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     () => (film ? changedFields(film, form) : null),
     [film, form],
   )
-  const dirty = adding || patch !== null || matchTouched
+  const dirty = adding || patch !== null || matchTouched || poster !== null
 
+  /**
+   * Save everything about this film in one write, poster included.
+   *
+   * The ordering is the whole of §6b step 7 and it is deliberate in both
+   * directions:
+   *
+   *   1. Upload the new image first, under a name nothing points at yet. If
+   *      this fails, nothing has been written and the form still holds
+   *      everything that was typed.
+   *   2. Write the row — once — with the poster columns already on it. For a
+   *      new film that is a single insert, so a film is never briefly on the
+   *      shelf without the cover chosen for it.
+   *   3. If that write failed, delete the file just uploaded. An orphaned
+   *      image in a 1 GB bucket is harmless; a row pointing at a file that is
+   *      not there, or a film half-created, is not.
+   *   4. Only once the database has confirmed the write, delete the file the
+   *      row no longer names. Deleting it any earlier would mean a failed
+   *      write leaves the film showing a cover that has already gone.
+   */
   async function onSubmit(e) {
     e.preventDefault()
     setSaveError(null)
@@ -358,21 +392,68 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
     // Editing, with nothing changed: closing is the honest outcome, and
     // writing a row to say so would only bump updated_at and invite a
     // pointless conflict.
-    if (!adding && !patch && !matchTouched) {
+    if (!adding && !patch && !matchTouched && !poster) {
       onCancel()
       return
     }
 
     setSaving(true)
+
+    // Step 1 — the upload, if there is one.
+    let uploaded = null
+    if (poster?.blob) {
+      const result = await uploadPoster(adding ? draftId : film.id, poster.blob)
+      if (result.error) {
+        setSaving(false)
+        setSaveError(`The cover could not be uploaded, so nothing was saved: ${result.error}`)
+        return
+      }
+      uploaded = result
+    }
+
+    // What the poster contributes to the write: the three new columns, three
+    // nulls, or — when the cover was not touched — nothing at all.
+    const posterWrite = uploaded
+      ? uploaded.columns
+      : poster?.cleared
+        ? clearedPosterColumns()
+        : null
+
+    // Step 2 — one write, whatever it carries.
     const result = await onSaved(
       adding
-        ? newFilmRow(form, { id: draftId, match, season })
-        : { ...(patch ?? {}), ...(matchTouched ? matchPatch(match, { season }) : {}) },
+        ? newFilmRow(form, {
+            id: draftId,
+            match,
+            season,
+            poster: uploaded ? { publicUrl: uploaded.publicUrl, path: uploaded.path } : null,
+          })
+        : {
+            ...(patch ?? {}),
+            ...(matchTouched ? matchPatch(match, { season }) : {}),
+            ...(posterWrite ?? {}),
+          },
     )
+
+    // Step 3 — the row did not land, so the image it would have named must go.
+    if (result?.error) {
+      if (uploaded) await removePoster(uploaded.path)
+      setSaving(false)
+      // The panel stays open on failure, holding the entry, so a rejected save
+      // never looks like a successful one and nobody loses their typing.
+      setSaveError(result.error)
+      return
+    }
+
+    // Step 4 — the row is written and confirmed. Now, and only now, the file
+    // it used to point at can go. `ownedObjectPath` is what keeps this from
+    // reaching for a GitHub or TMDB poster, which are not ours to delete.
+    if (posterWrite) {
+      const previous = ownedObjectPath(film)
+      if (previous && previous !== uploaded?.path) await removePoster(previous)
+    }
+
     setSaving(false)
-    // The panel stays open on failure, holding the entry, so a rejected save
-    // never looks like a successful one and nobody loses their typing.
-    if (result?.error) setSaveError(result.error)
   }
 
   const heading = adding ? 'Add to the Shelf' : `Edit “${displayTitle(film.title)}”`
@@ -544,6 +625,26 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               <strong>That’s the part that matters.</strong>
               Everything below is optional — add it now, or any time later.
             </div>
+
+            {/* The cover comes first among the optional things because it is
+                the one somebody can see from across the room, and because on
+                a phone it is done standing at the shelf with the case in
+                hand. Nothing is uploaded until Save. */}
+            <p className="group-label">Cover</p>
+
+            <PosterPicker
+              film={film}
+              chosen={poster}
+              onChoose={setPoster}
+              // Backing out — of a new pick, or of a removal not yet saved.
+              // Either way the poster becomes untouched again, which is what
+              // keeps it out of the write entirely.
+              onRevert={() => setPoster(null)}
+              // Removing the cover the film actually has. A real instruction,
+              // and it has to survive to the write as three explicit nulls.
+              onRemove={() => setPoster({ cleared: true })}
+              disabled={busy}
+            />
 
             <p className="group-label">Your copy</p>
 
@@ -768,13 +869,6 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
               </div>
             )}
 
-            {/* Said plainly rather than shown as disabled boxes, so neither of
-                these looks like something this form forgot to save. */}
-            <p className="form-note muted">
-              {adding
-                ? 'Covers are added separately, so a new title starts without one.'
-                : 'The cover isn’t edited here — a cover is chosen in the poster window.'}
-            </p>
           </div>
         </form>
       </div>
