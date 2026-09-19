@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { checkPosterFile } from '../lib/poster.js'
-import { firstImageIn, preparePoster } from '../lib/posterImage.js'
+import { firstImageIn, preparePoster, shrinkForCropping } from '../lib/posterImage.js'
 import PosterCropper from './PosterCropper.jsx'
 
 /**
@@ -84,14 +84,18 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
     return () => URL.revokeObjectURL(url)
   }, [chosen])
 
-  // A picture waiting on the crop screen. Nothing is chosen until the crop is
-  // accepted; Cancel there leaves the film's cover exactly as it was.
+  // A picture waiting on the crop screen: `{ blob, name }`, where the blob is
+  // the working-size copy, never the original. Nothing is chosen until the
+  // crop is accepted; Cancel there leaves the film's cover exactly as it was.
   const [cropping, setCropping] = useState(null)
 
   // Every way in (both buttons, drop, paste) arrives here and goes through
-  // the crop screen. A file that is refused outright — wrong type, too big —
-  // is refused before the crop screen, not after the person has cropped it.
-  function accept(file) {
+  // the crop screen. The original is shrunk to a working size *first* and
+  // then let go — see WORKING_EDGE in posterImage.js for the phone that
+  // reloaded when the crop screen showed a full-size camera photo. A file
+  // that is refused (wrong type, too big, unreadable HEIC) is refused here,
+  // before the crop screen, not after the person has cropped it.
+  async function accept(file) {
     if (!file || disabled) return
     setError(null)
     const refusal = checkPosterFile(file)
@@ -99,14 +103,21 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
       setError(refusal)
       return
     }
-    setCropping(file)
+    setWorking(true)
+    const { blob, error: problem } = await shrinkForCropping(file)
+    setWorking(false)
+    if (problem) {
+      setError(problem)
+      return
+    }
+    setCropping({ blob, name: file.name ?? 'poster.jpg' })
   }
 
-  async function finish(file, crop) {
+  async function finish(picture, crop) {
     setCropping(null)
     setError(null)
     setWorking(true)
-    const { blob, width, height, error: problem } = await preparePoster(file, crop)
+    const { blob, width, height, error: problem } = await preparePoster(picture.blob, crop)
     setWorking(false)
 
     // A refusal is shown and nothing changes. The previous cover, whatever it
@@ -115,7 +126,7 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
       setError(problem)
       return
     }
-    onChoose({ blob, width, height, name: file.name ?? 'poster.jpg' })
+    onChoose({ blob, width, height, name: picture.name })
   }
 
   // Paste is listened for on this row rather than the document, so that
@@ -177,7 +188,7 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
 
       {cropping && (
         <PosterCropper
-          file={cropping}
+          file={cropping.blob}
           onDone={(crop) => finish(cropping, crop)}
           onCancel={() => setCropping(null)}
         />

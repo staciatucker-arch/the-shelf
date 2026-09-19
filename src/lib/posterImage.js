@@ -60,19 +60,52 @@ function dimensionsOf(source) {
 }
 
 /**
+ * The long edge of the picture the crop screen works on: twice the stored
+ * size, so a crop that keeps half the photo still comes out at the full
+ * 1050 px.
+ *
+ * Why the crop screen does not simply show the original: on 2026-09-19 a
+ * Samsung camera photo made the crop screen flash and the page reload on
+ * Stacia's phone. A phone photo is 12–50 megapixels — 50 to 200 MB once
+ * decoded — and the first version of the crop step decoded it twice, once
+ * on screen at full size. Before the crop step existed the same photo worked,
+ * because it was decoded once and shrunk straight away. Shrinking it once,
+ * first, restores that: everything after this holds a picture of ~2100 px.
+ */
+export const WORKING_EDGE = MAX_EDGE * 2
+
+/**
+ * A file from a picker, a drop or a paste, shrunk to a working size for the
+ * crop screen. Decodes the original exactly once and lets it go.
+ *
+ * Returns `{ blob, width, height, error }`, the same shape and the same
+ * refusals as `preparePoster` — so a HEIC photo gets the helpful message
+ * here, before the crop screen opens, rather than a blank crop screen.
+ * Quality 0.92 because this is an intermediate, and the second, final encode
+ * at 0.8 should be the only one anybody could see.
+ */
+export function shrinkForCropping(file) {
+  return render(file, { crop: null, maxEdge: WORKING_EDGE, quality: 0.92 })
+}
+
+/**
  * A file from a picker, a drop or a paste, as a poster-sized JPEG.
  *
- * `crop` is optional, in percentages, from the crop screen. It is applied to
- * the full-resolution photo *before* shrinking, in the same single draw — so
- * a tight crop of a 4000 px phone photo still comes out at up to 1050 px,
- * and there is only ever one JPEG encode.
+ * `crop` is optional, in percentages, from the crop screen. It is applied
+ * *before* shrinking, in the same single draw — so it loses nothing to the
+ * crop itself. In the app the input here is already `shrinkForCropping`'s
+ * working picture; called with an original, it works the same.
  *
  * Returns `{ blob, width, height, error }`. A failure is always a sentence
  * naming what to do about it — never a thrown exception and never a silent
  * null, because the one thing worse than refusing a photo is accepting it
  * and storing something broken.
  */
-export async function preparePoster(file, crop = null) {
+export function preparePoster(file, crop = null) {
+  return render(file, { crop, maxEdge: MAX_EDGE, quality: JPEG_QUALITY })
+}
+
+async function render(file, { crop, maxEdge, quality }) {
   const refusal = checkPosterFile(file)
   if (refusal) return { blob: null, width: 0, height: 0, error: refusal }
 
@@ -95,17 +128,19 @@ export async function preparePoster(file, crop = null) {
 
   const { width: sourceWidth, height: sourceHeight } = dimensionsOf(source)
   if (!sourceWidth || !sourceHeight) {
+    source.close?.()
     return { blob: null, width: 0, height: 0, error: 'That image appears to be empty.' }
   }
 
   const area = cropRect(sourceWidth, sourceHeight, crop)
-  const { width, height } = fitWithin(area.width, area.height, MAX_EDGE)
+  const { width, height } = fitWithin(area.width, area.height, maxEdge)
 
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext('2d')
   if (!context) {
+    source.close?.()
     return { blob: null, width: 0, height: 0, error: 'This browser could not resize the image.' }
   }
 
@@ -118,8 +153,12 @@ export async function preparePoster(file, crop = null) {
   source.close?.()
 
   const blob = await new Promise((resolve) =>
-    canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
+    canvas.toBlob(resolve, 'image/jpeg', quality),
   )
+  // Handing the canvas's memory back now rather than whenever the garbage
+  // collector gets round to it — on a phone, "soon" matters.
+  canvas.width = 0
+  canvas.height = 0
 
   if (!blob) {
     return { blob: null, width: 0, height: 0, error: 'This browser could not re-encode the image.' }
