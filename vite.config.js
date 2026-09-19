@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { POSTER_CACHE, isPosterRequest } from './src/lib/cacheRules.js'
 
 // base must match the GitHub Pages path: staciatucker-arch.github.io/the-shelf/
 // Getting this wrong is the classic "blank page after deploy" cause, because
@@ -37,13 +38,18 @@ export default defineConfig({
         // Cache them at runtime so a revisited shelf loads instantly, but
         // never precache them — that would download the whole collection on
         // first open.
+        //
+        // ONLY posters. Until 2026-09-19 this matched every supabase.co
+        // request, so the collection itself and sign-in were cached too, and
+        // the app could open on last time's collection (review A1). The rule
+        // and its tests live in src/lib/cacheRules.js. It is passed by name,
+        // not wrapped, because it is copied into sw.js as text.
         runtimeCaching: [
           {
-            urlPattern: ({ url }) =>
-              url.hostname.endsWith('github.io') || url.hostname.endsWith('supabase.co'),
+            urlPattern: isPosterRequest,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'posters',
+              cacheName: POSTER_CACHE,
               expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },

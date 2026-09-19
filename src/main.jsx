@@ -3,6 +3,13 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import './styles.css'
+import { retireOldCaches } from './lib/cacheRules.js'
+
+// Delete the old 'posters' store, which holds copies of the collection and
+// sign-in responses from before 2026-09-19 (review A1). Renaming the store in
+// the service worker does not remove the old one; this does. Fire and forget:
+// it never blocks the app from opening.
+retireOldCaches()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

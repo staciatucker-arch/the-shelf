@@ -10,6 +10,8 @@ import FilmDetail from './components/FilmDetail.jsx'
 import FilmForm from './components/FilmForm.jsx'
 import OptionsManager from './components/OptionsManager.jsx'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
+import { ownedObjectPath } from './lib/poster.js'
+import { removePoster } from './lib/posterStorage.js'
 import {
   EMPTY_FILTERS,
   SORT_MODES,
@@ -180,11 +182,30 @@ export default function App() {
   }, [])
 
   /** Remove one named row, and only once the database says it is gone. */
-  const deleteFilm = useCallback(async (id) => {
+  const deleteFilm = useCallback(async (film) => {
+    const { id } = film
     const { error } = await supabase.from('films').delete().eq('id', id)
     if (error) return { error: error.message }
 
     setFilms((current) => (current ? current.filter((f) => f.id !== id) : current))
+
+    // The film's own uploaded cover goes with it (review A2 / security S4,
+    // 2026-09-18). Before this, deleting a film left its photo public in the
+    // bucket forever, reachable by anyone holding the URL, with nothing
+    // pointing at it and nothing that would ever clean it up.
+    //
+    // Only after the row delete is confirmed, so a failed delete can never
+    // leave a film pointing at a missing cover. Only a path this app wrote:
+    // `ownedObjectPath` returns null for GitHub and TMDB posters, which are
+    // not files in the bucket and must never be touched from here. A failure
+    // is not reported as a failed delete, because the film IS deleted; the
+    // worst case is one unreferenced image, which is exactly the old
+    // behaviour.
+    const path = ownedObjectPath(film)
+    if (path) {
+      const { error: removeError } = await removePoster(path)
+      if (removeError) console.warn('Film deleted, but its cover was not removed:', removeError)
+    }
     return { error: null }
   }, [])
 
@@ -367,7 +388,7 @@ export default function App() {
               return result
             }}
             onDelete={async () => {
-              const result = await deleteFilm(editingFilm.id)
+              const result = await deleteFilm(editingFilm)
               // Both panels close together: the detail behind this one is about
               // a film that no longer exists.
               if (!result.error) {
