@@ -1,4 +1,4 @@
-import { JPEG_QUALITY, MAX_EDGE, checkPosterFile, fitWithin } from './poster.js'
+import { JPEG_QUALITY, MAX_EDGE, checkPosterFile, cropRect, fitWithin } from './poster.js'
 
 // Turning whatever came off a phone or a scanner into the one thing the app
 // stores: a JPEG no wider or taller than 1050 px. MIGRATION_PLAN.md §6b step 7.
@@ -62,12 +62,17 @@ function dimensionsOf(source) {
 /**
  * A file from a picker, a drop or a paste, as a poster-sized JPEG.
  *
+ * `crop` is optional, in percentages, from the crop screen. It is applied to
+ * the full-resolution photo *before* shrinking, in the same single draw — so
+ * a tight crop of a 4000 px phone photo still comes out at up to 1050 px,
+ * and there is only ever one JPEG encode.
+ *
  * Returns `{ blob, width, height, error }`. A failure is always a sentence
  * naming what to do about it — never a thrown exception and never a silent
  * null, because the one thing worse than refusing a photo is accepting it
  * and storing something broken.
  */
-export async function preparePoster(file) {
+export async function preparePoster(file, crop = null) {
   const refusal = checkPosterFile(file)
   if (refusal) return { blob: null, width: 0, height: 0, error: refusal }
 
@@ -93,7 +98,8 @@ export async function preparePoster(file) {
     return { blob: null, width: 0, height: 0, error: 'That image appears to be empty.' }
   }
 
-  const { width, height } = fitWithin(sourceWidth, sourceHeight, MAX_EDGE)
+  const area = cropRect(sourceWidth, sourceHeight, crop)
+  const { width, height } = fitWithin(area.width, area.height, MAX_EDGE)
 
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -108,7 +114,7 @@ export async function preparePoster(file) {
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, width, height)
   context.imageSmoothingQuality = 'high'
-  context.drawImage(source, 0, 0, width, height)
+  context.drawImage(source, area.x, area.y, area.width, area.height, 0, 0, width, height)
   source.close?.()
 
   const blob = await new Promise((resolve) =>

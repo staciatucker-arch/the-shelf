@@ -1226,3 +1226,63 @@ button.danger {
   line-height: 1.35;
   margin: 0.4rem 0 0;
 }
+
+/* --- crop step (poster) -------------------------------------------------- */
+
+/* Above the detail/edit overlay (z-index 30), because it opens from inside
+   the edit form. */
+.crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(5, 5, 9, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+.crop-panel {
+  width: 100%;
+  max-width: 40rem;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.crop-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+}
+.crop-stage {
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+/* The picture is fitted to what is left of the screen after the hint and the
+   buttons, so the whole photo — and every corner handle — is on screen at
+   once. A crop box whose corner is off the bottom of a phone cannot be
+   dragged. */
+.crop-image {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 11rem);
+  touch-action: none;
+}
+/* Bigger corner handles than the library's default: these are dragged with a
+   thumb on a phone. */
+.crop-overlay .ReactCrop__drag-handle {
+  width: 22px;
+  height: 22px;
+}
+.crop-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.crop-buttons button { margin-top: 0; }

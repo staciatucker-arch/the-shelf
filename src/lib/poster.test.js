@@ -7,6 +7,7 @@ import {
   MAX_EDGE,
   checkPosterFile,
   clearedPosterColumns,
+  cropRect,
   fitWithin,
   ownedObjectPath,
   posterColumns,
@@ -162,4 +163,44 @@ test('a film with no poster owns nothing', () => {
   assert.equal(ownedObjectPath({}), null)
   assert.equal(ownedObjectPath({ poster_source: 'upload', poster_storage_path: null }), null)
   assert.equal(ownedObjectPath({ poster_source: 'upload', poster_storage_path: '  ' }), null)
+})
+
+// --- cropping: the box drawn on a small preview lands on the full photo ------
+
+test('no crop keeps the whole picture', () => {
+  assert.deepEqual(cropRect(4000, 3000, null), { x: 0, y: 0, width: 4000, height: 3000, cropped: false })
+})
+
+test('a full-size box is not a crop', () => {
+  assert.equal(cropRect(4000, 3000, { x: 0, y: 0, width: 100, height: 100 }).cropped, false)
+})
+
+test('percentages map onto the source pixels, not the preview', () => {
+  assert.deepEqual(cropRect(4000, 3000, { x: 25, y: 10, width: 50, height: 80 }), {
+    x: 1000,
+    y: 300,
+    width: 2000,
+    height: 2400,
+    cropped: true,
+  })
+})
+
+test('a box dragged past the edge is clamped inside the picture', () => {
+  const r = cropRect(1000, 1000, { x: 90, y: -5, width: 30, height: 50 })
+  assert.equal(r.x, 900)
+  assert.equal(r.y, 0)
+  assert.equal(r.x + r.width, 1000)
+  assert.equal(r.height, 450)
+})
+
+test('a crop is never zero pixels, so it always encodes', () => {
+  const r = cropRect(100, 100, { x: 100, y: 100, width: 0.0001, height: 0.0001 })
+  assert.ok(r.width >= 1 && r.height >= 1)
+  assert.ok(r.x + r.width <= 100 && r.y + r.height <= 100)
+})
+
+test('rubbish in gives the whole picture, never a broken one', () => {
+  for (const bad of [{}, { x: 'a', y: 0, width: 10, height: 10 }, { x: 0, y: 0, width: 0, height: 50 }]) {
+    assert.equal(cropRect(800, 600, bad).cropped, false)
+  }
 })

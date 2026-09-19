@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { checkPosterFile } from '../lib/poster.js'
 import { firstImageIn, preparePoster } from '../lib/posterImage.js'
+import PosterCropper from './PosterCropper.jsx'
 
 /**
  * Choosing the cover for one film. MIGRATION_PLAN.md §6b step 7, route B.
@@ -82,11 +84,29 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
     return () => URL.revokeObjectURL(url)
   }, [chosen])
 
-  async function accept(file) {
+  // A picture waiting on the crop screen. Nothing is chosen until the crop is
+  // accepted; Cancel there leaves the film's cover exactly as it was.
+  const [cropping, setCropping] = useState(null)
+
+  // Every way in (both buttons, drop, paste) arrives here and goes through
+  // the crop screen. A file that is refused outright — wrong type, too big —
+  // is refused before the crop screen, not after the person has cropped it.
+  function accept(file) {
     if (!file || disabled) return
     setError(null)
+    const refusal = checkPosterFile(file)
+    if (refusal) {
+      setError(refusal)
+      return
+    }
+    setCropping(file)
+  }
+
+  async function finish(file, crop) {
+    setCropping(null)
+    setError(null)
     setWorking(true)
-    const { blob, width, height, error: problem } = await preparePoster(file)
+    const { blob, width, height, error: problem } = await preparePoster(file, crop)
     setWorking(false)
 
     // A refusal is shown and nothing changes. The previous cover, whatever it
@@ -154,6 +174,14 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
           </span>
         )}
       </div>
+
+      {cropping && (
+        <PosterCropper
+          file={cropping}
+          onDone={(crop) => finish(cropping, crop)}
+          onCancel={() => setCropping(null)}
+        />
+      )}
 
       <div className="poster-controls">
         <input

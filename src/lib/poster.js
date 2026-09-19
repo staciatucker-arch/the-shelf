@@ -72,6 +72,48 @@ export function fitWithin(width, height, maxEdge = MAX_EDGE) {
 }
 
 /**
+ * The part of the picture to keep, in the source image's own pixels.
+ *
+ * `crop` is what the crop screen hands back: percentages of the displayed
+ * picture (`{ x, y, width, height }`, each 0–100). Percentages rather than
+ * screen pixels because the picture is shown shrunk to fit a phone, and a
+ * percentage means the same thing at every size — so the box drawn on a
+ * 400 px preview lands on exactly the same part of a 4000 px photo.
+ *
+ * No crop, a malformed one, or one that is effectively the whole picture all
+ * give the whole picture. The box is clamped inside the image and never
+ * smaller than one pixel, because a zero-sized canvas fails to encode and
+ * that would reach Stacia as a broken upload rather than a cover.
+ */
+export function cropRect(sourceWidth, sourceHeight, crop) {
+  const whole = { x: 0, y: 0, width: sourceWidth, height: sourceHeight, cropped: false }
+  if (!crop) return whole
+  const values = [crop.x, crop.y, crop.width, crop.height].map(Number)
+  if (values.some((v) => !Number.isFinite(v))) return whole
+  const [px, py, pw, ph] = values
+  if (pw <= 0 || ph <= 0) return whole
+
+  const clampPct = (v) => Math.min(100, Math.max(0, v))
+  const left = clampPct(px)
+  const top = clampPct(py)
+  const right = clampPct(px + pw)
+  const bottom = clampPct(py + ph)
+
+  let x = Math.floor((left / 100) * sourceWidth)
+  let y = Math.floor((top / 100) * sourceHeight)
+  let x2 = Math.ceil((right / 100) * sourceWidth)
+  let y2 = Math.ceil((bottom / 100) * sourceHeight)
+  x = Math.min(x, sourceWidth - 1)
+  y = Math.min(y, sourceHeight - 1)
+  x2 = Math.max(x2, x + 1)
+  y2 = Math.max(y2, y + 1)
+
+  const rect = { x, y, width: x2 - x, height: y2 - y }
+  const cropped = !(rect.x === 0 && rect.y === 0 && rect.width === sourceWidth && rect.height === sourceHeight)
+  return { ...rect, cropped }
+}
+
+/**
  * Whether this file can be uploaded at all, said in words a person can act on.
  *
  * Returns null when the file is fine, and a sentence when it is not. The
