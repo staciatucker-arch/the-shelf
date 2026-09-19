@@ -22,14 +22,22 @@ import { firstImageIn, preparePoster } from '../lib/posterImage.js'
  * Three ways in, because the shelf is photographed in two quite different
  * situations and neither should be the awkward one:
  *
- *   the button    a file picker with no `capture` attribute, so a phone
- *                 offers the camera *and* the photo library, and a computer
- *                 offers the folder the scans are already in. Worth saying
- *                 plainly: taking a photo this way goes through the phone's
- *                 own camera app, so it does **not** use `getUserMedia` and
- *                 is not restricted to secure contexts — the thing that broke
- *                 `crypto.randomUUID` on the dev server's phone address does
- *                 not apply to it.
+ *   the button    a file picker with no `capture` attribute: the photo
+ *                 library on a phone, the folder the scans are in on a
+ *                 computer.
+ *   Take photo    touch screens only. A second picker *with*
+ *                 `capture="environment"`, which opens the rear camera
+ *                 directly. It exists because the assumption above it was
+ *                 wrong: this was built believing a picker without `capture`
+ *                 offers "camera or library" on a phone. Older Android did.
+ *                 Stacia's Android on 2026-09-19 went straight to the system
+ *                 photo picker, which has no camera in it — so the camera was
+ *                 unreachable. Taking a photo this way goes through the
+ *                 phone's own camera app, so it does **not** use
+ *                 `getUserMedia` and is not restricted to secure contexts —
+ *                 the thing that broke `crypto.randomUUID` on the dev
+ *                 server's phone address does not apply to it. A photo taken
+ *                 here also never lands in the phone's gallery.
  *   drag and drop for a flatbed session at the desk, where the scan is
  *                 already a file in a window next to this one.
  *   paste         for a picture on the clipboard, which is how a screenshot
@@ -48,6 +56,16 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
   const [error, setError] = useState(null)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef(null)
+  const cameraRef = useRef(null)
+
+  // A finger rather than a mouse is the best available proxy for "has a
+  // camera and is being held". Read once: a device does not change pointer
+  // mid-form. A laptop with a touch screen reports `fine` for its trackpad,
+  // so it gets no camera button — correct, since a webcam cannot photograph
+  // a DVD case usefully.
+  const [touch] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true,
+  )
 
   // The thumbnail's object URL, revoked when it is replaced or the form
   // closes. A few megabytes of image would otherwise stay in memory for the
@@ -103,7 +121,9 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
     if (chosen?.blob) return `Ready — ${chosen.width}×${chosen.height}. It uploads when you save.`
     if (chosen?.cleared) return 'The cover will be removed when you save.'
     if (existingUrl) return 'The cover on the shelf now.'
-    return 'Take a photo or pick a picture. It is shrunk before uploading.'
+    return touch
+      ? 'Take a photo of the case, or choose one you already have.'
+      : 'Pick a picture. It is shrunk before uploading.'
   })()
 
   return (
@@ -152,15 +172,45 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
           }}
           disabled={disabled || working}
         />
+        {touch && (
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={(e) => {
+              accept(e.target.files?.[0])
+              e.target.value = ''
+            }}
+            disabled={disabled || working}
+          />
+        )}
 
         <div className="poster-buttons">
+          {touch && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => cameraRef.current?.click()}
+              disabled={disabled || working}
+            >
+              Take photo
+            </button>
+          )}
           <button
             type="button"
             className="ghost"
             onClick={() => inputRef.current?.click()}
             disabled={disabled || working}
           >
-            {working ? 'Preparing…' : showing ? 'Edit cover' : 'Add cover'}
+            {working
+              ? 'Preparing…'
+              : touch
+                ? 'Choose photo'
+                : showing
+                  ? 'Edit cover'
+                  : 'Add cover'}
           </button>
 
           {/* One button, one meaning, decided by what is actually on screen.
