@@ -1259,18 +1259,26 @@ button.danger {
   text-align: center;
 }
 .crop-stage {
-  min-height: 0;
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
+  max-width: 100%;
 }
 /* The picture is fitted to what is left of the screen after the hint and the
    buttons, so the whole photo — and every corner handle — is on screen at
-   once. A crop box whose corner is off the bottom of a phone cannot be
-   dragged. */
-.crop-image {
-  display: block;
-  max-width: 100%;
+   once. A crop box whose corner is off the bottom of the screen cannot be
+   dragged.
+
+   ⚠ The limit goes on the library's own frame, `.ReactCrop`, NOT on the
+   <img>. The library's stylesheet sets `max-height: inherit` on the image
+   with a more specific selector, which silently overrode a limit placed on
+   the image. The first version did that: on 2026-09-19 a tall cover ran off
+   the bottom of Stacia's Mac screen and the box could not be dragged down to
+   include it. The library passes this value down to the image itself. */
+.crop-overlay .ReactCrop {
   max-height: calc(100dvh - 11rem);
+}
+.crop-image {
   touch-action: none;
 }
 /* Bigger corner handles than the library's default: these are dragged with a
