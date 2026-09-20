@@ -3,141 +3,190 @@ import test from 'node:test'
 
 import { createPanelBack } from './panelBack.js'
 
-/** A browser's history, small enough to see all of it. */
+const tick = () => new Promise((r) => setTimeout(r, 0))
+
+/**
+ * A browser's session history, small enough to see all of it.
+ *
+ * It keeps real entries and a real position, and it records the thing that
+ * actually went wrong on Stacia's phone: pressing back when there is nothing
+ * left to go back to **leaves the app**.
+ */
 function fakeBrowser() {
   let handler = null
-  const moves = []
+  const state = { entries: ['base'], index: 0, left: false }
+
   const history = {
-    pushed: 0,
-    pushState() {
-      this.pushed += 1
+    pushState(s) {
+      state.entries = state.entries.slice(0, state.index + 1)
+      state.entries.push(s)
+      state.index += 1
     },
     go(delta) {
-      moves.push(delta)
-      // A real browser fires popstate once per step it actually moves.
-      for (let i = 0; i < Math.abs(delta); i += 1) handler?.()
+      const target = state.index + delta
+      if (target < 0) {
+        state.left = true
+        return
+      }
+      state.index = target
+      handler?.()
     },
   }
-  const subscribe = (h) => {
-    handler = h
-    return () => {
-      handler = null
-    }
-  }
+
   return {
     history,
-    subscribe,
-    moves,
-    back: () => handler?.(),
+    state,
+    subscribe: (h) => {
+      handler = h
+      return () => {
+        handler = null
+      }
+    },
+    /** A person pressing back. */
+    press() {
+      if (state.index === 0) {
+        state.left = true
+        return
+      }
+      state.index -= 1
+      handler?.()
+    },
+    /** How many entries the app is holding above the collection screen. */
+    depth: () => state.index,
     listening: () => handler !== null,
   }
 }
 
-test('opening a panel adds one history entry', () => {
+test('a panel arms exactly one history entry', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
   back.open(() => {})
-  assert.equal(b.history.pushed, 1)
-  assert.equal(back.depth(), 1)
+  await tick()
+  assert.equal(b.depth(), 1)
+  assert.equal(back.isArmed(), true)
 })
 
-test('a back press closes the panel instead of leaving the page', () => {
+test('back closes the panel instead of leaving the app', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
   let closed = false
   back.open(() => {
     closed = true
   })
-  b.back()
+  await tick()
+  b.press()
+  await tick()
   assert.equal(closed, true)
-  assert.equal(back.depth(), 0)
-  // The browser already moved; the app must not ask it to move again.
-  assert.deepEqual(b.moves, [])
+  assert.equal(b.state.left, false, 'the app is still open')
+  assert.equal(b.depth(), 0)
 })
 
-test('back closes the top panel only, and unwinds in order', () => {
+test('three stacked panels still hold one entry, and unwind in order', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
   const order = []
-  const detail = back.open(() => order.push('detail'), { id: 'detail' })
-  const form = back.open(() => order.push('form'), { id: 'form' })
+  back.open(() => order.push('detail'), { id: 'detail' })
+  back.open(() => order.push('form'), { id: 'form' })
   back.open(() => order.push('crop'), { id: 'crop' })
+  await tick()
+  assert.equal(b.depth(), 1, 'one entry, not three')
 
-  b.back()
-  b.back()
-  b.back()
+  b.press()
+  await tick()
+  b.press()
+  await tick()
+  b.press()
+  await tick()
   assert.deepEqual(order, ['crop', 'form', 'detail'])
-  assert.equal(back.depth(), 0)
-  assert.ok(detail && form)
+  assert.equal(b.state.left, false, 'three presses closed three panels and no more')
 })
 
-test('closing with the X removes that panel’s entry, and closes nothing else', () => {
+// The sequence Stacia ran on her phone on 2026-09-20, which left the app on
+// the third press. Each step is written the way the app really behaves.
+test('Stacia’s sequence: open, Edit, crop, back three times', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
   const closed = []
-  const detail = back.open(() => closed.push('detail'), { id: 'detail' })
-  const form = back.open(() => closed.push('form'), { id: 'form' })
 
-  back.close(form, { flushNow: true })
-  assert.deepEqual(b.moves, [-1], 'one entry removed')
-  assert.deepEqual(closed, [], 'the panel underneath is untouched')
-  assert.equal(back.depth(), 1)
+  // 1. Open a film. FilmDetail mounts.
+  let detail = back.open(() => closed.push('detail'), { id: 'detail' })
+  await tick()
 
-  // And the panel underneath still answers a real back press.
-  b.back()
-  assert.deepEqual(closed, ['detail'])
-  assert.ok(detail)
-})
-
-test('closing two panels at once is one history move, not two', () => {
-  const b = fakeBrowser()
-  const back = createPanelBack(b.history, b.subscribe)
-  const detail = back.open(() => {}, { id: 'detail' })
-  const form = back.open(() => {}, { id: 'form' })
-
-  // What deleting a film does: both panels close in the same tick.
-  back.close(form)
+  // 2. Press Edit. React unmounts FilmDetail and mounts FilmForm in ONE
+  //    commit: cleanups first, then mounts. This is what broke the counting
+  //    version — the two must cancel out, not fight.
   back.close(detail)
-  back.flush()
-  assert.deepEqual(b.moves, [-2])
-  assert.equal(back.depth(), 0)
+  const form = back.open(
+    () => {
+      closed.push('form')
+      // Cancelling the form brings the film's details back, as App does.
+      detail = back.open(() => closed.push('detail'), { id: 'detail' })
+    },
+    { id: 'form' },
+  )
+  await tick()
+  assert.equal(b.depth(), 1, 'a replacement is not a net change')
+
+  // 3. Open the crop screen over the form.
+  back.open(() => closed.push('crop'), { id: 'crop' })
+  await tick()
+
+  // 4. Three back presses.
+  b.press()
+  await tick()
+  assert.deepEqual(closed, ['crop'])
+  assert.equal(b.state.left, false)
+
+  b.press()
+  await tick()
+  assert.deepEqual(closed, ['crop', 'form'])
+  assert.equal(b.state.left, false)
+
+  b.press()
+  await tick()
+  assert.deepEqual(closed, ['crop', 'form', 'detail'])
+  assert.equal(b.state.left, false, 'the app is still open after three presses')
+  assert.ok(form)
+
+  // 5. Only now does back leave, from the collection screen.
+  b.press()
+  assert.equal(b.state.left, true)
 })
 
-test('a panel closed by back is not closed twice', () => {
+test('closing with the X gives the entry back, without closing anything else', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
-  let entry = null
-  let closes = 0
-  entry = back.open(() => {
-    closes += 1
-    // React unmounts the panel, which calls close() on the way out.
-    back.close(entry, { flushNow: true })
-  })
-  b.back()
-  assert.equal(closes, 1)
-  assert.deepEqual(b.moves, [], 'the browser had already gone back')
+  const closed = []
+  back.open(() => closed.push('detail'), { id: 'detail' })
+  const form = back.open(() => closed.push('form'), { id: 'form' })
+  await tick()
+
+  back.close(form) // Cancel
+  await tick()
+  assert.deepEqual(closed, [], 'the panel underneath is untouched')
+  assert.equal(b.depth(), 1, 'still armed for the panel that is still open')
+
+  b.press()
+  await tick()
+  assert.deepEqual(closed, ['detail'])
+  assert.equal(b.depth(), 0)
+  assert.equal(b.state.left, false)
 })
 
-test('it stops listening once nothing is open', () => {
+test('the last panel closing by hand hands the entry back, and does not exit', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
   const entry = back.open(() => {})
-  assert.equal(b.listening(), true)
-  back.close(entry, { flushNow: true })
-  assert.equal(b.listening(), false)
+  await tick()
+  back.close(entry)
+  await tick()
+  assert.equal(b.depth(), 0)
+  assert.equal(b.state.left, false)
+  assert.equal(back.isArmed(), false)
+  assert.equal(b.listening(), false, 'nothing open, nothing listening')
 })
 
-test('closing something already gone does nothing', () => {
-  const b = fakeBrowser()
-  const back = createPanelBack(b.history, b.subscribe)
-  back.close(null, { flushNow: true })
-  const entry = back.open(() => {})
-  back.close(entry, { flushNow: true })
-  back.close(entry, { flushNow: true })
-  assert.equal(back.depth(), 0)
-})
-
-test('a panel that refuses to close keeps its guard', () => {
+test('a panel mid-save refuses, and stays guarded', async () => {
   const b = fakeBrowser()
   const back = createPanelBack(b.history, b.subscribe)
   let saving = true
@@ -147,40 +196,42 @@ test('a panel that refuses to close keeps its guard', () => {
     closes += 1
     return true
   })
-  const pushedWhileOpen = b.history.pushed
+  await tick()
 
-  b.back()
+  b.press()
+  await tick()
   assert.equal(closes, 0, 'it did not close mid-save')
-  assert.equal(back.depth(), 1, 'it is still guarded')
-  assert.equal(b.history.pushed, pushedWhileOpen + 1, 'the entry was put back')
+  assert.equal(b.depth(), 1, 'and it is armed again')
+  assert.equal(b.state.left, false)
 
-  // And once the save finishes, back closes it as normal.
   saving = false
-  b.back()
+  b.press()
+  await tick()
   assert.equal(closes, 1)
-  assert.equal(back.depth(), 0)
 })
 
-test('replacing one panel with another leaves exactly one entry', () => {
+// The counting version could leave a stuck "ignore the next pop" and swallow
+// a real press for the life of the page. The window expires instead.
+test('a self-move that never reports back does not swallow a later press', async () => {
   const b = fakeBrowser()
-  const back = createPanelBack(b.history, b.subscribe)
-  let detailClosed = 0
-  let formClosed = 0
-  const detail = back.open(() => (detailClosed += 1), { id: 'detail' })
+  let clock = 1000
+  const back = createPanelBack(b.history, b.subscribe, { now: () => clock })
+  const entry = back.open(() => {})
+  await tick()
 
-  // Pressing Edit: React unmounts the details and mounts the form in one
-  // commit, cleanups first. The removal is batched, the push is not.
-  back.close(detail)
-  back.open(() => (formClosed += 1), { id: 'form' })
-  back.flush()
+  // Close by hand. The app asks to go back; pretend the browser never says so.
+  b.history.go = () => {}
+  back.close(entry)
+  await tick()
 
-  assert.equal(b.history.pushed, 2)
-  assert.deepEqual(b.moves, [-1], 'the two cancel out')
-  assert.equal(back.depth(), 1, 'one panel is open, so one entry guards it')
-
-  // And one back press closes the form and nothing else.
-  b.back()
-  assert.equal(formClosed, 1)
-  assert.equal(detailClosed, 0)
-  assert.equal(back.depth(), 0)
+  // Much later, a real press must still be heard.
+  clock += 5000
+  let closed = false
+  back.open(() => {
+    closed = true
+  })
+  await tick()
+  b.press()
+  await tick()
+  assert.equal(closed, true)
 })

@@ -3,36 +3,28 @@
 // arrow, then I am kicked out of the app" — the film's view panel has an X in
 // the corner, and Android's back arrow sits a few millimetres below it.
 //
-// The idea is small: a panel that opens adds one entry to the browser's
-// history, so back returns to the entry underneath instead of leaving the
-// page. The app hears that and closes the panel. Back from the collection
-// itself still leaves, which is what a person expects.
+// **One rule: while any panel is open, the app holds exactly one history
+// entry.** Back lands on it, the app closes the top panel, and if anything is
+// still open the entry is put back. Back from the collection itself leaves,
+// which is what a person expects.
 //
-// Everything hard about this is bookkeeping, and it is all here so that no
-// component has to think about it:
+// ⚠ **The first version counted history steps and got it wrong.** It pushed
+// one entry per panel and removed them one by one. Opening Edit closes the
+// film's details and opens the form in the same instant, so a removal and an
+// addition were in flight together; the browser applied them in its own
+// order, the count drifted, and on Stacia's phone the third back press left
+// the app (2026-09-20 — every unit test had passed).
 //
-//   whose back is it   Closing a panel with its X or Cancel has to remove the
-//                      entry that panel added, or the history fills with dead
-//                      steps and back appears to do nothing. That removal is
-//                      itself a history navigation, which fires the same
-//                      event as a real back press — so it is counted and
-//                      ignored, or closing one panel would close the one
-//                      underneath it too.
-//   which panel        Panels stack: a film's details, the edit form over it,
-//                      the crop screen over that. Back closes the top one
-//                      only, so it unwinds in the order they were opened.
-//   several at once    Deleting a film closes the form and the details
-//                      together. The steps are batched into one history move
-//                      rather than two racing ones.
-//   one replacing      Pressing Edit closes the film's details and opens the
-//   another            form in the same instant. Because the removal is
-//                      batched to the end of the tick and the arrival is not,
-//                      the two cancel out: one entry is added, one is taken
-//                      away, and the depth of the history matches the number
-//                      of panels actually open. This is what the
-//                      "replacing one panel with another" test pins down.
+// The fix is not better counting. It is not counting at all: after any
+// change, `reconcile` compares two facts — is a panel open, do we hold an
+// entry — and makes the second match the first. A replacement becomes a
+// non-event, because the answer to "is a panel open" never changes. Drift is
+// corrected at the next reconcile instead of accumulating.
 //
 // The browser is injected, so all of this is tested without one.
+
+/** How long a history move the app made itself may account for a pop. */
+const SELF_MOVE_WINDOW_MS = 400
 
 /**
  * A back-closes-the-panel coordinator over some history-like object.
@@ -40,36 +32,17 @@
  * `history` needs `pushState` and `go`; `subscribe(handler)` should call
  * `handler` on popstate and return an unsubscribe function.
  */
-export function createPanelBack(history, subscribe) {
+export function createPanelBack(history, subscribe, { now = () => Date.now() } = {}) {
   const stack = []
-  // Our own history.go() fires the same event a person's back press does.
-  // Each step we ask for is counted here and skipped when it arrives.
-  let ignoring = 0
-  let pendingSteps = 0
+  let armed = false // do we currently hold a history entry?
+  let scheduled = false
   let unsubscribe = null
-
-  function handlePop() {
-    if (ignoring > 0) {
-      ignoring -= 1
-      return
-    }
-    const top = stack.pop()
-    if (!top) return
-    // Marked first: the close below unmounts the panel, which calls back into
-    // `close`, and that must not ask the browser to go back a second time.
-    top.viaBack = true
-    // A panel mid-save refuses to close, exactly as its Cancel button does.
-    // Its entry is put back, so the press is ignored rather than spending the
-    // guard — otherwise the next press would leave the app while a save was
-    // in flight.
-    if (top.close() === false) {
-      top.viaBack = false
-      stack.push(top)
-      history.pushState({ shelfPanel: top.id }, '')
-      return
-    }
-    if (stack.length === 0) stop()
-  }
+  // When the app itself moves the history, the browser reports it exactly
+  // like a person's back press. This is a *window*, not a counter: a counter
+  // that never receives its event stays wrong for the life of the page and
+  // swallows a real press much later — which is the shape of the bug this
+  // file exists to avoid repeating.
+  let selfMoveUntil = 0
 
   function start() {
     if (!unsubscribe) unsubscribe = subscribe(handlePop)
@@ -82,46 +55,75 @@ export function createPanelBack(history, subscribe) {
     }
   }
 
-  function flush() {
-    if (pendingSteps === 0) return
-    const steps = pendingSteps
-    pendingSteps = 0
-    ignoring += steps
-    history.go(-steps)
-    if (stack.length === 0) stop()
+  function reconcile() {
+    scheduled = false
+    const wanted = stack.length > 0
+    if (wanted && !armed) {
+      armed = true
+      start()
+      history.pushState({ shelfPanel: true }, '')
+    } else if (!wanted && armed) {
+      armed = false
+      selfMoveUntil = now() + SELF_MOVE_WINDOW_MS
+      history.go(-1)
+    }
+    if (!wanted && !armed) stop()
+  }
+
+  // Batched to the end of the tick, so a panel closing and another opening in
+  // the same commit are seen together rather than one after the other.
+  function schedule() {
+    if (scheduled) return
+    scheduled = true
+    queueMicrotask(reconcile)
+  }
+
+  function handlePop() {
+    if (now() < selfMoveUntil) {
+      selfMoveUntil = 0
+      return
+    }
+    // The browser has consumed our entry, whatever happens next.
+    armed = false
+    const top = stack[stack.length - 1]
+    if (!top) {
+      schedule()
+      return
+    }
+    // Taken off the stack before closing: closing unmounts the panel, which
+    // calls back in here, and reconcile must see the world as it will be.
+    stack.pop()
+    top.viaBack = true
+    // A panel mid-save refuses, exactly as its Cancel button does. Putting it
+    // back means the press is ignored rather than spending the guard.
+    if (top.close() === false) {
+      top.viaBack = false
+      stack.push(top)
+    }
+    schedule()
   }
 
   return {
     /** A panel has opened. Returns the entry to hand back to `close`. */
     open(close, { id = 'panel' } = {}) {
       const entry = { id, close, viaBack: false }
-      start()
       stack.push(entry)
-      history.pushState({ shelfPanel: id }, '')
+      schedule()
       return entry
     },
 
-    /**
-     * A panel has closed. Removes its history entry unless the close came
-     * from a back press, in which case the browser has already done it.
-     */
-    close(entry, { flushNow = false } = {}) {
+    /** A panel has closed — by its X, by Cancel, or by being replaced. */
+    close(entry) {
       if (!entry) return
       const i = stack.lastIndexOf(entry)
       if (i !== -1) stack.splice(i, 1)
-      if (!entry.viaBack) {
-        pendingSteps += 1
-        // Batched to the end of the tick: closing two panels at once should
-        // be one history move, not two that race.
-        if (flushNow) flush()
-        else queueMicrotask(flush)
-      }
-      if (stack.length === 0 && pendingSteps === 0) stop()
+      schedule()
     },
 
-    /** For tests and diagnostics only. */
+    /** For tests and diagnostics. */
     depth: () => stack.length,
-    flush,
+    isArmed: () => armed,
+    flush: reconcile,
   }
 }
 
