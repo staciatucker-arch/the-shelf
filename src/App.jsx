@@ -78,7 +78,16 @@ function BackDebug() {
     return panelBack.watchLog(setLine)
   }, [on])
   if (!on) return null
-  return <p className="build-stamp muted">back: {line || '(nothing yet)'}</p>
+  // Fixed and above every panel: the events worth reading happen while a
+  // panel is covering the screen.
+  return (
+    <div className="back-debug">
+      <span>back: {line || '(nothing yet)'}</span>
+      <button type="button" onClick={() => panelBack.clearLog()}>
+        Clear
+      </button>
+    </div>
+  )
 }
 
 export default function App() {
