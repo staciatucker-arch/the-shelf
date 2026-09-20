@@ -348,6 +348,10 @@ export default function App() {
             )}
           </>
         )}
+        {/* Which build this is. Small, grey, and at the very bottom, where it
+            answers "did my phone get the new one?" without being in the way
+            of anything. */}
+        <p className="build-stamp muted">{__BUILD_STAMP__}</p>
       </main>
 
       {openFilm && !editingFilm && !addingFilm && (

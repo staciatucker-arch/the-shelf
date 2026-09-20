@@ -1294,3 +1294,11 @@ button.danger {
   flex-wrap: wrap;
 }
 .crop-buttons button { margin-top: 0; }
+
+/* The build stamp: present when looked for, invisible otherwise. */
+.build-stamp {
+  margin: 2.5rem 0 0.5rem;
+  text-align: center;
+  font-size: 0.7rem;
+  opacity: 0.45;
+}

@@ -1,13 +1,30 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { execSync } from 'node:child_process'
 import { VitePWA } from 'vite-plugin-pwa'
 import { POSTER_CACHE, isPosterRequest } from './src/lib/cacheRules.js'
+
+// Which build is this? Shown in small grey type at the bottom of the
+// collection, and the answer to a question that has now cost two rounds of
+// testing: "is the page on my phone the new one?" A phone holds on to a page
+// for a long time, and nothing else on screen distinguishes one build from
+// the next. It is the short commit id plus the date, and nothing else — it
+// names a version, never a person or a film.
+function buildStamp() {
+  try {
+    const commit = execSync('git rev-parse --short HEAD').toString().trim()
+    return `${commit} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+  } catch {
+    return 'dev'
+  }
+}
 
 // base must match the GitHub Pages path: staciatucker-arch.github.io/the-shelf/
 // Getting this wrong is the classic "blank page after deploy" cause, because
 // every asset URL is resolved against it.
 export default defineConfig({
   base: '/the-shelf/',
+  define: { __BUILD_STAMP__: JSON.stringify(buildStamp()) },
   plugins: [
     react(),
     VitePWA({
