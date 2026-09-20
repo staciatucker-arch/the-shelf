@@ -151,10 +151,21 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
     if (working) return 'Preparing the picture…'
     if (chosen?.blob) return `Ready — ${chosen.width}×${chosen.height}. It uploads when you save.`
     if (chosen?.cleared) return 'The cover will be removed when you save.'
-    if (existingUrl) return 'The cover on the shelf now.'
+    // Drag and paste are named, on a computer only. They were deliberately
+    // left unannounced when this was built, on the theory that somebody who
+    // has those habits will try them anyway. Stacia disproved it on
+    // 2026-09-19: she found them only because a test told her to. A feature
+    // nobody is told about is found by accident or not at all. Phones, where
+    // there is nothing to drag from and rarely a clipboard image, keep the
+    // shorter wording.
+    if (existingUrl) {
+      return touch
+        ? 'The cover on the shelf now.'
+        : 'The cover on the shelf now. Drag a picture here, or paste one, to replace it.'
+    }
     return touch
       ? 'Take a photo of the case, or choose one you already have.'
-      : 'Pick a picture. It is shrunk before uploading.'
+      : 'Pick a picture, drag one here, or paste one. It is shrunk before uploading.'
   })()
 
   return (
