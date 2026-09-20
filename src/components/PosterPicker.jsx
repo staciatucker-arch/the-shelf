@@ -168,11 +168,11 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
     if (existingUrl) {
       return touch
         ? 'This is the cover on your shelf.'
-        : 'This is the cover on your shelf. Drag and drop a picture, or paste one, to replace it.'
+        : 'This is the cover on your shelf. Choose a picture, drag and drop one, or paste one from your clipboard to replace it.'
     }
     return touch
       ? 'Take a photo of the case, or pick one from your phone.'
-      : 'You can also drag and drop a picture, or paste one.'
+      : 'Choose a picture, drag and drop one, or paste one from your clipboard.'
   })()
 
   return (
