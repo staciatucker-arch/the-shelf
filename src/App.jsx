@@ -11,6 +11,7 @@ import FilmForm from './components/FilmForm.jsx'
 import OptionsManager from './components/OptionsManager.jsx'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
+import { panelBack } from './lib/panelBack.js'
 import { removePoster } from './lib/posterStorage.js'
 import {
   EMPTY_FILTERS,
@@ -63,6 +64,22 @@ const SAVE_UNKNOWN =
   'The rest of the collection is fine — only this window stopped working. ' +
   'If you were part-way through saving, whether it went through is unknown: ' +
   'reload and check the film before entering it again.'
+
+/**
+ * The ?debug=1 readout: what the app has done to the browser's history,
+ * oldest first. Off unless the address ends in ?debug=1, because it is for
+ * chasing a bug on a phone, where there is no console to read.
+ */
+function BackDebug() {
+  const [line, setLine] = useState('')
+  const on = typeof window !== 'undefined' && window.location.search.includes('debug')
+  useEffect(() => {
+    if (!on) return undefined
+    return panelBack.watchLog(setLine)
+  }, [on])
+  if (!on) return null
+  return <p className="build-stamp muted">back: {line || '(nothing yet)'}</p>
+}
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -352,6 +369,7 @@ export default function App() {
             answers "did my phone get the new one?" without being in the way
             of anything. */}
         <p className="build-stamp muted">{__BUILD_STAMP__}</p>
+        <BackDebug />
       </main>
 
       {openFilm && !editingFilm && !addingFilm && (

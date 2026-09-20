@@ -34,6 +34,17 @@ const SELF_MOVE_WINDOW_MS = 400
  */
 export function createPanelBack(history, subscribe, { now = () => Date.now() } = {}) {
   const stack = []
+  // A short record of what the app did to the history and why, for the
+  // ?debug=1 readout at the foot of the collection. Kept because this
+  // mechanism is invisible by nature: on a phone there is nothing to inspect
+  // and no console to read, and two rounds of guessing cost more than this.
+  const log = []
+  const watchers = new Set()
+  function note(what) {
+    log.push(what)
+    if (log.length > 14) log.shift()
+    watchers.forEach((w) => w(log.join(' ')))
+  }
   let armed = false // do we currently hold a history entry?
   let scheduled = false
   let unsubscribe = null
@@ -62,10 +73,12 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
       armed = true
       start()
       history.pushState({ shelfPanel: true }, '')
+      note('push')
     } else if (!wanted && armed) {
       armed = false
       selfMoveUntil = now() + SELF_MOVE_WINDOW_MS
       history.go(-1)
+      note('go-1')
     }
     if (!wanted && !armed) stop()
   }
@@ -81,12 +94,15 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
   function handlePop() {
     if (now() < selfMoveUntil) {
       selfMoveUntil = 0
+      note('pop(ours)')
       return
     }
+    note('POP')
     // The browser has consumed our entry, whatever happens next.
     armed = false
     const top = stack[stack.length - 1]
     if (!top) {
+      note('(nothing open)')
       schedule()
       return
     }
@@ -96,9 +112,11 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     top.viaBack = true
     // A panel mid-save refuses, exactly as its Cancel button does. Putting it
     // back means the press is ignored rather than spending the guard.
+    note(`close:${top.id}`)
     if (top.close() === false) {
       top.viaBack = false
       stack.push(top)
+      note('refused')
     }
     schedule()
   }
@@ -108,6 +126,7 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     open(close, { id = 'panel' } = {}) {
       const entry = { id, close, viaBack: false }
       stack.push(entry)
+      note(`open:${id}`)
       schedule()
       return entry
     },
@@ -117,6 +136,7 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
       if (!entry) return
       const i = stack.lastIndexOf(entry)
       if (i !== -1) stack.splice(i, 1)
+      note(`shut:${entry.id}`)
       schedule()
     },
 
@@ -124,6 +144,13 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     depth: () => stack.length,
     isArmed: () => armed,
     flush: reconcile,
+
+    /** The ?debug=1 readout: the last dozen history events, oldest first. */
+    watchLog(cb) {
+      watchers.add(cb)
+      cb(log.join(' '))
+      return () => watchers.delete(cb)
+    },
   }
 }
 
