@@ -1331,3 +1331,10 @@ button.danger {
   min-height: 0;
   font-size: 0.6rem;
 }
+
+/* The film's details while the edit form is over them: still mounted, so no
+   history entry has to be added without a tap (see panelBack.js), but out of
+   sight and out of the way of a finger. */
+.detail-overlay.is-hidden {
+  display: none;
+}

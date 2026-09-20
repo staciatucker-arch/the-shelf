@@ -381,7 +381,11 @@ export default function App() {
         <BackDebug />
       </main>
 
-      {openFilm && !editingFilm && !addingFilm && (
+      {/* Kept mounted, and hidden, while the edit form is over it. Not a
+          cosmetic choice: rebuilding it when the form closes would mean
+          adding a history entry with no tap behind it, which Chrome on
+          Android skips — see panelBack.js. */}
+      {openFilm && !addingFilm && (
         <ErrorBoundary
           key={`detail-${openFilm.id}`}
           overlay
@@ -392,6 +396,7 @@ export default function App() {
         >
           <FilmDetail
             film={openFilm}
+            hidden={Boolean(editingFilm)}
             onClose={() => setOpenFilmId(null)}
             onEdit={() => setEditingFilmId(openFilm.id)}
           />

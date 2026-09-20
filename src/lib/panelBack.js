@@ -3,23 +3,34 @@
 // arrow, then I am kicked out of the app" — the film's view panel has an X in
 // the corner, and Android's back arrow sits a few millimetres below it.
 //
-// **One rule: while any panel is open, the app holds exactly one history
-// entry.** Back lands on it, the app closes the top panel, and if anything is
-// still open the entry is put back. Back from the collection itself leaves,
-// which is what a person expects.
+// **One rule: one history entry per open panel, and an entry is only ever
+// added while a panel is opening — which is always a tap.** Back lands on the
+// top entry, the app closes the top panel. Back from the collection itself
+// leaves, which is what a person expects.
 //
-// ⚠ **The first version counted history steps and got it wrong.** It pushed
-// one entry per panel and removed them one by one. Opening Edit closes the
-// film's details and opens the form in the same instant, so a removal and an
-// addition were in flight together; the browser applied them in its own
-// order, the count drifted, and on Stacia's phone the third back press left
-// the app (2026-09-20 — every unit test had passed).
+// ⚠ **Why "only while opening" is the whole design.** Chrome on Android marks
+// a history entry as *skippable* when a page adds it without a recent user
+// gesture, and silently steps over it on the next back press. The version
+// before this one closed the form on back and then re-added an entry for the
+// film's details underneath — a push caused by a back press, with no tap
+// behind it. Chrome skipped it and left the app. Stacia's phone recorded it
+// exactly (2026-09-20):
 //
-// The fix is not better counting. It is not counting at all: after any
-// change, `reconcile` compares two facts — is a panel open, do we hold an
-// entry — and makes the second match the first. A replacement becomes a
-// non-event, because the answer to "is a panel open" never changes. Drift is
-// corrected at the next reconcile instead of accumulating.
+//     open:film-detail push shut:film-detail open:film-form POP
+//     close:film-form shut:film-form open:film-detail push   ← skippable
+//
+// and the next press produced no POP at all. So nothing here re-arms. The
+// film's details panel now stays mounted behind the edit form (hidden) rather
+// than being destroyed and rebuilt, so both panels keep the entry each of
+// them got when it was tapped open.
+//
+// A second trap, hit first: an earlier version queued "add one" and "remove
+// one" as deltas, and a panel replacing another put both in flight at once.
+// The browser applied them in its own order and the count drifted for the
+// life of the page. So `reconcile` never applies deltas. It compares two
+// numbers as they are right now — panels open, entries held — and moves one
+// step towards agreement. Drift is corrected at the next reconcile rather
+// than accumulating.
 //
 // The browser is injected, so all of this is tested without one.
 
@@ -64,7 +75,7 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     }
     watchers.forEach((w) => w(log.join(' ')))
   }
-  let armed = false // do we currently hold a history entry?
+  let held = 0 // how many history entries we believe we are holding
   let scheduled = false
   let unsubscribe = null
   // When the app itself moves the history, the browser reports it exactly
@@ -87,19 +98,25 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
 
   function reconcile() {
     scheduled = false
-    const wanted = stack.length > 0
-    if (wanted && !armed) {
-      armed = true
+    const wanted = stack.length
+    if (wanted > held) {
+      // Only ever reached while a panel is opening, which is always a tap.
+      const adding = wanted - held
+      held = wanted
       start()
-      history.pushState({ shelfPanel: true }, '')
-      note('push')
-    } else if (!wanted && armed) {
-      armed = false
+      for (let i = 0; i < adding; i += 1) history.pushState({ shelfPanel: true }, '')
+      note(`push${adding > 1 ? `x${adding}` : ''}`)
+    } else if (wanted < held) {
+      // Panels closed by their own buttons leave entries behind. Never more
+      // than we hold, so this can never step off the start of the history and
+      // out of the app.
+      const dropping = held - wanted
+      held = wanted
       selfMoveUntil = now() + SELF_MOVE_WINDOW_MS
-      history.go(-1)
-      note('go-1')
+      history.go(-dropping)
+      note(`go-${dropping}`)
     }
-    if (!wanted && !armed) stop()
+    if (held === 0 && stack.length === 0) stop()
   }
 
   // Batched to the end of the tick, so a panel closing and another opening in
@@ -117,8 +134,8 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
       return
     }
     note('POP')
-    // The browser has consumed our entry, whatever happens next.
-    armed = false
+    // The browser has consumed one of our entries, whatever happens next.
+    held = Math.max(0, held - 1)
     const top = stack[stack.length - 1]
     if (!top) {
       note('(nothing open)')
@@ -161,7 +178,7 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
 
     /** For tests and diagnostics. */
     depth: () => stack.length,
-    isArmed: () => armed,
+    held: () => held,
     flush: reconcile,
 
     /** Forget the recorded events (the ?debug=1 readout's Clear). */

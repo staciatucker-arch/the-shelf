@@ -43,7 +43,7 @@ function Detail({ label, children }) {
  * phone the expansion pushed everything else around. Here the rest of the
  * collection stays put and comes back untouched when the panel closes.
  */
-export default function FilmDetail({ film, onClose, onEdit }) {
+export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
   // The phone's back gesture closes this panel rather than leaving the app.
   // This is the panel it matters most for: its X is in the top corner, and
   // Android's back arrow is at the bottom of the screen under your thumb.
@@ -53,7 +53,8 @@ export default function FilmDetail({ film, onClose, onEdit }) {
   useEffect(() => {
     // Escape closes, as it does in every other dialog anyone has used.
     function onKeyDown(e) {
-      if (e.key === 'Escape') onClose()
+      // Not while the edit form is over it: the form has its own Escape.
+      if (e.key === 'Escape' && !hidden) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
 
@@ -67,7 +68,7 @@ export default function FilmDetail({ film, onClose, onEdit }) {
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [onClose])
+  }, [onClose, hidden])
 
   if (!film) return null
 
@@ -79,7 +80,8 @@ export default function FilmDetail({ film, onClose, onEdit }) {
 
   return (
     <div
-      className="detail-overlay"
+      className={`detail-overlay${hidden ? ' is-hidden' : ''}`}
+      aria-hidden={hidden || undefined}
       // A click on the backdrop closes; a click inside the panel must not,
       // so the panel stops the event rather than the backdrop guessing.
       onClick={onClose}
