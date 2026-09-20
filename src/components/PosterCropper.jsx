@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useBackToClose } from './useBackToClose.js'
 import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 
@@ -35,6 +36,9 @@ export default function PosterCropper({ file, onDone, onCancel }) {
     setUrl(u)
     return () => URL.revokeObjectURL(u)
   }, [file])
+
+  // Back closes the crop screen first, before the form underneath it.
+  useBackToClose(onCancel, { id: 'poster-crop' })
 
   // Escape backs out, as it does everywhere else a panel opens over the form.
   useEffect(() => {

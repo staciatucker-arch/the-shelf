@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useBackToClose } from './useBackToClose.js'
 import {
   contentsList,
   displayTitle,
@@ -43,6 +44,10 @@ function Detail({ label, children }) {
  * collection stays put and comes back untouched when the panel closes.
  */
 export default function FilmDetail({ film, onClose, onEdit }) {
+  // The phone's back gesture closes this panel rather than leaving the app.
+  // This is the panel it matters most for: its X is in the top corner, and
+  // Android's back arrow is at the bottom of the screen under your thumb.
+  useBackToClose(onClose, { id: 'film-detail' })
   const closeRef = useRef(null)
 
   useEffect(() => {

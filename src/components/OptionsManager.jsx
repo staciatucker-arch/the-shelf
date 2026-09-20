@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useBackToClose } from './useBackToClose.js'
 import {
   OPTION_KINDS,
   OPTION_LABELS,
@@ -36,6 +37,9 @@ export default function OptionsManager({ onClose, onChanged }) {
   const [actionError, setActionError] = useState(null)
   const [busyValue, setBusyValue] = useState(null)
   const [draft, setDraft] = useState('')
+
+  // Back closes this panel, and is refused while a list is being changed.
+  useBackToClose(onClose, { id: 'options', enabled: !busyValue })
 
   const refresh = useCallback(async () => {
     setLoadError(null)

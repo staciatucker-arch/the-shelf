@@ -13,6 +13,7 @@ import {
 } from '../lib/filmForm.js'
 import { newId } from '../lib/ids.js'
 import { clearedPosterColumns, ownedObjectPath } from '../lib/poster.js'
+import { useBackToClose } from './useBackToClose.js'
 import { removePoster, uploadPoster } from '../lib/posterStorage.js'
 import { mapTmdbGenres } from '../lib/tmdbGenres.js'
 import PosterPicker from './PosterPicker.jsx'
@@ -337,6 +338,10 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
   // Anything in flight freezes the exits: closing a panel whose write is
   // still unanswered leaves nobody to hear whether it worked.
   const busy = saving || deleting
+
+  // Back closes the form, exactly as Cancel and Escape do — and, like them,
+  // it is refused mid-save, when the write is already on its way.
+  useBackToClose(onCancel, { id: 'film-form', enabled: !busy })
 
   const set = (field) => (value) => setForm((f) => ({ ...f, [field]: value }))
 
