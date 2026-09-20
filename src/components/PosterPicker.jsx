@@ -13,7 +13,11 @@ import PosterCropper from './PosterCropper.jsx'
  * half-saved with respect to each other, and there is one button to press
  * rather than two things to remember.
  *
- * **One row, one button** — a thumbnail and "Add cover" or "Edit cover".
+ * **One row, one button** — a thumbnail and "Choose picture" ("Choose photo"
+ * on a phone, beside "Take photo"). The row is labelled Cover, so the buttons
+ * name the *source* rather than repeating the outcome; before 2026-09-20 the
+ * same button said "Add cover" on a computer and "Choose photo" on a phone,
+ * which was two naming systems for one control.
  * The first version of this was a large dashed drop zone, which was wrong for
  * two reasons: it took a fifth of the form on a phone, where the form is
  * already long, and a dashed rectangle does not tell somebody what it is for
@@ -45,9 +49,10 @@ import PosterCropper from './PosterCropper.jsx'
  *   paste         for a picture on the clipboard, which is how a screenshot
  *                 or a copied image arrives.
  *
- * The last two are left unannounced and work on the row itself. They are
- * desktop habits — somebody who has them will try them, and somebody who has
- * not is not helped by being told about dragging while holding a phone.
+ * Drag and paste work on the row itself, and the caption names them **on a
+ * computer only**. They were unannounced until 2026-09-20, on the theory that
+ * somebody with those habits would try them anyway; Stacia found them only
+ * because a test told her to, which is the theory disproved.
  *
  * The thumbnail is the processed image, not the original, so what is on
  * screen is exactly what will be stored — including its orientation, which is
@@ -149,8 +154,10 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
 
   const caption = (() => {
     if (working) return 'Preparing the picture…'
-    if (chosen?.blob) return `Ready — ${chosen.width}×${chosen.height}. It uploads when you save.`
-    if (chosen?.cleared) return 'The cover will be removed when you save.'
+    // Pixel dimensions used to be shown here. They were machinery: nothing a
+    // person does next depends on 1050×787.
+    if (chosen?.blob) return 'New cover ready. Press Save to keep it.'
+    if (chosen?.cleared) return 'This cover will be deleted when you press Save.'
     // Drag and paste are named, on a computer only. They were deliberately
     // left unannounced when this was built, on the theory that somebody who
     // has those habits will try them anyway. Stacia disproved it on
@@ -160,12 +167,12 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
     // shorter wording.
     if (existingUrl) {
       return touch
-        ? 'The cover on the shelf now.'
-        : 'The cover on the shelf now. Drag a picture here, or paste one, to replace it.'
+        ? 'This is the cover on your shelf.'
+        : 'This is the cover on your shelf. Drag and drop a picture, or paste one, to replace it.'
     }
     return touch
-      ? 'Take a photo of the case, or choose one you already have.'
-      : 'Pick a picture, drag one here, or paste one. It is shrunk before uploading.'
+      ? 'Take a photo of the case, or pick one from your phone.'
+      : 'You can also drag and drop a picture, or paste one.'
   })()
 
   return (
@@ -254,13 +261,7 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
             onClick={() => inputRef.current?.click()}
             disabled={disabled || working}
           >
-            {working
-              ? 'Preparing…'
-              : touch
-                ? 'Choose photo'
-                : showing
-                  ? 'Edit cover'
-                  : 'Add cover'}
+            {working ? 'Preparing…' : touch ? 'Choose photo' : 'Choose picture'}
           </button>
 
           {/* One button, one meaning, decided by what is actually on screen.
@@ -280,7 +281,11 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
               }}
               disabled={disabled || working}
             >
-              {chosen?.blob ? 'Cancel' : 'Keep the cover'}
+              {/* One word for one meaning. This button undid a new pick
+                  ('Cancel') or undid a removal ('Keep the cover'); both are
+                  the same intention, and naming them differently made the
+                  person work out which state they were in. */}
+              Undo
             </button>
           ) : existingUrl ? (
             <button
@@ -292,7 +297,7 @@ export default function PosterPicker({ film, chosen, onChoose, onRevert, onRemov
               }}
               disabled={disabled || working}
             >
-              Remove
+              Remove cover
             </button>
           ) : null}
         </div>

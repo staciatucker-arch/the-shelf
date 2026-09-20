@@ -85,8 +85,10 @@ test('a file with no type is let through for the decoder to judge', () => {
 })
 
 test('a PDF or a video is refused before anything is uploaded', () => {
-  assert.match(checkPosterFile({ type: 'application/pdf', size: 1000 }), /not an image/i)
-  assert.match(checkPosterFile({ type: 'video/mp4', size: 1000 }), /not an image/i)
+  // Matched on the formats it names rather than the sentence around them, so
+  // the wording can be improved without breaking this.
+  assert.match(checkPosterFile({ type: 'application/pdf', size: 1000 }), /JPEG, PNG or WEBP/i)
+  assert.match(checkPosterFile({ type: 'video/mp4', size: 1000 }), /JPEG, PNG or WEBP/i)
 })
 
 test('an oversized file is refused with its size and the limit', () => {

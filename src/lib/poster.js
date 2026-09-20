@@ -128,12 +128,14 @@ export function checkPosterFile(file) {
   // that follows is the real test, so an unlabelled file is let through
   // rather than rejected on a technicality.
   if (type !== '' && !ACCEPTED_TYPES.includes(type)) {
-    return 'That is not an image this app can use. A JPEG, PNG or WEBP works.'
+    return 'The Shelf can’t read that file. A JPEG, PNG or WEBP picture works.'
   }
 
   if (typeof file.size === 'number' && file.size > MAX_SOURCE_BYTES) {
     const mb = (file.size / (1024 * 1024)).toFixed(1)
-    return `That image is ${mb} MB, and the limit is 10 MB. A photo taken at a lower resolution will be well under it.`
+    // "resolution" is the kind of word this project's rules say not to use
+    // without explaining it; "picture size" is what the camera app calls it.
+    return `That picture is ${mb} MB, and the limit is 10 MB. Set your camera to a smaller picture size and take it again.`
   }
 
   return null

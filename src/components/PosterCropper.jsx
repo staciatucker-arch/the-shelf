@@ -59,7 +59,9 @@ export default function PosterCropper({ file, onDone, onCancel }) {
   return createPortal(
     <div className="crop-overlay" role="dialog" aria-modal="true" aria-label="Crop the cover">
       <div className="crop-panel">
-        <p className="crop-hint">Drag the corners in to the edges of the case.</p>
+        {/* Not "the edges of the case": this screen also gets scans,
+            screenshots and pasted pictures, which are not cases. */}
+        <p className="crop-hint">Drag the corners to trim the picture.</p>
 
         <div className="crop-stage">
           {url && (
@@ -96,7 +98,7 @@ export default function PosterCropper({ file, onDone, onCancel }) {
             Reset
           </button>
           <button type="button" ref={useButtonRef} onClick={() => onDone(crop)}>
-            Use this
+            Done
           </button>
         </div>
       </div>
