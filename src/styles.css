@@ -44,6 +44,19 @@ h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.08em; text-transform: uppe
   padding: 0.75rem 1rem;
 }
 
+/* A failed load: the sentence, a Try again button, and the server's own words
+   in small print so there is something concrete to report. 2026-09-24. */
+.error-message { margin: 0 0 0.75rem; }
+
+.error .ghost { color: var(--text); }
+
+.error-detail {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  word-break: break-word;
+}
+
 .empty-state {
   color: var(--muted);
   text-align: center;

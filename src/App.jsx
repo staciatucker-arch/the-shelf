@@ -9,6 +9,7 @@ import FilmCard from './components/FilmCard.jsx'
 import FilmDetail from './components/FilmDetail.jsx'
 import FilmForm from './components/FilmForm.jsx'
 import OptionsManager from './components/OptionsManager.jsx'
+import { isClockSkewError, withClockSkewRetry } from './lib/loadRetry.js'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
 import { panelBack } from './lib/panelBack.js'
@@ -95,7 +96,11 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true)
 
   const [films, setFilms] = useState(null)
+  // `null`, or `{ text, raw }` — the sentence a person reads, and the
+  // server's own words kept in small print underneath so there is something
+  // concrete to report when it happens again. 2026-09-24.
   const [loadError, setLoadError] = useState(null)
+  const [retrying, setRetrying] = useState(false)
 
   const [query, setQuery] = useState('')
   const [sortMode, setSortMode] = useState('alpha-asc')
@@ -123,22 +128,48 @@ export default function App() {
   }, [])
 
   const loadFilms = useCallback(async () => {
-    setLoadError(null)
+    // The error stays on screen until this succeeds, so that pressing Try
+    // again leaves the message in place and the button able to say it is
+    // working, rather than blanking the screen and looking like a fresh load.
     // The whole collection is 248 rows and a few hundred KB of text, so it is
     // fetched once and then searched, sorted and filtered in memory. That
     // keeps every interaction instant; worth revisiting only if the shelf
     // grows by an order of magnitude.
-    const { data, error } = await supabase.from('films').select(FILM_COLUMNS).order('title')
+    //
+    // Wrapped in one retry because the first load of the morning carries a
+    // one-second-old token, and Supabase's two clocks occasionally disagree
+    // by about that much — see lib/loadRetry.js. Only that one self-clearing
+    // error is retried; everything else is reported at once.
+    const { data, error } = await withClockSkewRetry(() =>
+      supabase.from('films').select(FILM_COLUMNS).order('title'),
+    )
 
     // Never let a failure look like an empty collection. The old app's habit
     // of silently degrading is the thing this codebase is built against.
     if (error) {
-      setLoadError(error.message)
+      setLoadError({
+        text: isClockSkewError(error)
+          ? 'Could not load the collection — your login could not be verified.'
+          : 'Could not load the collection.',
+        raw: error.message,
+      })
       setFilms(null)
       return
     }
+    setLoadError(null)
     setFilms(data.map(normaliseFilm))
   }, [])
+
+  // The Try again button. Kept separate from `loadFilms` so the button can say
+  // it is working; the app still never reloads itself under someone.
+  const retryLoad = useCallback(async () => {
+    setRetrying(true)
+    try {
+      await loadFilms()
+    } finally {
+      setRetrying(false)
+    }
+  }, [loadFilms])
 
   useEffect(() => {
     if (session) loadFilms()
@@ -289,9 +320,13 @@ export default function App() {
 
       <main>
         {loadError && (
-          <p className="error" role="alert">
-            Could not load the collection: {loadError}
-          </p>
+          <div className="error" role="alert">
+            <p className="error-message">{loadError.text}</p>
+            <button className="ghost" onClick={retryLoad} disabled={retrying}>
+              {retrying ? 'Trying…' : 'Try again'}
+            </button>
+            <p className="error-detail">{loadError.raw}</p>
+          </div>
         )}
 
         {!loadError && films === null && <p className="muted">Loading the collection…</p>}
