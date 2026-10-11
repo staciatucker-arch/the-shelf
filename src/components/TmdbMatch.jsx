@@ -222,11 +222,15 @@ export default function TmdbMatch({
             </button>
           </div>
         </div>
+        {/* Says what the two buttons above do, and nothing else. It used to
+            explain box sets here — and claimed TMDB has no record of a set,
+            which is false (review B4). That advice dated from when the old
+            app had given sets a wrong match; they were cleared on 2026-09-14,
+            and this hint is shown on every matched film, not only sets.
+            Wording agreed with Stacia, 2026-10-11. */}
         <p className="form-hint muted">
-          Clearing leaves it unmatched, which reads “not yet checked”. For a box
-          set that is the right answer — TMDB has no record of a set, and
-          pointing one at a single disc would show that disc’s warnings as
-          though they covered the whole box.
+          <strong>Re-match</strong> searches TMDB again. <strong>Clear</strong>{' '}
+          removes the match.
         </p>
       </div>
     )
