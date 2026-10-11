@@ -292,9 +292,8 @@ function TokenPicker({ id, label, selected, offered, onChange, highlight, note }
    breaking part-way. Like SAVE_UNKNOWN in App.jsx it must never say the save
    worked or that it did not: a write can be in flight at that moment, so it
    sends the person to look.
-   The first sentence is Stacia's, 2026-10-11. The second is the same
-   sentence turned for editing, where nothing is being "added" — proposed by
-   Claude Code and still hers to change. */
+   Both sentences are Stacia's wording, 2026-10-11: one for adding, one for
+   editing, where nothing is being "added". */
 const SAVE_INTERRUPTED_ADDING =
   'Something went wrong. Close this form and see if your film was added.'
 const SAVE_INTERRUPTED_EDITING =
