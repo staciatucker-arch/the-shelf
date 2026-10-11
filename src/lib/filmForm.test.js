@@ -19,7 +19,10 @@ import {
   changedFields,
   filmToForm,
   formToRow,
+  isPickerWrittenLabel,
   newFilmRow,
+  seasonNumberForLabel,
+  seasonNumberPatch,
   validateForm,
   withCurrent,
 } from './filmForm.js'
@@ -383,4 +386,96 @@ test('phrases join the way the shelf writes lists', () => {
     joinPhrases(['the title', 'the year', '3 genres']),
     'the title, the year and 3 genres',
   )
+})
+
+// --- the season's label and its number stay in step (review B1) -------------
+//
+// `season_number` is what the trigger-warning lookup reads, and it is only
+// ever true to say "a person picked this from TMDB's list". Each test below
+// is one of the three ways the two columns used to drift apart.
+
+/** A series row whose season was picked from TMDB's list some time ago. */
+const season3 = { ...film, title: 'True Blood', type: 'Series', season: 'Season 3', season_number: 3 }
+const picked2 = { season_number: 2, name: 'Season 2' }
+
+test('a picked season stores its number beside the label the picker wrote', () => {
+  assert.equal(seasonNumberForLabel('Season 2', picked2), 2)
+  assert.equal(seasonNumberForLabel('Specials', { season_number: 0, name: 'Specials' }), 0)
+})
+
+test('a season picked and then retyped is a typed season, with no number', () => {
+  assert.equal(seasonNumberForLabel('Season 2 (UK cut)', picked2), null)
+  assert.equal(seasonNumberForLabel('', picked2), null)
+  assert.equal(seasonNumberForLabel('Season 2', null), null)
+})
+
+test('a new film gets the number only while its label is the picked one', () => {
+  const picked = newFilmRow({ ...blankForm(), title: 'True Blood', season: 'Season 2' },
+    { id: 'u2', season: picked2 })
+  assert.equal(picked.season_number, 2)
+  const retyped = newFilmRow({ ...blankForm(), title: 'True Blood', season: 'Season 4' },
+    { id: 'u2', season: picked2 })
+  assert.equal(retyped.season, 'Season 4')
+  assert.equal(retyped.season_number, null)
+})
+
+// Route 1: the label retyped by hand while editing.
+test('retyping a stored season by hand drops the number it was stored with', () => {
+  const form = { ...filmToForm(season3), season: 'Season 4' }
+  assert.deepEqual(changedFields(season3, form), { season: 'Season 4' })
+  assert.deepEqual(seasonNumberPatch(season3, form), { season_number: null })
+})
+
+test('an edit that leaves the season alone leaves its number alone', () => {
+  const form = { ...filmToForm(season3), vendor: 'Goodwill' }
+  assert.deepEqual(seasonNumberPatch(season3, form), {})
+})
+
+test('a hand-typed season with no number needs nothing written', () => {
+  const typed = { ...season3, season_number: null }
+  const form = { ...filmToForm(typed), season: 'Season 5' }
+  assert.deepEqual(seasonNumberPatch(typed, form), {})
+})
+
+// Routes 2 and 3: "Not a single season", and re-matching without picking one.
+test('changing the match without picking a season clears the number', () => {
+  const form = filmToForm(season3)
+  assert.deepEqual(seasonNumberPatch(season3, form, { matchTouched: true }), { season_number: null })
+})
+
+test('picking a season while editing stores that number, last word after matchPatch', () => {
+  const form = { ...filmToForm(season3), season: 'Season 2' }
+  const patch = {
+    ...changedFields(season3, form),
+    ...matchPatch({ tmdb_id: 10545 }, { season: picked2 }),
+    ...seasonNumberPatch(season3, form, { picked: picked2, matchTouched: true }),
+  }
+  assert.equal(patch.season, 'Season 2')
+  assert.equal(patch.season_number, 2)
+})
+
+test('picking a season and then retyping it while editing stores no number', () => {
+  const form = { ...filmToForm(season3), season: 'Season two' }
+  const patch = {
+    ...matchPatch({ tmdb_id: 10545 }, { season: picked2 }),
+    ...seasonNumberPatch(season3, form, { picked: picked2, matchTouched: true }),
+  }
+  assert.equal(patch.season_number, null)
+})
+
+test('a label is picker-written when it is what this session picked', () => {
+  assert.equal(isPickerWrittenLabel('Season 2', { picked: picked2 }), true)
+  assert.equal(isPickerWrittenLabel('Season 2!', { picked: picked2 }), false)
+})
+
+test('a stored label is picker-written only if it came with a number and is untouched', () => {
+  assert.equal(isPickerWrittenLabel('Season 3', { film: season3 }), true)
+  assert.equal(isPickerWrittenLabel('Season 4', { film: season3 }), false)
+  // No number: somebody typed this one, so it is never cleared for them.
+  assert.equal(isPickerWrittenLabel('Season 3', { film: { ...season3, season_number: null } }), false)
+})
+
+test('an empty label, or a new film with nothing picked, is never picker-written', () => {
+  assert.equal(isPickerWrittenLabel('', { film: season3 }), false)
+  assert.equal(isPickerWrittenLabel('Season 1', {}), false)
 })

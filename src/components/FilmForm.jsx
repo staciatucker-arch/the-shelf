@@ -4,6 +4,8 @@ import {
   applyMatch,
   blankForm,
   changedFields,
+  isPickerWrittenLabel,
+  seasonNumberPatch,
   describeFill,
   filmToForm,
   matchPatch,
@@ -285,6 +287,16 @@ function TokenPicker({ id, label, selected, offered, onChange, highlight, note }
  * useful work was the sixth control down, below fields the search exists to
  * fill in.
  */
+/* What the form says when saving fails in a way nobody planned for — not a
+   refusal from the database, which has its own message, but something
+   breaking part-way. Like SAVE_UNKNOWN in App.jsx it must never say the save
+   worked or that it did not: a write can be in flight at that moment.
+   ⚠ Placeholder wording, 2026-10-11 — the on-screen words are Stacia's to
+   choose. */
+const SAVE_INTERRUPTED =
+  'Something went wrong while saving. Whether it went through is unknown — ' +
+  'close this form and check the film before trying again.'
+
 export default function FilmForm({ film, options, onCancel, onSaved, onDelete }) {
   const adding = !film
 
@@ -404,74 +416,99 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
 
     setSaving(true)
 
-    // Step 1 — the upload, if there is one.
-    let uploaded = null
-    if (poster?.blob) {
-      const result = await uploadPoster(adding ? draftId : film.id, poster.blob)
-      if (result.error) {
-        setSaving(false)
-        setSaveError(`The cover could not be uploaded, so nothing was saved: ${result.error}`)
+    // Everything from here runs inside try/finally so the busy lock always
+    // lets go (review B6). While `saving` is true, Cancel, Escape, the
+    // backdrop and the back gesture are all refused; if anything below threw,
+    // the form would be frozen with no way out, and the error boundary cannot
+    // see a failure inside an event handler.
+    try {
+      // Step 1 — the upload, if there is one.
+      let uploaded = null
+      if (poster?.blob) {
+        const result = await uploadPoster(adding ? draftId : film.id, poster.blob)
+        if (result.error) {
+          setSaveError(`The cover could not be uploaded, so nothing was saved: ${result.error}`)
+          return
+        }
+        uploaded = result
+      }
+
+      // What the poster contributes to the write: the three new columns, three
+      // nulls, or — when the cover was not touched — nothing at all.
+      const posterWrite = uploaded
+        ? uploaded.columns
+        : poster?.cleared
+          ? clearedPosterColumns()
+          : null
+
+      // Step 2 — one write, whatever it carries.
+      const result = await onSaved(
+        adding
+          ? newFilmRow(form, {
+              id: draftId,
+              match,
+              season,
+              poster: uploaded ? { publicUrl: uploaded.publicUrl, path: uploaded.path } : null,
+            })
+          : {
+              ...(patch ?? {}),
+              ...(matchTouched ? matchPatch(match, { season }) : {}),
+              // Last word on season_number: it is only ever stored beside the
+              // label the picker wrote (review B1).
+              ...seasonNumberPatch(film, form, { picked: season, matchTouched }),
+              ...(posterWrite ?? {}),
+            },
+      )
+
+      // Step 3 — the row did not land, so the image it would have named must go.
+      if (result?.error) {
+        if (uploaded) await removePoster(uploaded.path)
+        // The panel stays open on failure, holding the entry, so a rejected save
+        // never looks like a successful one and nobody loses their typing.
+        setSaveError(result.error)
         return
       }
-      uploaded = result
-    }
 
-    // What the poster contributes to the write: the three new columns, three
-    // nulls, or — when the cover was not touched — nothing at all.
-    const posterWrite = uploaded
-      ? uploaded.columns
-      : poster?.cleared
-        ? clearedPosterColumns()
-        : null
-
-    // Step 2 — one write, whatever it carries.
-    const result = await onSaved(
-      adding
-        ? newFilmRow(form, {
-            id: draftId,
-            match,
-            season,
-            poster: uploaded ? { publicUrl: uploaded.publicUrl, path: uploaded.path } : null,
-          })
-        : {
-            ...(patch ?? {}),
-            ...(matchTouched ? matchPatch(match, { season }) : {}),
-            ...(posterWrite ?? {}),
-          },
-    )
-
-    // Step 3 — the row did not land, so the image it would have named must go.
-    if (result?.error) {
-      if (uploaded) await removePoster(uploaded.path)
+      // Step 4 — the row is written and confirmed. Now, and only now, the file
+      // it used to point at can go. `ownedObjectPath` is what keeps this from
+      // reaching for a GitHub or TMDB poster, which are not ours to delete.
+      if (posterWrite) {
+        const previous = ownedObjectPath(film)
+        if (previous && previous !== uploaded?.path) await removePoster(previous)
+      }
+    } catch (thrown) {
+      // Not a refused save — those are returned, not thrown, and are handled
+      // above. This is something unexpected, at a point where a write may or
+      // may not have gone through, so the message must not claim either.
+      console.error('The film form failed while saving:', thrown)
+      setSaveError(`${SAVE_INTERRUPTED} (${thrown?.message ?? String(thrown)})`)
+    } finally {
       setSaving(false)
-      // The panel stays open on failure, holding the entry, so a rejected save
-      // never looks like a successful one and nobody loses their typing.
-      setSaveError(result.error)
-      return
     }
-
-    // Step 4 — the row is written and confirmed. Now, and only now, the file
-    // it used to point at can go. `ownedObjectPath` is what keeps this from
-    // reaching for a GitHub or TMDB poster, which are not ours to delete.
-    if (posterWrite) {
-      const previous = ownedObjectPath(film)
-      if (previous && previous !== uploaded?.path) await removePoster(previous)
-    }
-
-    setSaving(false)
   }
 
   const heading = adding ? 'Add to the Shelf' : `Edit “${displayTitle(film.title)}”`
+
+  // The form with its season label removed, if and only if the TMDB picker
+  // wrote that label. Used wherever the picked season is being dropped.
+  function withoutPickedSeason(f) {
+    return isPickerWrittenLabel(f.season, { picked: season, film }) ? { ...f, season: '' } : f
+  }
 
   // Confirming a match rewrites several fields at once. Computing the before
   // and after here — rather than inside a state updater, which React may run
   // twice — is what lets the panel name what changed.
   function confirmMatch(candidate) {
-    const next = applyMatch(form, candidate, { genreOptions: options.genre })
+    // A new match resets the season, so a label the picker wrote for the old
+    // one goes with it; a label somebody typed is theirs and stays.
+    const cleared = withoutPickedSeason(form)
+    const next = applyMatch(cleared, candidate, { genreOptions: options.genre })
     setMatch(candidate)
     setSeason(null)
     setMatchTouched(true)
-    setFilled(describeFill(form, next))
+    // Compared with `cleared`, not `form`: dropping the old season's label is
+    // not something this match "filled in", and the receipt must not say so.
+    setFilled(describeFill(cleared, next))
     setAutoGenres((next.genres ?? []).filter((g) => !(form.genres ?? []).includes(g)))
     // What TMDB called this film that the shelf has no word for. Reported
     // rather than dropped in silence: it is the moment somebody would actually
@@ -538,11 +575,16 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
       filled={filled}
       onConfirm={confirmMatch}
       onSeason={(picked) => {
+        // "Not a single season" arrives here as null. The number goes, so
+        // the label the picker wrote goes too — otherwise the card would
+        // still say "Season 3" above warnings for the whole run.
+        const base = picked == null ? withoutPickedSeason(form) : form
         setSeason(picked)
         setMatchTouched(true)
-        setForm((f) => applyMatch(f, match, { season: picked, genreOptions: options.genre }))
+        setForm(applyMatch(base, match, { season: picked, genreOptions: options.genre }))
       }}
       onClear={() => {
+        setForm(withoutPickedSeason(form))
         setMatch(null)
         setSeason(null)
         setMatchTouched(true)

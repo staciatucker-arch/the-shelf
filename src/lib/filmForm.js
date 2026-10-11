@@ -406,8 +406,68 @@ export function newFilmRow(form, { id, match = null, season = null, poster = nul
     // Set only when a human picked the season from TMDB's list, so a number
     // here is known rather than parsed out of free text. Null makes trigger
     // warnings fall back to the whole series, which the badge must then say.
-    season_number: seasonNumber(season),
+    // And only while the label still says what the picker wrote: a season
+    // picked and then retyped is a typed season (review B1).
+    season_number: seasonNumberForLabel(form.season, season),
   }
+}
+
+// --- keeping the season's label and its number in step (review B1) ----------
+//
+// A film carries its season twice: `season`, the words on the card, and
+// `season_number`, which the trigger-warning lookup reads. Only the TMDB
+// picker may set the number, so a number means "a person chose this season
+// from TMDB's list". Until 2026-10-11 the two could drift apart three ways —
+// retyping the label kept the old number; choosing "Not a single season" or
+// re-matching dropped the number and kept the label. Either way a card could
+// say "Season 3" above warnings for season 2, or for the whole run.
+//
+// The rule now: the number is stored only beside the exact label the picker
+// wrote, and a label the picker wrote does not outlive its number.
+
+/**
+ * The number that may be stored beside `label`: the picked season's, and only
+ * while the label is still the one the picker wrote for it.
+ */
+export function seasonNumberForLabel(label, picked) {
+  if (picked == null) return null
+  const typed = String(label ?? '').trim()
+  return typed !== '' && typed === seasonLabel(picked) ? seasonNumber(picked) : null
+}
+
+/**
+ * True when the label in the form was written by the TMDB picker rather than
+ * typed — by a pick made in this session, or, failing that, by one stored
+ * earlier (a film with a number, whose label has not been touched since).
+ *
+ * This is what decides whether clearing a season may also clear its label. A
+ * typed label is somebody's own words and is never removed for them.
+ */
+export function isPickerWrittenLabel(label, { picked = null, film = null } = {}) {
+  const typed = String(label ?? '').trim()
+  if (typed === '') return false
+  if (picked != null) return typed === seasonLabel(picked)
+  return Boolean(film) && film.season_number != null && typed === String(film.season ?? '').trim()
+}
+
+/**
+ * What an EDIT must write to `season_number`, as a patch fragment — `{}` when
+ * the stored number is still right.
+ *
+ * Spread AFTER `matchPatch`, so it has the last word on this one column.
+ */
+export function seasonNumberPatch(film, form, { picked = null, matchTouched = false } = {}) {
+  if (picked != null) return { season_number: seasonNumberForLabel(form.season, picked) }
+  // The match was changed or cleared without a season being picked, so
+  // whatever number the row has describes a choice that no longer stands.
+  if (matchTouched) return { season_number: null }
+  // Nothing about the match changed. The stored number survives exactly as
+  // long as the label it was stored with.
+  const label = String(form.season ?? '').trim()
+  if (film?.season_number != null && label !== String(film.season ?? '').trim()) {
+    return { season_number: null }
+  }
+  return {}
 }
 
 /** The number of a picked season, or null. Season 0 is "Specials" and real. */

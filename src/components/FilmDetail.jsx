@@ -50,11 +50,20 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
   useBackToClose(onClose, { id: 'film-detail' })
   const closeRef = useRef(null)
 
+  // The latest onClose, read at the moment Escape is pressed. App.jsx passes a
+  // new arrow function on every render, so naming `onClose` as a dependency
+  // below re-ran the effect — and its focus() — whenever anything at all
+  // re-rendered the app: the update banner appearing, a background refresh.
+  // Focus jumped back to the X each time (review B5). Same pattern as
+  // useBackToClose.
+  const latestOnClose = useRef(onClose)
+  latestOnClose.current = onClose
+
   useEffect(() => {
     // Escape closes, as it does in every other dialog anyone has used.
     function onKeyDown(e) {
       // Not while the edit form is over it: the form has its own Escape.
-      if (e.key === 'Escape' && !hidden) onClose()
+      if (e.key === 'Escape' && !hidden) latestOnClose.current?.()
     }
     document.addEventListener('keydown', onKeyDown)
 
@@ -62,13 +71,18 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
 
-    closeRef.current?.focus()
-
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
     }
-  }, [onClose, hidden])
+  }, [hidden])
+
+  // Focus the X when the panel opens, and again when the edit form over it
+  // closes — the two moments this panel becomes the thing in front. Never
+  // while it is hidden: the form on top has just focused its own first field.
+  useEffect(() => {
+    if (!hidden) closeRef.current?.focus()
+  }, [hidden])
 
   if (!film) return null
 
