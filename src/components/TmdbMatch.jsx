@@ -198,6 +198,17 @@ export default function TmdbMatch({
     )
   }
 
+  // The box-set notice. Bordered and marked with an icon at Stacia's request
+  // (2026-10-11): as a grey hint under the button it was read after the
+  // search it exists to save. Orange rather than red, because red in this
+  // app means something failed or is about to be deleted, and nothing has.
+  const boxSetNotice = (text) => (
+    <p className="tmdb-notice" role="note">
+      <span className="tmdb-notice-icon" aria-hidden="true">ⓘ</span>
+      <span>{text}</span>
+    </p>
+  )
+
   const panel = matchPanelState({
     editing,
     confirmedNow: Boolean(match),
@@ -245,9 +256,7 @@ export default function TmdbMatch({
   // asking to confirm one would contradict the hint on the add screen.
   if (panel === 'boxset') {
     return (
-      <div className="tmdb-block">
-        <p className="form-hint muted">Box sets can’t be matched.</p>
-      </div>
+      <div className="tmdb-block">{boxSetNotice('Box sets can’t be matched.')}</div>
     )
   }
 
@@ -275,6 +284,15 @@ export default function TmdbMatch({
 
   return (
     <div className="tmdb-block">
+      {/* Shown only when Box set is chosen, because only then is it true, and
+          ABOVE the search button so it is read before the search it saves.
+          "Can't be matched" is about this app, not about TMDB: TMDB lists
+          most sets as a *collection*, but a collection is the franchise
+          rather than the box, so a set is deliberately left unmatched
+          (settled 2026-09-14). The old wording said TMDB did not list them,
+          which was false (review B4). Wording and placement chosen by
+          Stacia, 2026-10-11. */}
+      {isBoxSet && !editing && boxSetNotice('Box sets can’t be matched. Add the title of the set.')}
       {editing && <p className="tmdb-ask-title">Confirm database match</p>}
       <div className={editing ? 'tmdb-line' : undefined}>
         <button
@@ -298,18 +316,6 @@ export default function TmdbMatch({
           is ambiguous where "Total Recall 1990" is not — so it stays; it is
           just no longer the second thing a newcomer is asked for. */}
       {yearField}
-
-      {/* Shown only when Box set is chosen, because only then is it true.
-          "Can't be matched" is about this app, not about TMDB: TMDB lists
-          most sets as a *collection*, but a collection is the franchise
-          rather than the box, so a set is deliberately left unmatched
-          (settled 2026-09-14). The old wording said TMDB did not list them,
-          which was false (review B4). Wording chosen by Stacia, 2026-10-11. */}
-      {isBoxSet && !candidates && (
-        <p className="form-hint muted">
-          Box sets can’t be matched. Add the title of the set.
-        </p>
-      )}
 
       {error && (
         <p className="error" role="alert">

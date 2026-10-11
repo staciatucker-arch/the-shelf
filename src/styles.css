@@ -16,6 +16,7 @@
   --accent-glow: #d4a84333;
   --green: #4ade80;
   --red: #f87171;
+  --orange: #fb923c;
   --blue: #60a5fa;
   --tag-bg: #1e1e2e;
   --danger: #f87171;
@@ -1373,3 +1374,21 @@ button.danger {
    the status never depends on telling green from red. */
 .tmdb-status { font-size: 0.9rem; font-weight: 600; }
 .tmdb-cross { color: var(--muted); }
+
+/* The box-set notice: bordered, with an icon, above the search button.
+   Orange, not red — red here means a failure or a delete. The icon and the
+   sentence carry the meaning; the colour only draws the eye. */
+.tmdb-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--orange);
+  border-radius: var(--radius);
+  background: rgba(251, 146, 60, 0.08);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.tmdb-notice-icon { color: var(--orange); font-weight: 700; flex: none; }
+.tmdb-block > .tmdb-notice:only-child { margin-bottom: 0; }
