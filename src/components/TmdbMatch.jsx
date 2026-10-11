@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { joinPhrases } from '../lib/filmForm.js'
+import { joinPhrases, matchPanelState } from '../lib/filmForm.js'
 import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
 
 /**
@@ -19,13 +19,23 @@ import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
  * type the whole title or know the year. So the button says what it does for
  * them, and the catalogue is named only where the name is genuinely useful: on
  * a confirmed record, where it is provenance.
+ *
+ * **On the edit form it was redesigned with Stacia on 2026-10-11**, and the
+ * words there are hers. It used to open with a green box reading "TMDB 603":
+ * the loudest thing on the screen, saying nothing a person could use. Now a
+ * film already confirmed shows one quiet line, and a film that is not shows
+ * what confirming is for and a button to do it. Which of those appears is
+ * decided by `matchPanelState` in lib/filmForm.js, where it is tested.
  */
 export default function TmdbMatch({
   title, year, type, match, season, existingId, existingVerified,
-  yearField, filled,
+  yearField, filled, editing = false,
   onConfirm, onSeason, onClear,
 }) {
   const [candidates, setCandidates] = useState(null)
+  // Editing only: whether the search has been asked for. Until it is, the
+  // edit form shows a line or a short explanation instead of a search box.
+  const [searchOpen, setSearchOpen] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState(null)
   const [usedYear, setUsedYear] = useState(false)
@@ -188,67 +198,100 @@ export default function TmdbMatch({
     )
   }
 
-  // Editing a film that already carries an id, which nobody has touched in
-  // this session. It is shown rather than silently kept, because roughly one
-  // inherited id in twelve names a different film — and because a box set
-  // should have none at all.
-  if (existingId && !match) {
+  const panel = matchPanelState({
+    editing,
+    confirmedNow: Boolean(match),
+    searching: searchOpen,
+    existingId,
+    existingVerified,
+    isBoxSet,
+  })
+
+  // Opening the search does NOT clear what the film already has. The match
+  // only changes when a candidate is actually confirmed, so looking and
+  // backing out — then saving some other edit — leaves it exactly as it was.
+  function openSearch() {
+    setSearchOpen(true)
+    runSearch()
+  }
+
+  function closeSearch() {
+    setSearchOpen(false)
+    setCandidates(null)
+    setError(null)
+  }
+
+  // Editing a film a person confirmed earlier. One line: there is nothing to
+  // do here, and roughly four films in five are in this state.
+  if (panel === 'matched') {
     return (
-      <div className="tmdb-block tmdb-matched">
-        <div className="tmdb-confirmed">
-          <div className="tmdb-confirmed-what">
-            <div>
-              <strong>TMDB {existingId}</strong>
-              <p className="form-hint muted">
-                {existingVerified
-                  ? 'Confirmed by a person.'
-                  : 'Never confirmed — inherited from the old app, where about one id in twelve names a different film.'}
-              </p>
-            </div>
-          </div>
-          <div className="tmdb-existing-actions">
-            <button
-              type="button"
-              className="ghost form-action"
-              onClick={() => {
-                onClear()
-                runSearch()
-              }}
-            >
-              Re-match
-            </button>
-            <button type="button" className="ghost form-action" onClick={onClear}>
-              Clear
-            </button>
-          </div>
-        </div>
-        {/* Says what the two buttons above do, and nothing else. It used to
-            explain box sets here — and claimed TMDB has no record of a set,
-            which is false (review B4). That advice dated from when the old
-            app had given sets a wrong match; they were cleared on 2026-09-14,
-            and this hint is shown on every matched film, not only sets.
-            Wording agreed with Stacia, 2026-10-11. */}
-        <p className="form-hint muted">
-          <strong>Re-match</strong> searches TMDB again. <strong>Clear</strong>{' '}
-          removes the match.
-        </p>
+      <div className="tmdb-block tmdb-line">
+        <span className="tmdb-status">
+          <span className="tmdb-tick" aria-hidden="true">✓</span> Matched
+        </span>
+        <span className="tmdb-line-actions">
+          <button type="button" className="ghost form-action" onClick={openSearch}>
+            Change
+          </button>
+          <button type="button" className="ghost form-action" onClick={onClear}>
+            Remove match
+          </button>
+        </span>
       </div>
     )
   }
 
-  // The search itself. No heading of its own: it sits inside the "start with
-  // the title" card, which has already said what this is for. Saying it twice
-  // on one screen is what turned the second one into furniture.
+  // Editing a box set that has no confirmed match. Sets are not matched, so
+  // asking to confirm one would contradict the hint on the add screen.
+  if (panel === 'boxset') {
+    return (
+      <div className="tmdb-block">
+        <p className="form-hint muted">Box sets can’t be matched.</p>
+      </div>
+    )
+  }
+
+  // Editing a film that is not confirmed — no id, or one nobody ever checked.
+  // Heading, explanation and button are Stacia's wording.
+  if (panel === 'ask') {
+    return (
+      <div className="tmdb-block tmdb-ask">
+        <p className="tmdb-ask-title">Confirm database match</p>
+        <p className="form-hint muted">
+          This ensures title, year, and genres have been filled in. Later, it
+          will allow for trigger warning lookups.
+        </p>
+        <div className="tmdb-line">
+          <span className="tmdb-status">
+            <span className="tmdb-cross" aria-hidden="true">✗</span> Not matched
+          </span>
+          <button type="button" className="form-action" onClick={openSearch}>
+            Confirm now
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="tmdb-block">
-      <button
-        type="button"
-        className="form-action tmdb-search"
-        onClick={runSearch}
-        disabled={searching}
-      >
-        {searching ? 'Searching…' : candidates ? 'Search again' : 'Find this title'}
-      </button>
+      {editing && <p className="tmdb-ask-title">Confirm database match</p>}
+      <div className={editing ? 'tmdb-line' : undefined}>
+        <button
+          type="button"
+          className="form-action tmdb-search"
+          onClick={runSearch}
+          disabled={searching}
+        >
+          {searching ? 'Searching…' : candidates ? 'Search again' : 'Find this title'}
+        </button>
+        {/* Editing only: a way back that changes nothing. */}
+        {editing && (
+          <button type="button" className="ghost form-action" onClick={closeSearch}>
+            Cancel
+          </button>
+        )}
+      </div>
 
       {/* The year sits here, under the button, rather than above the search
           that exists to fill it in. It still narrows a search — "Total Recall"

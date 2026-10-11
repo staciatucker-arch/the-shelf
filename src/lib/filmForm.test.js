@@ -20,6 +20,7 @@ import {
   filmToForm,
   formToRow,
   isPickerWrittenLabel,
+  matchPanelState,
   newFilmRow,
   seasonNumberForLabel,
   seasonNumberPatch,
@@ -478,4 +479,54 @@ test('a stored label is picker-written only if it came with a number and is unto
 test('an empty label, or a new film with nothing picked, is never picker-written', () => {
   assert.equal(isPickerWrittenLabel('', { film: season3 }), false)
   assert.equal(isPickerWrittenLabel('Season 1', {}), false)
+})
+
+// --- which face the match block shows (redesigned 2026-10-11) ---------------
+
+test('adding a film always shows the search, as it did before', () => {
+  assert.equal(matchPanelState({ editing: false }), 'search')
+  assert.equal(matchPanelState({ editing: false, isBoxSet: true }), 'search')
+})
+
+test('a film a person confirmed earlier is one quiet line', () => {
+  assert.equal(matchPanelState({ editing: true, existingId: 603, existingVerified: true }), 'matched')
+})
+
+// About one inherited id in twelve named a different film.
+test('an id nobody confirmed is not shown as a match', () => {
+  assert.equal(matchPanelState({ editing: true, existingId: 603, existingVerified: false }), 'ask')
+})
+
+test('a film with no id at all asks to be confirmed', () => {
+  assert.equal(matchPanelState({ editing: true }), 'ask')
+})
+
+test('a box set is never asked to confirm a match, since sets are not matched', () => {
+  assert.equal(matchPanelState({ editing: true, isBoxSet: true }), 'boxset')
+  assert.equal(matchPanelState({ editing: true, isBoxSet: true, existingId: 10228 }), 'boxset')
+})
+
+// A set that was confirmed by a person before the rule existed keeps its
+// Remove button rather than hiding the match it has.
+test('a box set that somebody did confirm still shows as matched', () => {
+  assert.equal(
+    matchPanelState({ editing: true, isBoxSet: true, existingId: 1, existingVerified: true }),
+    'matched',
+  )
+})
+
+test('asking for the search shows it, whatever the film had before', () => {
+  assert.equal(
+    matchPanelState({ editing: true, searching: true, existingId: 603, existingVerified: true }),
+    'search',
+  )
+  assert.equal(matchPanelState({ editing: true, searching: true }), 'search')
+})
+
+test('a candidate confirmed in this session wins over everything else', () => {
+  assert.equal(
+    matchPanelState({ editing: true, confirmedNow: true, existingId: 603, existingVerified: true }),
+    'confirmed',
+  )
+  assert.equal(matchPanelState({ confirmedNow: true }), 'confirmed')
 })

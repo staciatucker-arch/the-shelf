@@ -574,6 +574,7 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
       season={season}
       existingId={!adding && !matchTouched ? film.tmdb_id : null}
       existingVerified={!adding ? film.tmdb_verified : false}
+      editing={!adding}
       // Only while adding: when editing, the year belongs with the other
       // details rather than tucked under a button that may not be shown.
       yearField={adding ? yearField : null}

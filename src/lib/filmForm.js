@@ -477,3 +477,37 @@ export function seasonNumber(season) {
   const n = season.season_number
   return Number.isInteger(n) ? n : null
 }
+
+// --- which face the match block shows ---------------------------------------
+//
+// Redesigned with Stacia on 2026-10-11. On the edit form the block used to be
+// a green-bordered box reading "TMDB 603" — the most eye-catching thing on the
+// screen, and a number that meant nothing to the person looking at it. Now it
+// says what it is for, and shrinks to a line once there is nothing to do.
+//
+//   'confirmed' — a candidate was confirmed in THIS session: its title and
+//                 year, the season picker, the receipt of what was filled in
+//   'search'    — the search is on screen (always, while adding; while
+//                 editing, once it has been asked for)
+//   'matched'   — editing a film a person confirmed earlier: one quiet line
+//   'boxset'    — editing a box set with no confirmed match: sets are not
+//                 matched, so offering to confirm one would contradict that
+//   'ask'       — editing anything else that is not confirmed: the
+//                 explanation, and a button to confirm it now
+//
+// An id nobody confirmed counts as NOT matched. Roughly one inherited id in
+// twelve named a different film, so an unchecked guess is not shown as a
+// match — the same rule `dtdd-lookup` is specified to follow.
+export function matchPanelState({
+  editing = false,
+  confirmedNow = false,
+  searching = false,
+  existingId = null,
+  existingVerified = false,
+  isBoxSet = false,
+} = {}) {
+  if (confirmedNow) return 'confirmed'
+  if (!editing || searching) return 'search'
+  if (existingId != null && existingVerified) return 'matched'
+  return isBoxSet ? 'boxset' : 'ask'
+}
