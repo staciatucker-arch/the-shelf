@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Login from './components/Login.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -13,6 +13,7 @@ import { isClockSkewError, withClockSkewRetry } from './lib/loadRetry.js'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
 import { panelBack } from './lib/panelBack.js'
+import { isStale, refreshDecision } from './lib/refresh.js'
 import { removePoster } from './lib/posterStorage.js'
 import {
   EMPTY_FILTERS,
@@ -116,6 +117,14 @@ export default function App() {
   // in the form rather than blocking the shelf.
   const [options, setOptions] = useState(EMPTY_OPTIONS)
 
+  // Refreshing when the app comes back into view — see lib/refresh.js.
+  // `refreshDue` is state because a refresh that has to wait for a panel to
+  // close must cause a re-render when it does; the other two are refs because
+  // nothing on screen depends on them.
+  const [refreshDue, setRefreshDue] = useState(false)
+  const lastLoadedAt = useRef(0)
+  const writeCount = useRef(0)
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
@@ -157,6 +166,23 @@ export default function App() {
       return
     }
     setLoadError(null)
+    lastLoadedAt.current = Date.now()
+    setFilms(data.map(normaliseFilm))
+  }, [])
+
+  // The same read, for when the app comes back into view. It differs from
+  // `loadFilms` in the one way that matters: it has something good on screen
+  // already, so a failure leaves that alone instead of replacing the shelf
+  // with an error. The next return to the app simply tries again.
+  const refreshFilms = useCallback(async () => {
+    const writesAtStart = writeCount.current
+    const { data, error } = await withClockSkewRetry(() =>
+      supabase.from('films').select(FILM_COLUMNS).order('title'),
+    )
+    if (error) return
+    // A save overlapped this read, so the list may predate it — see isStale.
+    if (isStale(writesAtStart, writeCount.current)) return
+    lastLoadedAt.current = Date.now()
     setFilms(data.map(normaliseFilm))
   }, [])
 
@@ -185,6 +211,37 @@ export default function App() {
     if (session) refreshOptions()
   }, [session, refreshOptions])
 
+  // Coming back to the app makes a refresh due; whether it runs now, waits
+  // for a panel to close, or is not worth doing is decided in lib/refresh.js.
+  useEffect(() => {
+    if (!session) return undefined
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') setRefreshDue(true)
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [session])
+
+  const panelOpen = Boolean(openFilmId || editingFilmId || addingFilm || managingOptions)
+  const loaded = films !== null
+
+  useEffect(() => {
+    const decision = refreshDecision({
+      due: refreshDue,
+      loaded,
+      panelOpen,
+      lastLoadedAt: lastLoadedAt.current,
+      now: Date.now(),
+    })
+    if (decision === 'idle' || decision === 'wait') return
+    setRefreshDue(false)
+    if (decision === 'refresh') {
+      refreshFilms()
+      // The pick lists too: a genre the other person added should be offered.
+      refreshOptions()
+    }
+  }, [refreshDue, loaded, panelOpen, refreshFilms, refreshOptions])
+
   /**
    * Save one film's changed columns.
    *
@@ -197,12 +254,15 @@ export default function App() {
    * if it tried.
    */
   const saveFilm = useCallback(async (id, patch) => {
+    // Counted at both ends, so a refresh that overlaps either is discarded.
+    writeCount.current += 1
     const { data, error } = await supabase
       .from('films')
       .update(patch)
       .eq('id', id)
       .select(FILM_COLUMNS)
       .single()
+    writeCount.current += 1
 
     if (error) return { error: error.message }
 
@@ -225,11 +285,13 @@ export default function App() {
    * so a default the database applied is visible immediately.
    */
   const addFilm = useCallback(async (row) => {
+    writeCount.current += 1
     const { data, error } = await supabase
       .from('films')
       .insert(row)
       .select(FILM_COLUMNS)
       .single()
+    writeCount.current += 1
 
     if (error) return { error: error.message, film: null }
 
@@ -241,7 +303,9 @@ export default function App() {
   /** Remove one named row, and only once the database says it is gone. */
   const deleteFilm = useCallback(async (film) => {
     const { id } = film
+    writeCount.current += 1
     const { error } = await supabase.from('films').delete().eq('id', id)
+    writeCount.current += 1
     if (error) return { error: error.message }
 
     setFilms((current) => (current ? current.filter((f) => f.id !== id) : current))
