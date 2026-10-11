@@ -252,13 +252,15 @@ export default function TmdbMatch({
           just no longer the second thing a newcomer is asked for. */}
       {yearField}
 
-      {/* Shown only when Box set is chosen, because only then is it true. A
-          set is in none of TMDB's catalogues, and saying so at the moment of
-          the choice saves a search that was always going to come back empty. */}
+      {/* Shown only when Box set is chosen, because only then is it true.
+          "Can't be matched" is about this app, not about TMDB: TMDB lists
+          most sets as a *collection*, but a collection is the franchise
+          rather than the box, so a set is deliberately left unmatched
+          (settled 2026-09-14). The old wording said TMDB did not list them,
+          which was false (review B4). Wording chosen by Stacia, 2026-10-11. */}
       {isBoxSet && !candidates && (
         <p className="form-hint muted">
-          Box sets usually aren’t listed. Type the name and skip the search —
-          unmatched is the right answer for a set.
+          Box sets can’t be matched. Add the title of the set.
         </p>
       )}
 
