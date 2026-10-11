@@ -290,12 +290,15 @@ function TokenPicker({ id, label, selected, offered, onChange, highlight, note }
 /* What the form says when saving fails in a way nobody planned for — not a
    refusal from the database, which has its own message, but something
    breaking part-way. Like SAVE_UNKNOWN in App.jsx it must never say the save
-   worked or that it did not: a write can be in flight at that moment.
-   ⚠ Placeholder wording, 2026-10-11 — the on-screen words are Stacia's to
-   choose. */
-const SAVE_INTERRUPTED =
-  'Something went wrong while saving. Whether it went through is unknown — ' +
-  'close this form and check the film before trying again.'
+   worked or that it did not: a write can be in flight at that moment, so it
+   sends the person to look.
+   The first sentence is Stacia's, 2026-10-11. The second is the same
+   sentence turned for editing, where nothing is being "added" — proposed by
+   Claude Code and still hers to change. */
+const SAVE_INTERRUPTED_ADDING =
+  'Something went wrong. Close this form and see if your film was added.'
+const SAVE_INTERRUPTED_EDITING =
+  'Something went wrong. Close this form and see if your changes were saved.'
 
 export default function FilmForm({ film, options, onCancel, onSaved, onDelete }) {
   const adding = !film
@@ -481,7 +484,10 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
       // above. This is something unexpected, at a point where a write may or
       // may not have gone through, so the message must not claim either.
       console.error('The film form failed while saving:', thrown)
-      setSaveError(`${SAVE_INTERRUPTED} (${thrown?.message ?? String(thrown)})`)
+      // The technical text rides along in brackets: on a phone there is no
+      // console, and it is the one concrete thing to report afterwards.
+      const said = adding ? SAVE_INTERRUPTED_ADDING : SAVE_INTERRUPTED_EDITING
+      setSaveError(`${said} (${thrown?.message ?? String(thrown)})`)
     } finally {
       setSaving(false)
     }
