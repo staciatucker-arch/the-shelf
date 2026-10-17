@@ -45,36 +45,6 @@ const SELF_MOVE_WINDOW_MS = 400
  */
 export function createPanelBack(history, subscribe, { now = () => Date.now() } = {}) {
   const stack = []
-  // A short record of what the app did to the history and why, for the
-  // ?debug=1 readout at the foot of the collection. Kept because this
-  // mechanism is invisible by nature: on a phone there is nothing to inspect
-  // and no console to read, and two rounds of guessing cost more than this.
-  const debugging =
-    typeof window !== 'undefined' && window.location?.search?.includes('debug')
-  // Kept in localStorage while debugging, because the failure being chased
-  // *ends the app*: without this, the one moment worth reading is gone by the
-  // time the page can be reopened.
-  const log = (() => {
-    if (!debugging) return []
-    try {
-      return JSON.parse(window.localStorage.getItem('shelf-back-log') || '[]')
-    } catch {
-      return []
-    }
-  })()
-  const watchers = new Set()
-  function note(what) {
-    log.push(what)
-    if (log.length > 24) log.shift()
-    if (debugging) {
-      try {
-        window.localStorage.setItem('shelf-back-log', JSON.stringify(log))
-      } catch {
-        // Private windows refuse; the readout still works for this visit.
-      }
-    }
-    watchers.forEach((w) => w(log.join(' ')))
-  }
   let held = 0 // how many history entries we believe we are holding
   let scheduled = false
   let unsubscribe = null
@@ -105,7 +75,6 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
       held = wanted
       start()
       for (let i = 0; i < adding; i += 1) history.pushState({ shelfPanel: true }, '')
-      note(`push${adding > 1 ? `x${adding}` : ''}`)
     } else if (wanted < held) {
       // Panels closed by their own buttons leave entries behind. Never more
       // than we hold, so this can never step off the start of the history and
@@ -114,7 +83,6 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
       held = wanted
       selfMoveUntil = now() + SELF_MOVE_WINDOW_MS
       history.go(-dropping)
-      note(`go-${dropping}`)
     }
     if (held === 0 && stack.length === 0) stop()
   }
@@ -130,15 +98,12 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
   function handlePop() {
     if (now() < selfMoveUntil) {
       selfMoveUntil = 0
-      note('pop(ours)')
       return
     }
-    note('POP')
     // The browser has consumed one of our entries, whatever happens next.
     held = Math.max(0, held - 1)
     const top = stack[stack.length - 1]
     if (!top) {
-      note('(nothing open)')
       schedule()
       return
     }
@@ -148,11 +113,9 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     top.viaBack = true
     // A panel mid-save refuses, exactly as its Cancel button does. Putting it
     // back means the press is ignored rather than spending the guard.
-    note(`close:${top.id}`)
     if (top.close() === false) {
       top.viaBack = false
       stack.push(top)
-      note('refused')
     }
     schedule()
   }
@@ -162,7 +125,6 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     open(close, { id = 'panel' } = {}) {
       const entry = { id, close, viaBack: false }
       stack.push(entry)
-      note(`open:${id}`)
       schedule()
       return entry
     },
@@ -172,7 +134,6 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
       if (!entry) return
       const i = stack.lastIndexOf(entry)
       if (i !== -1) stack.splice(i, 1)
-      note(`shut:${entry.id}`)
       schedule()
     },
 
@@ -180,26 +141,6 @@ export function createPanelBack(history, subscribe, { now = () => Date.now() } =
     depth: () => stack.length,
     held: () => held,
     flush: reconcile,
-
-    /** Forget the recorded events (the ?debug=1 readout's Clear). */
-    clearLog() {
-      log.length = 0
-      if (debugging) {
-        try {
-          window.localStorage.removeItem('shelf-back-log')
-        } catch {
-          /* nothing to do */
-        }
-      }
-      watchers.forEach((w) => w(''))
-    },
-
-    /** The ?debug=1 readout: the recorded history events, oldest first. */
-    watchLog(cb) {
-      watchers.add(cb)
-      cb(log.join(' '))
-      return () => watchers.delete(cb)
-    },
   }
 }
 
