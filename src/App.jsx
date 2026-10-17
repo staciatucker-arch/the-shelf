@@ -9,6 +9,10 @@ import FilmCard from './components/FilmCard.jsx'
 import FilmDetail from './components/FilmDetail.jsx'
 import FilmForm from './components/FilmForm.jsx'
 import OptionsManager from './components/OptionsManager.jsx'
+import WishForm from './components/WishForm.jsx'
+import WishlistPanel, { WishRow } from './components/WishlistPanel.jsx'
+import WatchNext from './components/WatchNext.jsx'
+import AddedNotice from './components/AddedNotice.jsx'
 import { isClockSkewError, withClockSkewRetry } from './lib/loadRetry.js'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
@@ -24,6 +28,7 @@ import {
   normaliseFilm,
   sortFilms,
 } from './lib/collection.js'
+import { WISH_COLUMNS, normaliseWish, searchWishes, wishMatchesForFilm } from './lib/wishlist.js'
 
 // Every column the collection view shows. Listed explicitly rather than
 // select('*') so that adding a column to the table cannot quietly start
@@ -85,6 +90,18 @@ export default function App() {
   const [editingFilmId, setEditingFilmId] = useState(null)
   const [addingFilm, setAddingFilm] = useState(false)
   const [managingOptions, setManagingOptions] = useState(false)
+
+  // The wishlist. Loaded beside the collection; a failure here is said in the
+  // wishlist's own places and never blocks the shelf.
+  const [wishes, setWishes] = useState(null)
+  const [wishError, setWishError] = useState(null)
+  const [wishlistOpen, setWishlistOpen] = useState(false)
+  // null, { mode: 'add', title }, or { mode: 'edit', id }
+  const [wishForm, setWishForm] = useState(null)
+  const [focusWishId, setFocusWishId] = useState(null)
+  // After a film is added that is also on the wishlist: { film, match }.
+  const [addedNotice, setAddedNotice] = useState(null)
+  const [watchNextOpen, setWatchNextOpen] = useState(false)
 
   // The add/edit pick lists. Loaded once alongside the collection; a failure
   // here is not fatal to browsing, so it degrades to empty lists and says so
@@ -176,6 +193,54 @@ export default function App() {
     else setFilms(null)
   }, [session, loadFilms])
 
+  // Read on load and on coming back to the app. A failed refresh leaves what
+  // is on screen alone, as the films do; a failed first load says so.
+  const loadWishes = useCallback(async ({ quiet = false } = {}) => {
+    const { data, error } = await withClockSkewRetry(() =>
+      supabase.from('wishlist').select(WISH_COLUMNS).order('title'),
+    )
+    if (error) {
+      if (!quiet) setWishError(error.message)
+      return
+    }
+    setWishError(null)
+    setWishes(data.map(normaliseWish))
+  }, [])
+
+  useEffect(() => {
+    if (session) loadWishes()
+    else setWishes(null)
+  }, [session, loadWishes])
+
+  /** One new wish, one insert, the stored row into state. */
+  const addWish = useCallback(async (row) => {
+    const { data, error } = await supabase.from('wishlist').insert(row).select(WISH_COLUMNS).single()
+    if (error) return { error: error.message }
+    setWishes((current) => [...(current ?? []), normaliseWish(data)])
+    return { error: null, wish: data }
+  }, [])
+
+  /** Only the changed columns of one named wish, confirmed before it shows. */
+  const saveWish = useCallback(async (id, patch) => {
+    const { data, error } = await supabase
+      .from('wishlist')
+      .update(patch)
+      .eq('id', id)
+      .select(WISH_COLUMNS)
+      .single()
+    if (error) return { error: error.message }
+    setWishes((current) => (current ?? []).map((w) => (w.id === id ? normaliseWish(data) : w)))
+    return { error: null }
+  }, [])
+
+  /** Remove one named wish, and only once the database says it is gone. */
+  const deleteWish = useCallback(async (id) => {
+    const { error } = await supabase.from('wishlist').delete().eq('id', id)
+    if (error) return { error: error.message }
+    setWishes((current) => (current ?? []).filter((w) => w.id !== id))
+    return { error: null }
+  }, [])
+
   const refreshOptions = useCallback(async () => {
     const { options: loaded } = await loadOptions()
     if (loaded) setOptions(loaded)
@@ -196,7 +261,10 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   }, [session])
 
-  const panelOpen = Boolean(openFilmId || editingFilmId || addingFilm || managingOptions)
+  const panelOpen = Boolean(
+    openFilmId || editingFilmId || addingFilm || managingOptions ||
+      wishlistOpen || wishForm || watchNextOpen,
+  )
   const loaded = films !== null
 
   useEffect(() => {
@@ -213,8 +281,9 @@ export default function App() {
       refreshFilms()
       // The pick lists too: a genre the other person added should be offered.
       refreshOptions()
+      loadWishes({ quiet: true })
     }
-  }, [refreshDue, loaded, panelOpen, refreshFilms, refreshOptions])
+  }, [refreshDue, loaded, panelOpen, refreshFilms, refreshOptions, loadWishes])
 
   /**
    * Save one film's changed columns.
@@ -314,6 +383,8 @@ export default function App() {
   const activeFilterCount = countActiveFilters(filters)
   const shown = visible.rows.length + visible.unknowns.length
   const isNarrowed = Boolean(query.trim()) || activeFilterCount > 0
+  const searching = query.trim() !== ''
+  const wishHits = useMemo(() => searchWishes(wishes ?? [], query), [wishes, query])
 
   if (checkingSession) {
     return (
@@ -347,6 +418,15 @@ export default function App() {
         <h1>The Shelf</h1>
         <div className="bar-right">
           <span className="muted">{session.user.email}</span>
+          <button
+            className="ghost"
+            onClick={() => {
+              setFocusWishId(null)
+              setWishlistOpen(true)
+            }}
+          >
+            Wishlist{wishes && wishes.length > 0 ? ` (${wishes.length})` : ''}
+          </button>
           <button className="ghost" onClick={() => setManagingOptions(true)}>
             Pick lists
           </button>
@@ -405,6 +485,10 @@ export default function App() {
                   <span aria-hidden="true">+</span> Add film
                 </button>
 
+                <button type="button" className="ghost" onClick={() => setWatchNextOpen(true)}>
+                  Watch Next
+                </button>
+
                 <button
                   type="button"
                   className={'ghost filter-toggle' + (activeFilterCount ? ' has-filters' : '')}
@@ -425,9 +509,15 @@ export default function App() {
               onClose={() => setFiltersOpen(false)}
             />
 
+            {/* While searching, one search answers both questions a shop
+                raises — do we own it, do we want it (Stacia, 2026-10-11). */}
+            {searching && <h2 className="section-divider">On your shelf ({shown})</h2>}
+
             {shown === 0 ? (
               <p className="empty-state">
-                No titles match. Try a shorter search, or clear the filters.
+                {searching
+                  ? 'Nothing on your shelf matches.'
+                  : 'No titles match. Try a shorter search, or clear the filters.'}
               </p>
             ) : (
               <>
@@ -444,6 +534,42 @@ export default function App() {
                   </>
                 )}
               </>
+            )}
+
+            {searching && (
+              <section className="wish-results">
+                <h2 className="section-divider">On your wishlist ({wishHits.length})</h2>
+                {wishError && (
+                  <p className="error" role="alert">
+                    Could not load the wishlist: {wishError}
+                  </p>
+                )}
+                {wishHits.length > 0 && (
+                  <ul className="wish-list">
+                    {wishHits.map((wish) => (
+                      <WishRow
+                        key={wish.id}
+                        wish={wish}
+                        onEdit={() => setWishForm({ mode: 'edit', id: wish.id })}
+                        onRemove={() => deleteWish(wish.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
+                {wishHits.length === 0 && !wishError && (
+                  <p className="muted">Nothing on your wishlist matches.</p>
+                )}
+                {/* ⚠ Placeholder wording — Stacia's to choose. */}
+                {shown === 0 && wishHits.length === 0 && (
+                  <button
+                    type="button"
+                    className="form-action"
+                    onClick={() => setWishForm({ mode: 'add', title: query.trim() })}
+                  >
+                    Add “{query.trim()}” to your wishlist
+                  </button>
+                )}
+              </section>
             )}
           </>
         )}
@@ -543,6 +669,10 @@ export default function App() {
               if (!result.error) {
                 setAddingFilm(false)
                 setOpenFilmId(result.film.id)
+                // Only now, after the save is confirmed: is this on the
+                // wishlist? Nothing is removed from it without a tap.
+                const [first] = wishMatchesForFilm(result.film, wishes ?? [])
+                setAddedNotice(first ? { film: result.film, match: first } : null)
               }
               return result
             }}
@@ -563,6 +693,92 @@ export default function App() {
             onChanged={refreshOptions}
           />
         </ErrorBoundary>
+      )}
+
+      {wishlistOpen && (
+        <ErrorBoundary
+          overlay
+          title="The wishlist stopped working."
+          detail="The rest of the collection is fine. If you were removing a wish, reopen the wishlist and check."
+          onDismiss={() => setWishlistOpen(false)}
+          dismissLabel="Close"
+        >
+          <WishlistPanel
+            wishes={wishes}
+            loadError={wishError}
+            focusId={focusWishId}
+            hidden={Boolean(wishForm)}
+            onClose={() => setWishlistOpen(false)}
+            onAdd={() => setWishForm({ mode: 'add', title: '' })}
+            onEdit={(id) => setWishForm({ mode: 'edit', id })}
+            onRemove={deleteWish}
+          />
+        </ErrorBoundary>
+      )}
+
+      {wishForm && (wishForm.mode === 'add' || (wishes ?? []).some((w) => w.id === wishForm.id)) && (
+        <ErrorBoundary
+          overlay
+          title="The wish form stopped working."
+          detail="The rest of the collection is fine. If you were saving, reopen the wishlist and check before entering it again."
+          onDismiss={() => setWishForm(null)}
+          dismissLabel="Close the form"
+        >
+          <WishForm
+            wish={wishForm.mode === 'edit' ? (wishes ?? []).find((w) => w.id === wishForm.id) ?? null : null}
+            initialTitle={wishForm.mode === 'add' ? wishForm.title : ''}
+            options={options}
+            onCancel={() => setWishForm(null)}
+            onSaved={async (rowOrPatch) => {
+              const result =
+                wishForm.mode === 'edit'
+                  ? await saveWish(wishForm.id, rowOrPatch)
+                  : await addWish(rowOrPatch)
+              if (!result.error) setWishForm(null)
+              return result
+            }}
+            onDelete={
+              wishForm.mode === 'edit'
+                ? async () => {
+                    const result = await deleteWish(wishForm.id)
+                    if (!result.error) setWishForm(null)
+                    return result
+                  }
+                : undefined
+            }
+          />
+        </ErrorBoundary>
+      )}
+
+      {watchNextOpen && (
+        <ErrorBoundary
+          overlay
+          title="Watch Next stopped working."
+          detail="The rest of the collection is fine. If you had just chosen a film, check its last-watched date."
+          onDismiss={() => setWatchNextOpen(false)}
+          dismissLabel="Close"
+        >
+          <WatchNext
+            films={films ?? []}
+            onClose={() => setWatchNextOpen(false)}
+            onWatched={(film, today) => saveFilm(film.id, { last_watched_on: today })}
+          />
+        </ErrorBoundary>
+      )}
+
+      {addedNotice && (
+        <AddedNotice
+          film={addedNotice.film}
+          match={addedNotice.match}
+          onRemove={deleteWish}
+          onView={() => {
+            setFocusWishId(addedNotice.match.wish.id)
+            setAddedNotice(null)
+            setOpenFilmId(null)
+            setWishlistOpen(true)
+          }}
+          onClose={() => setAddedNotice(null)}
+        />
       )}
 
       <UpdateBanner />

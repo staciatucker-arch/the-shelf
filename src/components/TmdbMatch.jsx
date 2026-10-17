@@ -29,7 +29,7 @@ import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
  */
 export default function TmdbMatch({
   title, year, type, match, season, existingId, existingVerified,
-  yearField, filled, editing = false,
+  yearField, filled, editing = false, askSeason = true,
   onConfirm, onSeason, onClear,
 }) {
   const [candidates, setCandidates] = useState(null)
@@ -84,7 +84,8 @@ export default function TmdbMatch({
   // a show nobody has chosen would be choosing on their behalf.
   useEffect(() => {
     let cancelled = false
-    if (!match || match.kind !== 'tv') {
+    // A wish is for a show, not a disc, so it is never asked which season.
+    if (!askSeason || !match || match.kind !== 'tv') {
       setSeasons(null)
       setSeasonError(null)
       return undefined
@@ -103,7 +104,7 @@ export default function TmdbMatch({
     return () => {
       cancelled = true
     }
-  }, [match])
+  }, [match, askSeason])
 
   if (match) {
     return (
@@ -129,7 +130,7 @@ export default function TmdbMatch({
             series 3". The show is the match; the season is a separate choice
             made here, and it is what lets trigger warnings answer for the
             disc in your hand rather than for seven years of television. */}
-        {match.kind === 'tv' && (
+        {askSeason && match.kind === 'tv' && (
           <div className="tmdb-season">
             {seasonError && (
               <p className="form-hint muted">

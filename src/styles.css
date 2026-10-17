@@ -1378,3 +1378,97 @@ button.danger {
 }
 .tmdb-notice-icon { color: var(--orange); font-weight: 700; flex: none; }
 .tmdb-block > .tmdb-notice:only-child { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------- wishlist
+   §6b step 8, 2026-10-17. Rows rather than cards: a wish has no cover. */
+.wish-body { display: block; }
+.wish-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.wish-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.wish-row.is-highlighted { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.wish-main { min-width: 0; flex: 1; }
+.wish-title {
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.wish-meta, .wish-note { margin: 0.15rem 0 0; font-size: 0.85rem; overflow-wrap: anywhere; }
+.wish-link { display: inline-block; margin-top: 0.25rem; font-size: 0.85rem; color: var(--accent); }
+.wish-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.wish-results { margin-top: 1.5rem; }
+.wish-results > .form-action { margin-top: 0.75rem; }
+
+/* The message after adding a film that is also wished for. Above the detail
+   panel (30) that opens at the same moment, below the crop screen (40). */
+.added-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(30rem, calc(100% - 2rem));
+  z-index: 35;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.75rem 0.85rem;
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.added-text { flex: 1; min-width: 0; }
+.added-text p { margin: 0 0 0.4rem; }
+.added-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.added-close {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 0.25rem;
+  min-height: 0;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- Watch Next */
+.watch-body { display: block; }
+.watch-genre { display: block; margin: 0 0 1rem; }
+.watch-genre select { display: block; width: 100%; margin-top: 0.25rem; }
+.watch-pick { text-align: center; }
+.watch-art { width: min(12rem, 60%); margin: 0 auto 0.75rem; }
+.watch-art img { width: 100%; border-radius: 6px; display: block; }
+.watch-art .no-poster {
+  aspect-ratio: 2 / 3;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.watch-title { margin: 0; font-size: 1.2rem; }
+.watch-pick .tag-row { justify-content: center; margin-top: 0.5rem; }
+.watch-actions { display: flex; justify-content: center; gap: 0.75rem; margin: 1rem 0 0.5rem; }
+.watch-done { margin: 1rem 0 0.5rem; color: var(--green); }
+.watch-empty { text-align: center; }
