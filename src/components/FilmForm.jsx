@@ -20,6 +20,7 @@ import { removePoster, uploadPoster } from '../lib/posterStorage.js'
 import { mapTmdbGenres } from '../lib/tmdbGenres.js'
 import PosterPicker from './PosterPicker.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
+import { lockScroll } from '../lib/scrollLock.js'
 
 /** A single-value pick list that can still show a value the list has dropped. */
 function PickList({ label, id, value, offered, onChange }) {
@@ -366,12 +367,11 @@ export default function FilmForm({ film, options, onCancel, onSaved, onDelete })
       if (e.key === 'Escape' && !busy) onCancel()
     }
     document.addEventListener('keydown', onKeyDown)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScroll = lockScroll()
     titleRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScroll()
     }
   }, [onCancel, busy])
 

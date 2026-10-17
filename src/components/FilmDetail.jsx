@@ -8,6 +8,7 @@ import {
   lastWatched,
   money,
 } from '../lib/collection.js'
+import { lockScroll } from '../lib/scrollLock.js'
 
 function formatClass(format) {
   const key = String(format).toLowerCase()
@@ -68,12 +69,11 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
     document.addEventListener('keydown', onKeyDown)
 
     // Stop the shelf behind the panel scrolling under a finger or a wheel.
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScroll = lockScroll()
 
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScroll()
     }
   }, [hidden])
 

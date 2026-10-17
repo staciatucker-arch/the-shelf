@@ -10,6 +10,7 @@ import {
   optionRows,
   setOptionArchived,
 } from '../lib/options.js'
+import { lockScroll } from '../lib/scrollLock.js'
 
 /**
  * The pick lists behind the add/edit form.
@@ -65,11 +66,10 @@ export default function OptionsManager({ onClose, onChanged }) {
       if (e.key === 'Escape' && !busyValue) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const releaseScroll = lockScroll()
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      releaseScroll()
     }
   }, [onClose, busyValue])
 
