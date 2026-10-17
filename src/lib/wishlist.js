@@ -196,3 +196,50 @@ export function wishPatch(wish, form, { match = null, matchTouched = false } = {
   if (matchTouched) Object.assign(patch, matchColumns(match))
   return Object.keys(patch).length > 0 ? patch : null
 }
+
+// ---------------------------------------------------------------- moving a wish to the shelf
+
+/**
+ * Where the Add film form starts when a wish is moved to the shelf
+ * ("Move to my Shelf", Stacia's wording, 2026-10-17).
+ *
+ * Carries what the wish already knows — title, type, year, genres and a
+ * confirmed match — so nothing is retyped or matched twice. Everything about
+ * the copy in hand (cover, format, price) is still the person's to add, at
+ * home, which is why this opens the form rather than moving anything itself.
+ * An unconfirmed wish starts unmatched: an id nobody checked is not a match.
+ */
+export function filmStartFromWish(wish) {
+  const confirmed = Boolean(wish?.tmdb_verified && wish.tmdb_id != null)
+  return {
+    form: {
+      title: wish?.title ?? '',
+      type: wish?.type ?? '',
+      release_year: wish?.release_year == null ? '' : String(wish.release_year),
+      genres: [...(wish?.genres ?? [])],
+    },
+    match: confirmed
+      ? {
+          tmdb_id: Number(wish.tmdb_id),
+          kind: tmdbKind(wish.type),
+          title: wish.title,
+          year: wish.release_year ?? null,
+        }
+      : null,
+  }
+}
+
+/**
+ * The wish to offer after a film is added, or null.
+ *
+ * As `wishMatchesForFilm`, with one addition: when the film was started from
+ * a particular wish, that wish is the one — the person chose it — so it is
+ * offered with Remove even if the title was edited or it was never matched.
+ */
+export function wishOfferAfterAdd(film, wishes, fromWishId = null) {
+  if (fromWishId) {
+    const origin = (wishes ?? []).find((w) => w.id === fromWishId)
+    if (origin) return { wish: origin, sameFilm: true }
+  }
+  return wishMatchesForFilm(film, wishes)[0] ?? null
+}

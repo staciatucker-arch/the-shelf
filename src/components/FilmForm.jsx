@@ -111,11 +111,16 @@ const SAVE_INTERRUPTED_ADDING =
 const SAVE_INTERRUPTED_EDITING =
   'Something went wrong. Close this form and see if your changes were saved.'
 
-export default function FilmForm({ film, options, onCancel, onSaved, onDelete }) {
+export default function FilmForm({ film, start = null, options, onCancel, onSaved, onDelete }) {
   const adding = !film
 
-  const [form, setForm] = useState(() => (film ? filmToForm(film) : blankForm()))
-  const [match, setMatch] = useState(null)
+  // `start`, when adding: what a wish already knows ("Move to my Shelf") —
+  // see filmStartFromWish in lib/wishlist.js. Its match was confirmed by a
+  // person when the wish was added, so it arrives confirmed here too.
+  const [form, setForm] = useState(() =>
+    film ? filmToForm(film) : { ...blankForm(), ...(start?.form ?? {}) },
+  )
+  const [match, setMatch] = useState(() => (adding ? start?.match ?? null : null))
   // The season picked from TMDB's list, kept apart from the label in the form
   // so its NUMBER can be stored. A number here is known; a season typed by
   // hand is not, and trigger warnings must tell those two cases apart.

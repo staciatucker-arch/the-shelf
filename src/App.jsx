@@ -28,7 +28,13 @@ import {
   normaliseFilm,
   sortFilms,
 } from './lib/collection.js'
-import { WISH_COLUMNS, normaliseWish, searchWishes, wishMatchesForFilm } from './lib/wishlist.js'
+import {
+  WISH_COLUMNS,
+  filmStartFromWish,
+  normaliseWish,
+  searchWishes,
+  wishOfferAfterAdd,
+} from './lib/wishlist.js'
 
 // Every column the collection view shows. Listed explicitly rather than
 // select('*') so that adding a column to the table cannot quietly start
@@ -102,6 +108,8 @@ export default function App() {
   // After a film is added that is also on the wishlist: { film, match }.
   const [addedNotice, setAddedNotice] = useState(null)
   const [watchNextOpen, setWatchNextOpen] = useState(false)
+  // "Move to my Shelf": the wish the add form was started from, if any.
+  const [movingWishId, setMovingWishId] = useState(null)
 
   // The add/edit pick lists. Loaded once alongside the collection; a failure
   // here is not fatal to browsing, so it degrades to empty lists and says so
@@ -234,6 +242,13 @@ export default function App() {
   }, [])
 
   /** Remove one named wish, and only once the database says it is gone. */
+  /** Open Add film filled in from a wish. Nothing moves until that save. */
+  const moveWishToShelf = useCallback((id) => {
+    setMovingWishId(id)
+    setWishlistOpen(false)
+    setAddingFilm(true)
+  }, [])
+
   const deleteWish = useCallback(async (id) => {
     const { error } = await supabase.from('wishlist').delete().eq('id', id)
     if (error) return { error: error.message }
@@ -552,6 +567,7 @@ export default function App() {
                         wish={wish}
                         onEdit={() => setWishForm({ mode: 'edit', id: wish.id })}
                         onRemove={() => deleteWish(wish.id)}
+                        onMove={() => moveWishToShelf(wish.id)}
                       />
                     ))}
                   </ul>
@@ -654,13 +670,24 @@ export default function App() {
           overlay
           title="The add form stopped working."
           detail={SAVE_UNKNOWN}
-          onDismiss={() => setAddingFilm(false)}
+          onDismiss={() => {
+            setAddingFilm(false)
+            setMovingWishId(null)
+          }}
           dismissLabel="Close the form"
         >
           <FilmForm
             film={null}
+            start={
+              movingWishId
+                ? filmStartFromWish((wishes ?? []).find((w) => w.id === movingWishId))
+                : null
+            }
             options={options}
-            onCancel={() => setAddingFilm(false)}
+            onCancel={() => {
+              setAddingFilm(false)
+              setMovingWishId(null)
+            }}
             onSaved={async (row) => {
               const result = await addFilm(row)
               // The new film opens on success, so the thing just added is the
@@ -671,8 +698,9 @@ export default function App() {
                 setOpenFilmId(result.film.id)
                 // Only now, after the save is confirmed: is this on the
                 // wishlist? Nothing is removed from it without a tap.
-                const [first] = wishMatchesForFilm(result.film, wishes ?? [])
-                setAddedNotice(first ? { film: result.film, match: first } : null)
+                const offer = wishOfferAfterAdd(result.film, wishes ?? [], movingWishId)
+                setAddedNotice(offer ? { film: result.film, match: offer } : null)
+                setMovingWishId(null)
               }
               return result
             }}
@@ -712,6 +740,7 @@ export default function App() {
             onAdd={() => setWishForm({ mode: 'add', title: '' })}
             onEdit={(id) => setWishForm({ mode: 'edit', id })}
             onRemove={deleteWish}
+            onMove={moveWishToShelf}
           />
         </ErrorBoundary>
       )}

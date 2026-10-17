@@ -10,7 +10,7 @@ import { useBackToClose } from './useBackToClose.js'
  * button — where View in Wishlist lands"), and asks once before it acts. It
  * waits for the database, and says so if the delete was refused.
  */
-export function WishRow({ wish, highlighted = false, onEdit, onRemove }) {
+export function WishRow({ wish, highlighted = false, onEdit, onRemove, onMove }) {
   const [asking, setAsking] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState(null)
@@ -65,9 +65,18 @@ export function WishRow({ wish, highlighted = false, onEdit, onRemove }) {
             </button>
           </>
         ) : (
-          <button type="button" className="ghost form-action" onClick={() => setAsking(true)}>
-            Remove
-          </button>
+          <>
+            {/* Stacia's wording, 2026-10-17. Opens Add film already filled
+                in from this wish; nothing moves until that save. */}
+            {onMove && (
+              <button type="button" className="form-action" onClick={onMove}>
+                Move to my Shelf
+              </button>
+            )}
+            <button type="button" className="ghost form-action" onClick={() => setAsking(true)}>
+              Remove
+            </button>
+          </>
         )}
       </div>
     </li>
@@ -82,7 +91,7 @@ export function WishRow({ wish, highlighted = false, onEdit, onRemove }) {
  */
 export default function WishlistPanel({
   wishes, loadError, focusId, hidden = false,
-  onClose, onAdd, onEdit, onRemove,
+  onClose, onAdd, onEdit, onRemove, onMove,
 }) {
   useBackToClose(onClose, { id: 'wishlist' })
   const latestOnClose = useRef(onClose)
@@ -149,6 +158,7 @@ export default function WishlistPanel({
                   highlighted={wish.id === focusId}
                   onEdit={() => onEdit(wish.id)}
                   onRemove={() => onRemove(wish.id)}
+                  onMove={() => onMove(wish.id)}
                 />
               ))}
             </ul>

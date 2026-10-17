@@ -135,3 +135,34 @@ test('removing a match clears the id as well as the tick', () => {
     tmdb_verified: false,
   })
 })
+
+// ---------------------------------------------------------------- Move to my Shelf
+
+import { filmStartFromWish, wishOfferAfterAdd } from './wishlist.js'
+
+test('moving a confirmed wish carries its match and details into the add form', () => {
+  const start = filmStartFromWish({ ...thing82, release_year: 1982, genres: ['horror'] })
+  assert.deepEqual(start.form, { title: 'The Thing', type: 'Movie', release_year: '1982', genres: ['horror'] })
+  assert.deepEqual(start.match, { tmdb_id: 1091, kind: 'movie', title: 'The Thing', year: 1982 })
+})
+
+test('moving an unconfirmed wish starts unmatched', () => {
+  assert.equal(filmStartFromWish(hailMary).match, null)
+  assert.equal(filmStartFromWish(hailMary).form.title, 'Project Hail Mary')
+})
+
+test('a series wish carries the television catalogue', () => {
+  const start = filmStartFromWish({ id: 'w', title: 'Severance', type: 'Series', tmdb_id: 95396, tmdb_verified: true })
+  assert.equal(start.match.kind, 'tv')
+})
+
+test('the wish a film was moved from is offered with Remove, even unmatched', () => {
+  const film = { title: 'Project Hail Mary (2026)', type: 'Movie', tmdb_id: null, tmdb_verified: false }
+  assert.deepEqual(wishOfferAfterAdd(film, [thing82, hailMary], 'w2'), { wish: hailMary, sameFilm: true })
+})
+
+test('without an origin, the usual matching decides', () => {
+  const film = { title: 'The Thing', type: 'Movie', tmdb_id: 60935, tmdb_verified: true }
+  assert.deepEqual(wishOfferAfterAdd(film, [thing82]), { wish: thing82, sameFilm: false })
+  assert.equal(wishOfferAfterAdd({ title: 'Alien' }, [thing82]), null)
+})
