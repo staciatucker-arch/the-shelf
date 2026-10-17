@@ -1307,9 +1307,24 @@ button.danger {
 }
 .crop-buttons button { margin-top: 0; }
 
+/* TMDB's required credit, at the foot of the shelf above the build stamp. */
+.credit {
+  margin: 2.5rem auto 0;
+  max-width: 20rem;
+  text-align: center;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+.credit-logo {
+  display: block;
+  height: 0.75rem;
+  width: auto;
+  margin: 0 auto 0.35rem;
+}
+
 /* The build stamp: present when looked for, invisible otherwise. */
 .build-stamp {
-  margin: 2.5rem 0 0.5rem;
+  margin: 0.75rem 0 0.5rem;
   text-align: center;
   font-size: 0.7rem;
   opacity: 0.45;

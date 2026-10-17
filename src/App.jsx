@@ -447,6 +447,20 @@ export default function App() {
             )}
           </>
         )}
+        {/* TMDB's terms require this notice and one of their approved logos
+            in every app that uses their data (themoviedb.org/about/
+            logos-attribution). Worded by TMDB, not by us; kept small and
+            below the shelf, never more prominent than the app itself. */}
+        <p className="credit muted">
+          <img
+            className="credit-logo"
+            src={`${import.meta.env.BASE_URL}tmdb-logo.svg`}
+            alt="TMDB"
+            width="96"
+            height="12"
+          />
+          This product uses the TMDB API but is not endorsed or certified by TMDB.
+        </p>
         {/* Which build this is. Small, grey, and at the very bottom, where it
             answers "did my phone get the new one?" without being in the way
             of anything. */}
