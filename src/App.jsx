@@ -529,11 +529,15 @@ export default function App() {
             {searching && <h2 className="section-divider">On your shelf ({shown})</h2>}
 
             {shown === 0 ? (
-              <p className="empty-state">
-                {searching
-                  ? 'Nothing on your shelf matches.'
-                  : 'No titles match. Try a shorter search, or clear the filters.'}
-              </p>
+              searching ? (
+                /* Same look as the wishlist's line below, so the two
+                   sections read as a pair (Stacia, 2026-10-18). */
+                <p className="muted">Nothing on your shelf matches.</p>
+              ) : (
+                <p className="empty-state">
+                  No titles match. Try a shorter search, or clear the filters.
+                </p>
+              )
             ) : (
               <>
                 <ul className="grid">{visible.rows.map(cardFor)}</ul>
