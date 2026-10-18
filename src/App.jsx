@@ -32,9 +32,13 @@ import {
   WISH_COLUMNS,
   filmStartFromWish,
   normaliseWish,
+  postersFromBatch,
   searchWishes,
   wishOfferAfterAdd,
+  wishPosterKey,
+  wishPosterRequests,
 } from './lib/wishlist.js'
+import { lookupTmdbBatch } from './lib/tmdb.js'
 
 // Every column the collection view shows. Listed explicitly rather than
 // select('*') so that adding a column to the table cannot quietly start
@@ -105,6 +109,10 @@ export default function App() {
   // null, { mode: 'add', title }, or { mode: 'edit', id }
   const [wishForm, setWishForm] = useState(null)
   const [focusWishId, setFocusWishId] = useState(null)
+  // TMDB posters for matched wishes, by wishPosterKey. Memory only — never
+  // written anywhere (Stacia, 2026-10-18; see lib/wishlist.js).
+  const [wishPosters, setWishPosters] = useState({})
+  const askedPosters = useRef(new Set())
   // After a film is added that is also on the wishlist: { film, match }.
   const [addedNotice, setAddedNotice] = useState(null)
   const [watchNextOpen, setWatchNextOpen] = useState(false)
@@ -219,6 +227,24 @@ export default function App() {
     if (session) loadWishes()
     else setWishes(null)
   }, [session, loadWishes])
+
+  // Fetch posters for matched wishes not yet asked about. A failure just
+  // means no picture; those keys are let go so a later change asks again.
+  useEffect(() => {
+    if (!wishes) return
+    const items = wishPosterRequests(wishes, askedPosters.current)
+    if (items.length === 0) return
+    for (const it of items) askedPosters.current.add(it.ref)
+    let alive = true
+    lookupTmdbBatch(items).then(({ results }) => {
+      const found = postersFromBatch(results)
+      for (const it of items) if (!(it.ref in found)) askedPosters.current.delete(it.ref)
+      if (alive) setWishPosters((current) => ({ ...current, ...found }))
+    })
+    return () => {
+      alive = false
+    }
+  }, [wishes])
 
   /** One new wish, one insert, the stored row into state. */
   const addWish = useCallback(async (row) => {
@@ -572,6 +598,7 @@ export default function App() {
                       <WishRow
                         key={wish.id}
                         wish={wish}
+                        posterUrl={wishPosters[wishPosterKey(wish)] ?? null}
                         onEdit={() => setWishForm({ mode: 'edit', id: wish.id })}
                         onRemove={() => deleteWish(wish.id)}
                         onMove={() => moveWishToShelf(wish.id)}
@@ -740,6 +767,7 @@ export default function App() {
         >
           <WishlistPanel
             wishes={wishes}
+            posters={wishPosters}
             loadError={wishError}
             focusId={focusWishId}
             hidden={Boolean(wishForm)}

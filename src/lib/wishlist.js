@@ -197,6 +197,63 @@ export function wishPatch(wish, form, { match = null, matchTouched = false } = {
   return Object.keys(patch).length > 0 ? patch : null
 }
 
+// ---------------------------------------------------------------- wish covers
+
+/*
+ * A wish shows TMDB's poster (Stacia, 2026-10-18). Covers on the shelf are
+ * scans and uploads only, and a wish has no case to scan, so this is the one
+ * place TMDB art appears — and it is never saved: fetched while the app is
+ * open, held in memory, never written to the database or the bucket, and not
+ * kept by the service worker (cacheRules.js keeps only our own covers). When
+ * a wish moves to the shelf the film starts with no cover; see
+ * filmStartFromWish below.
+ *
+ * Only a confirmed match gets one. An id nobody checked could be any film,
+ * and a wrong picture is worse than none.
+ */
+
+/** The key a wish's poster is looked up under, or null if it has none. */
+export function wishPosterKey(wish) {
+  if (!wish?.tmdb_verified || wish.tmdb_id == null) return null
+  return `${tmdbKind(wish.type)}:${Number(wish.tmdb_id)}`
+}
+
+/**
+ * The look-ups still needed for these wishes, one per record, skipping keys
+ * already in `known` (fetched, or being fetched). Shaped for tmdb-search's
+ * `batch` action, with the key as `ref` so the answers can be matched back.
+ */
+export function wishPosterRequests(wishes, known = new Set()) {
+  const seen = new Set(known)
+  const items = []
+  for (const wish of wishes ?? []) {
+    const key = wishPosterKey(wish)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    const kind = tmdbKind(wish.type)
+    items.push({ ref: key, tmdb_id: Number(wish.tmdb_id), type: kind === 'tv' ? 'series' : 'movie' })
+  }
+  return items
+}
+
+/**
+ * Poster addresses from a batch answer, by key. A record TMDB no longer has,
+ * or one found only in the other catalogue (so a different title), gets null:
+ * no picture. A failed item is left out, so it is asked again next time.
+ */
+export function postersFromBatch(results) {
+  const out = {}
+  for (const r of results ?? []) {
+    if (!r?.ref || r.error) continue
+    // Only TMDB's own image server: this address goes straight into an <img>.
+    const url = typeof r.poster_url === 'string' && r.poster_url.startsWith('https://image.tmdb.org/')
+      ? r.poster_url
+      : null
+    out[r.ref] = r.found && !r.wrong_namespace ? url : null
+  }
+  return out
+}
+
 // ---------------------------------------------------------------- moving a wish to the shelf
 
 /**
@@ -208,6 +265,8 @@ export function wishPatch(wish, form, { match = null, matchTouched = false } = {
  * the copy in hand (cover, format, price) is still the person's to add, at
  * home, which is why this opens the form rather than moving anything itself.
  * An unconfirmed wish starts unmatched: an id nobody checked is not a match.
+ * It never carries a cover: the TMDB poster a wish shows is not the film's
+ * cover (Stacia, 2026-10-18), so the film starts blank until a scan.
  */
 export function filmStartFromWish(wish) {
   const confirmed = Boolean(wish?.tmdb_verified && wish.tmdb_id != null)

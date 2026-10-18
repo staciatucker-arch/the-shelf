@@ -32,7 +32,7 @@ export default function AddedNotice({ film, match, onRemove, onView, onClose }) 
         <p>
           <strong>{displayTitle(film.title)}</strong> has been added to your Shelf.
         </p>
-        {/* ⚠ Placeholder wording — Stacia's to choose. */}
+        {/* Wording approved by Stacia, 2026-10-18. */}
         {removed && <p className="muted">Removed from your wishlist.</p>}
         {error && (
           <p className="error" role="alert">

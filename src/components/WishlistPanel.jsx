@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { lockScroll } from '../lib/scrollLock.js'
-import { linkHost, safeLink, sortWishes } from '../lib/wishlist.js'
+import { linkHost, safeLink, sortWishes, wishPosterKey } from '../lib/wishlist.js'
 import { useBackToClose } from './useBackToClose.js'
 
 /**
@@ -9,8 +9,11 @@ import { useBackToClose } from './useBackToClose.js'
  * Remove is on the row itself (Stacia, 2026-10-11: "a wish has its own Remove
  * button — where View in Wishlist lands"), and asks once before it acts. It
  * waits for the database, and says so if the delete was refused.
+ *
+ * `posterUrl` is TMDB's poster for a matched wish, shown and never saved
+ * (Stacia, 2026-10-18); a blank tile otherwise, so the rows line up.
  */
-export function WishRow({ wish, highlighted = false, onEdit, onRemove, onMove }) {
+export function WishRow({ wish, posterUrl = null, highlighted = false, onEdit, onRemove, onMove }) {
   const [asking, setAsking] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState(null)
@@ -23,6 +26,9 @@ export function WishRow({ wish, highlighted = false, onEdit, onRemove, onMove })
 
   return (
     <li ref={ref} className={`wish-row${highlighted ? ' is-highlighted' : ''}`}>
+      <div className="wish-art" aria-hidden="true">
+        {posterUrl && <img src={posterUrl} alt="" loading="lazy" />}
+      </div>
       <div className="wish-main">
         <button type="button" className="wish-title" onClick={onEdit}>
           {wish.title}
@@ -90,7 +96,7 @@ export function WishRow({ wish, highlighted = false, onEdit, onRemove, onMove })
  * rebuilt, for the same reason as the film details (see panelBack.js).
  */
 export default function WishlistPanel({
-  wishes, loadError, focusId, hidden = false,
+  wishes, posters = {}, loadError, focusId, hidden = false,
   onClose, onAdd, onEdit, onRemove, onMove,
 }) {
   useBackToClose(onClose, { id: 'wishlist' })
@@ -155,6 +161,7 @@ export default function WishlistPanel({
                 <WishRow
                   key={wish.id}
                   wish={wish}
+                  posterUrl={posters[wishPosterKey(wish)] ?? null}
                   highlighted={wish.id === focusId}
                   onEdit={() => onEdit(wish.id)}
                   onRemove={() => onRemove(wish.id)}

@@ -72,3 +72,23 @@ export async function lookupTmdb({ tmdb_id, kind }) {
   if (data && data.found === false) return { details: null, error: 'TMDB no longer has that record.' }
   return { details: data ?? null, error: null }
 }
+
+/**
+ * Many lookups at once, for the wish covers. `items` are `{ ref, tmdb_id,
+ * type }`; the function answers at most 50 per call, so longer lists go in
+ * several. Returns `{ results, error }` — the results that did come back,
+ * and the first error if any call failed.
+ */
+export async function lookupTmdbBatch(items) {
+  const results = []
+  let firstError = null
+  for (let i = 0; i < items.length; i += 50) {
+    const { data, error } = await supabase.functions.invoke('tmdb-search', {
+      body: { action: 'batch', items: items.slice(i, i + 50) },
+    })
+    const problem = error?.message ?? (data?.error ? String(data.error) : null)
+    if (problem) firstError ??= problem
+    else results.push(...(data?.results ?? []))
+  }
+  return { results, error: firstError }
+}

@@ -166,3 +166,53 @@ test('without an origin, the usual matching decides', () => {
   assert.deepEqual(wishOfferAfterAdd(film, [thing82]), { wish: thing82, sameFilm: false })
   assert.equal(wishOfferAfterAdd({ title: 'Alien' }, [thing82]), null)
 })
+
+// ---------------------------------------------------------------- wish covers
+
+import { postersFromBatch, wishPosterKey, wishPosterRequests } from './wishlist.js'
+
+test('only a confirmed match has a poster key, in its own catalogue', () => {
+  assert.equal(wishPosterKey({ type: 'Movie', tmdb_id: 1091, tmdb_verified: true }), 'movie:1091')
+  assert.equal(wishPosterKey({ type: 'Series', tmdb_id: 95396, tmdb_verified: true }), 'tv:95396')
+  assert.equal(wishPosterKey({ type: 'Movie', tmdb_id: 1091, tmdb_verified: false }), null)
+  assert.equal(wishPosterKey({ type: 'Movie', tmdb_id: null, tmdb_verified: true }), null)
+})
+
+test('poster look-ups skip unmatched wishes, repeats and ones already asked', () => {
+  const wishes = [
+    { id: 'a', type: 'Movie', tmdb_id: 1091, tmdb_verified: true },
+    { id: 'b', type: 'Movie', tmdb_id: 1091, tmdb_verified: true },
+    { id: 'c', type: 'Series', tmdb_id: 95396, tmdb_verified: true },
+    { id: 'd', type: 'Movie', tmdb_id: 5, tmdb_verified: false },
+    { id: 'e', type: 'Movie', tmdb_id: 348, tmdb_verified: true },
+  ]
+  assert.deepEqual(wishPosterRequests(wishes, new Set(['movie:348'])), [
+    { ref: 'movie:1091', tmdb_id: 1091, type: 'movie' },
+    { ref: 'tv:95396', tmdb_id: 95396, type: 'series' },
+  ])
+})
+
+test('a batch answer gives TMDB image addresses only, and none for a wrong or missing record', () => {
+  const posters = postersFromBatch([
+    { ref: 'movie:1091', found: true, wrong_namespace: false, poster_url: 'https://image.tmdb.org/t/p/w342/x.jpg' },
+    { ref: 'movie:2', found: true, wrong_namespace: true, poster_url: 'https://image.tmdb.org/t/p/w342/y.jpg' },
+    { ref: 'movie:3', found: false },
+    { ref: 'movie:4', found: true, wrong_namespace: false, poster_url: 'javascript:alert(1)' },
+    { ref: 'movie:5', error: 'timeout' },
+  ])
+  assert.deepEqual(posters, {
+    'movie:1091': 'https://image.tmdb.org/t/p/w342/x.jpg',
+    'movie:2': null,
+    'movie:3': null,
+    'movie:4': null,
+  })
+})
+
+test('moving a wish to the shelf never carries a cover', () => {
+  const start = filmStartFromWish({
+    id: 'w', title: 'The Thing', type: 'Movie', tmdb_id: 1091, tmdb_verified: true,
+    poster_url: 'https://image.tmdb.org/t/p/w342/x.jpg',
+  })
+  const fields = [...Object.keys(start.form), ...Object.keys(start.match)]
+  assert.ok(!fields.some((k) => k.startsWith('poster')), fields.join(', '))
+})

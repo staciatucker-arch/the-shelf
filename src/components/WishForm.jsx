@@ -15,7 +15,7 @@ import TmdbMatch from './TmdbMatch.jsx'
 import { useBackToClose } from './useBackToClose.js'
 
 /* Same rule as the film form's: a failure part-way must not claim the save
-   worked, or that it did not. ⚠ Placeholder wording — Stacia's to choose. */
+   worked, or that it did not. Wording approved by Stacia, 2026-10-18. */
 const SAVE_INTERRUPTED =
   'Something went wrong. Close this form and see if your wishlist changed.'
 
@@ -109,7 +109,7 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
     setForm(next)
   }
 
-  // Wording approved by Stacia, 2026-10-18, except SAVE_INTERRUPTED above.
+  // Wording approved by Stacia, 2026-10-18.
   const heading = adding ? 'Add to your wishlist' : `Edit wish`
 
   const yearField = (
