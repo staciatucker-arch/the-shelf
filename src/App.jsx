@@ -475,9 +475,6 @@ export default function App() {
               Watch Next
             </button>
           )}
-          <button className="ghost" onClick={() => setManagingOptions(true)}>
-            Pick lists
-          </button>
           <button className="ghost" onClick={() => supabase.auth.signOut()}>
             Sign out
           </button>
@@ -551,6 +548,7 @@ export default function App() {
               onChange={setFilters}
               onClear={() => setFilters(EMPTY_FILTERS)}
               onClose={() => setFiltersOpen(false)}
+              onManageCategories={() => setManagingOptions(true)}
             />
 
             {/* While searching, one search answers both questions a shop
@@ -745,8 +743,8 @@ export default function App() {
       {managingOptions && (
         <ErrorBoundary
           overlay
-          title="Pick lists stopped working."
-          detail="The rest of the collection is fine. If you were part-way through adding or renaming a value, whether it went through is unknown — reopen Pick lists and check before trying again."
+          title="Categories stopped working."
+          detail="The rest of the collection is fine. If you were part-way through adding or renaming a value, whether it went through is unknown — reopen Categories and check before trying again."
           onDismiss={() => setManagingOptions(false)}
           dismissLabel="Close"
         >

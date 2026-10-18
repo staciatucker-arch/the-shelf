@@ -1,4 +1,5 @@
 import { BLANK_FIELDS, countActiveFilters } from '../lib/collection.js'
+import MultiSelect from './MultiSelect.jsx'
 
 const GROUPS = [
   { key: 'formats', label: 'Format' },
@@ -9,74 +10,51 @@ const GROUPS = [
   { key: 'vendors', label: 'Bought from' },
 ]
 
-// Every checkbox applies immediately. The old app had a "Show Results" button
+// Every choice applies immediately. The old app had a "Show Results" button
 // because it re-rendered the whole sheet on each change; here the work is a
 // filter over 248 rows already in memory, so waiting for a button would only
 // add a step.
-export default function FilterPanel({ open, values, filters, onChange, onClear, onClose }) {
+//
+// Each group is a dropdown (Stacia, 2026-10-18). As checkboxes the groups ran
+// to 107 boxes and three screens of scrolling on a phone; as dropdowns all
+// seven fit on one.
+export default function FilterPanel({ open, values, filters, onChange, onClear, onClose, onManageCategories }) {
   if (!open) return null
 
-  function toggle(group, value) {
-    const current = filters[group]
-    const next = current.includes(value)
-      ? current.filter((v) => v !== value)
-      : [...current, value]
-    onChange({ ...filters, [group]: next })
-  }
-
+  const set = (group) => (next) => onChange({ ...filters, [group]: next })
   const activeCount = countActiveFilters(filters)
 
   return (
     <div className="filter-panel" role="region" aria-label="Filters">
-      {/* First, not last. Measured 2026-09-09: with 107 checkboxes in the six
-          groups below, this section began 2,378px down on a 360px phone —
-          three full screens of scrolling, with nothing to suggest it was
-          there. It is the data-cleanup workflow and it is a fixed six
-          checkboxes, so it costs little at the top and was unreachable at the
-          bottom. */}
-      <div className="filter-section">
-        <div className="filter-section-label">Show blanks</div>
-        <p className="filter-hint muted">
-          Narrows the shelf to titles that are missing something — the
-          cleanup list.
-        </p>
-        <div className="check-grid">
-          {BLANK_FIELDS.map(({ value, label }) => (
-            <label className="check-item" key={value}>
-              <input
-                type="checkbox"
-                checked={filters.blanks.includes(value)}
-                onChange={() => toggle('blanks', value)}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
+      <div className="filter-grid">
+        {GROUPS.map(({ key, label }) => {
+          const options = values[key] ?? []
+          if (!options.length) return null
+          return (
+            <MultiSelect
+              key={key}
+              label={label}
+              options={options}
+              selected={filters[key]}
+              onChange={set(key)}
+            />
+          )
+        })}
+        {/* The data-cleanup list: titles missing something. */}
+        <MultiSelect
+          label="Show blanks"
+          options={BLANK_FIELDS}
+          selected={filters.blanks}
+          onChange={set('blanks')}
+        />
       </div>
 
-      {GROUPS.map(({ key, label }) => {
-        const options = values[key] ?? []
-        if (!options.length) return null
-        return (
-          <div className="filter-section" key={key}>
-            <div className="filter-section-label">{label}</div>
-            <div className="check-grid">
-              {options.map((value) => (
-                <label className="check-item" key={value}>
-                  <input
-                    type="checkbox"
-                    checked={filters[key].includes(value)}
-                    onChange={() => toggle(key, value)}
-                  />
-                  {value}
-                </label>
-              ))}
-            </div>
-          </div>
-        )
-      })}
-
-      <div className="btn-row">
+      <div className="btn-row filter-buttons">
+        {/* Stacia's name for what was "Pick lists", moved here from the
+            header on 2026-10-18: the header no longer fit on a phone. */}
+        <button type="button" className="ghost filter-categories" onClick={onManageCategories}>
+          Categories
+        </button>
         <button type="button" className="ghost" onClick={onClear} disabled={!activeCount}>
           Clear all
         </button>

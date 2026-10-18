@@ -249,6 +249,64 @@ button.ghost {
 .btn-row { display: flex; gap: 0.6rem; justify-content: flex-end; }
 .btn-row button { margin-top: 1rem; }
 
+/* The filter dropdowns (MultiSelect.jsx). */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+@media (max-width: 559px) { .filter-grid { grid-template-columns: 1fr 1fr; } }
+.filter-buttons { flex-wrap: wrap; }
+.filter-categories { margin-right: auto; }
+.multi-select { position: relative; min-width: 0; }
+.multi-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.multi-button {
+  width: 100%;
+  margin: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  text-align: left;
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.multi-button.has-choice { border-color: var(--accent); color: var(--accent); }
+.multi-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.multi-chevron { flex: none; color: var(--muted); }
+.multi-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: max(100%, 220px);
+  max-width: calc(100vw - 2rem);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 0.5rem;
+}
+/* The right-hand column's menu opens leftwards, so it stays on screen. */
+@media (max-width: 559px) { .filter-grid > .multi-select:nth-child(even) .multi-menu { left: auto; right: 0; } }
+.multi-narrow { width: 100%; margin: 0 0 0.4rem; font-size: 0.85rem; }
+.multi-options { max-height: 45vh; overflow-y: auto; display: flex; flex-direction: column; }
+.multi-none { margin: 0.25rem 0; font-size: 0.85rem; }
+.multi-clear { width: 100%; margin: 0.4rem 0 0; font-size: 0.8rem; }
+
 /* --- the grid ---------------------------------------------------------- */
 
 .grid {

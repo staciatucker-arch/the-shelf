@@ -97,12 +97,12 @@ export default function OptionsManager({ onClose, onChanged }) {
         className="detail-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Manage the pick lists"
+        aria-label="Manage the categories"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="form-shell">
           <div className="detail-head form-head">
-            <h2 className="detail-title">Pick lists</h2>
+            <h2 className="detail-title">Categories</h2>
             <div className="detail-head-actions">
               <button
                 type="button"
