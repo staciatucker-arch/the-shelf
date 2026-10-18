@@ -111,7 +111,7 @@ export default function WishlistPanel({
 
   const sorted = sortWishes(wishes ?? [])
 
-  // ⚠ Placeholder wording throughout — Stacia's to choose.
+  // Wording approved by Stacia, 2026-10-18.
   return (
     <div
       className={`detail-overlay${hidden ? ' is-hidden' : ''}`}

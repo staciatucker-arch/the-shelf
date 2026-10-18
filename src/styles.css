@@ -90,6 +90,13 @@ h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.08em; text-transform: uppe
 .bar-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
 .bar-right .muted { display: none; }
 @media (min-width: 560px) { .bar-right .muted { display: inline; } }
+/* Four buttons do not fit beside the title on a phone (Sign out was pushed
+   off screen once Watch Next joined them), so they take a row of their own. */
+@media (max-width: 559px) {
+  .bar { flex-wrap: wrap; gap: 0.5rem; }
+  .bar-right { width: 100%; gap: 0.4rem; }
+  .bar-right button { flex: 1; padding-left: 0.3rem; padding-right: 0.3rem; white-space: nowrap; }
+}
 
 main { padding: 1rem; max-width: 1400px; margin: 0 auto; }
 
@@ -1418,6 +1425,8 @@ button.danger {
 .wish-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .wish-actions button { margin-top: 0; }
 .wish-results { margin-top: 1.5rem; }
+/* The two headings a search shows, in the accent yellow (Stacia, 2026-10-18). */
+.search-divider { color: var(--accent); }
 .wish-results > .form-action { margin-top: 0.75rem; }
 
 /* The message after adding a film that is also wished for. Above the detail
@@ -1470,6 +1479,5 @@ button.danger {
 }
 .watch-title { margin: 0; font-size: 1.2rem; }
 .watch-pick .tag-row { justify-content: center; margin-top: 0.5rem; }
-.watch-actions { display: flex; justify-content: center; gap: 0.75rem; margin: 1rem 0 0.5rem; }
-.watch-done { margin: 1rem 0 0.5rem; color: var(--green); }
+.watch-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; margin: 1rem 0 0.5rem; }
 .watch-empty { text-align: center; }

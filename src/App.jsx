@@ -442,6 +442,13 @@ export default function App() {
           >
             Wishlist{wishes && wishes.length > 0 ? ` (${wishes.length})` : ''}
           </button>
+          {/* Beside Wishlist, as the other way in that is not about one film
+              (Stacia, 2026-10-18). Only once the films are loaded. */}
+          {films && (
+            <button className="ghost" onClick={() => setWatchNextOpen(true)}>
+              Watch Next
+            </button>
+          )}
           <button className="ghost" onClick={() => setManagingOptions(true)}>
             Pick lists
           </button>
@@ -500,10 +507,6 @@ export default function App() {
                   <span aria-hidden="true">+</span> Add film
                 </button>
 
-                <button type="button" className="ghost" onClick={() => setWatchNextOpen(true)}>
-                  Watch Next
-                </button>
-
                 <button
                   type="button"
                   className={'ghost filter-toggle' + (activeFilterCount ? ' has-filters' : '')}
@@ -526,7 +529,7 @@ export default function App() {
 
             {/* While searching, one search answers both questions a shop
                 raises — do we own it, do we want it (Stacia, 2026-10-11). */}
-            {searching && <h2 className="section-divider">On your shelf ({shown})</h2>}
+            {searching && <h2 className="section-divider search-divider">On your shelf ({shown})</h2>}
 
             {shown === 0 ? (
               searching ? (
@@ -557,7 +560,7 @@ export default function App() {
 
             {searching && (
               <section className="wish-results">
-                <h2 className="section-divider">On your wishlist ({wishHits.length})</h2>
+                <h2 className="section-divider search-divider">On your wishlist ({wishHits.length})</h2>
                 {wishError && (
                   <p className="error" role="alert">
                     Could not load the wishlist: {wishError}
@@ -579,7 +582,7 @@ export default function App() {
                 {wishHits.length === 0 && !wishError && (
                   <p className="muted">Nothing on your wishlist matches.</p>
                 )}
-                {/* ⚠ Placeholder wording — Stacia's to choose. */}
+                {/* Wording approved by Stacia, 2026-10-18. */}
                 {shown === 0 && wishHits.length === 0 && (
                   <button
                     type="button"
@@ -787,14 +790,17 @@ export default function App() {
         <ErrorBoundary
           overlay
           title="Watch Next stopped working."
-          detail="The rest of the collection is fine. If you had just chosen a film, check its last-watched date."
+          detail="The rest of the collection is fine. Watch Next saves nothing, so nothing has changed."
           onDismiss={() => setWatchNextOpen(false)}
           dismissLabel="Close"
         >
           <WatchNext
             films={films ?? []}
             onClose={() => setWatchNextOpen(false)}
-            onWatched={(film, today) => saveFilm(film.id, { last_watched_on: today })}
+            onOpenFilm={(film) => {
+              setWatchNextOpen(false)
+              setOpenFilmId(film.id)
+            }}
           />
         </ErrorBoundary>
       )}

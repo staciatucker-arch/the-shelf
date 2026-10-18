@@ -1,31 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { displayTitle, displayYear } from '../lib/collection.js'
 import { lockScroll } from '../lib/scrollLock.js'
-import { drawNext, todayLocal, watchNextGenres, watchNextPool } from '../lib/watchNext.js'
+import { drawNext, watchNextGenres, watchNextPool } from '../lib/watchNext.js'
 import { useBackToClose } from './useBackToClose.js'
 
 /**
  * Watch Next: one random movie at a time, with spin again.
  *
- * The rules are in lib/watchNext.js. Committing to the pick records today as
- * its last-watched date — a real write, so it waits for the database and says
- * plainly if the date was not saved.
+ * The rules are in lib/watchNext.js. It writes nothing: a pick is only a
+ * suggestion, so nothing is marked watched until a person does it on the
+ * film itself (Stacia, 2026-10-18). The button hands over to the film's own
+ * panel, where Edit holds the last-watched date.
  */
-export default function WatchNext({ films, onClose, onWatched }) {
+export default function WatchNext({ films, onClose, onOpenFilm }) {
   const [genre, setGenre] = useState('')
   const [shown, setShown] = useState([])
   const [current, setCurrent] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [done, setDone] = useState(false)
-  const [error, setError] = useState(null)
 
-  useBackToClose(onClose, { id: 'watch-next', enabled: !saving })
+  useBackToClose(onClose, { id: 'watch-next' })
   const latestOnClose = useRef(onClose)
   latestOnClose.current = onClose
 
   useEffect(() => {
     function onKeyDown(e) {
-      if (e.key === 'Escape' && !saving) latestOnClose.current?.()
+      if (e.key === 'Escape') latestOnClose.current?.()
     }
     document.addEventListener('keydown', onKeyDown)
     const releaseScroll = lockScroll()
@@ -33,13 +31,13 @@ export default function WatchNext({ films, onClose, onWatched }) {
       document.removeEventListener('keydown', onKeyDown)
       releaseScroll()
     }
-  }, [saving])
+  }, [])
 
   const genres = useMemo(() => watchNextGenres(films), [films])
   const pool = useMemo(() => watchNextPool(films, { genre }), [films, genre])
 
   // A new run whenever the genre changes, including the first draw. Keyed on
-  // the genre, not the pool: recording "watched today" updates the film, which
+  // the genre, not the pool: the collection refreshing in the background
   // rebuilds the pool, and that must not throw away the pick on screen.
   const poolRef = useRef(pool)
   poolRef.current = pool
@@ -47,15 +45,12 @@ export default function WatchNext({ films, onClose, onWatched }) {
     const first = drawNext(poolRef.current, [])
     setCurrent(first)
     setShown(first ? [first.id] : [])
-    setDone(false)
-    setError(null)
   }, [genre])
 
   function spinAgain() {
     const next = drawNext(pool, shown)
     setCurrent(next)
     if (next) setShown((ids) => [...ids, next.id])
-    setError(null)
   }
 
   function startOver() {
@@ -64,22 +59,9 @@ export default function WatchNext({ films, onClose, onWatched }) {
     setShown(first ? [first.id] : [])
   }
 
-  async function watchThis() {
-    if (!current) return
-    setSaving(true)
-    setError(null)
-    try {
-      const result = await onWatched(current, todayLocal())
-      if (result?.error) setError(result.error)
-      else setDone(true)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // ⚠ Placeholder wording throughout — Stacia's to choose.
+  // Wording approved by Stacia, 2026-10-18.
   return (
-    <div className="detail-overlay" role="presentation" onClick={() => !saving && onClose()}>
+    <div className="detail-overlay" role="presentation" onClick={onClose}>
       <div
         className="detail-panel watch-next"
         role="dialog"
@@ -90,7 +72,7 @@ export default function WatchNext({ films, onClose, onWatched }) {
         <div className="detail-head">
           <h2 className="detail-title">Watch Next</h2>
           <div className="detail-head-actions">
-            <button type="button" className="detail-close" onClick={onClose} disabled={saving}>
+            <button type="button" className="detail-close" onClick={onClose}>
               <span aria-hidden="true">×</span>
               <span className="sr-only">Close</span>
             </button>
@@ -104,7 +86,6 @@ export default function WatchNext({ films, onClose, onWatched }) {
               id="watch-genre"
               value={genre}
               onChange={(e) => setGenre(e.target.value)}
-              disabled={saving || done}
             >
               <option value="">Any genre</option>
               {genres.map((g) => (
@@ -147,24 +128,14 @@ export default function WatchNext({ films, onClose, onWatched }) {
                 </div>
               )}
 
-              {error && (
-                <p className="error" role="alert">
-                  Could not record it as watched: {error}
-                </p>
-              )}
-
-              {done ? (
-                <p className="watch-done">Enjoy the film. Marked as watched today.</p>
-              ) : (
-                <div className="watch-actions">
-                  <button type="button" className="ghost form-action" onClick={spinAgain} disabled={saving}>
-                    Spin again
-                  </button>
-                  <button type="button" className="form-action" onClick={watchThis} disabled={saving}>
-                    {saving ? 'Saving…' : 'Watch this'}
-                  </button>
-                </div>
-              )}
+              <div className="watch-actions">
+                <button type="button" className="ghost form-action" onClick={spinAgain}>
+                  Spin again
+                </button>
+                <button type="button" className="form-action" onClick={() => onOpenFilm(current)}>
+                  Open the film to mark as watched
+                </button>
+              </div>
               <p className="form-hint muted">
                 {shown.length} of {pool.length} shown this time
               </p>

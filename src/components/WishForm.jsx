@@ -109,7 +109,7 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
     setForm(next)
   }
 
-  // ⚠ Placeholder wording throughout — Stacia's to choose.
+  // Wording approved by Stacia, 2026-10-18, except SAVE_INTERRUPTED above.
   const heading = adding ? 'Add to your wishlist' : `Edit wish`
 
   const yearField = (
