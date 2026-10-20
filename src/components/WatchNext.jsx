@@ -59,18 +59,18 @@ export default function WatchNext({ films, onClose, onOpenFilm }) {
     setShown(first ? [first.id] : [])
   }
 
-  // Wording approved by Stacia, 2026-10-18.
+  // Wording approved by Stacia, 2026-10-18; the heading is hers, 2026-10-20.
   return (
     <div className="detail-overlay" role="presentation" onClick={onClose}>
       <div
         className="detail-panel watch-next"
         role="dialog"
         aria-modal="true"
-        aria-label="Watch Next"
+        aria-label="What do you want to watch next?"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="detail-head">
-          <h2 className="detail-title">Watch Next</h2>
+          <h2 className="detail-title">What do you want to watch next?</h2>
           <div className="detail-head-actions">
             <button type="button" className="detail-close" onClick={onClose}>
               <span aria-hidden="true">×</span>
