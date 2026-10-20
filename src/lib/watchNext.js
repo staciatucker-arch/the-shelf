@@ -3,18 +3,19 @@
 // Decided with Stacia, 2026-10-11:
 //   * one pick at a time, with a spin-again button (a swipe-and-match picker
 //     stays parked);
-//   * an optional genre filter, as the old app had;
+//   * an optional genre filter, as the old app had — several genres since
+//     2026-10-20, matching any of them, as the shelf's Genre filter does;
 //   * Movies only — no series seasons, no box sets;
 //   * purely random, no weighting towards unwatched films;
 //   * no repeats within one run of spins;
 //   * committing to the pick records today as the last-watched date.
 
 /** The films a draw is made from. */
-export function watchNextPool(films, { genre = '' } = {}) {
-  const wanted = String(genre ?? '').trim()
+export function watchNextPool(films, { genres = [] } = {}) {
+  const wanted = (genres ?? []).map((g) => String(g ?? '').trim()).filter(Boolean)
   return (films ?? []).filter((film) => {
     if (String(film.type ?? '').trim().toLowerCase() !== 'movie') return false
-    if (wanted !== '' && !(film.genres ?? []).includes(wanted)) return false
+    if (wanted.length && !(film.genres ?? []).some((g) => wanted.includes(g))) return false
     return true
   })
 }

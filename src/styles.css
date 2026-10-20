@@ -1535,7 +1535,6 @@ button.danger {
 /* Sized to its choices, not the panel, and centred over the pick below it
    (Stacia, 2026-10-20: full width was too wide on a computer). */
 .watch-genre { display: block; width: min(16rem, 100%); margin: 0 auto 1rem; }
-.watch-genre select { display: block; width: 100%; margin-top: 0.25rem; }
 .watch-pick { text-align: center; }
 .watch-art { width: min(12rem, 60%); margin: 0 auto 0.75rem; }
 .watch-art img { width: 100%; border-radius: 6px; display: block; }

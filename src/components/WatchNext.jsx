@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { displayTitle, displayYear } from '../lib/collection.js'
 import { lockScroll } from '../lib/scrollLock.js'
 import { drawNext, watchNextGenres, watchNextPool } from '../lib/watchNext.js'
+import MultiSelect from './MultiSelect.jsx'
 import { useBackToClose } from './useBackToClose.js'
 
 /**
@@ -13,7 +14,7 @@ import { useBackToClose } from './useBackToClose.js'
  * panel, where Edit holds the last-watched date.
  */
 export default function WatchNext({ films, onClose, onOpenFilm }) {
-  const [genre, setGenre] = useState('')
+  const [chosenGenres, setChosenGenres] = useState([])
   const [shown, setShown] = useState([])
   const [current, setCurrent] = useState(null)
 
@@ -34,10 +35,13 @@ export default function WatchNext({ films, onClose, onOpenFilm }) {
   }, [])
 
   const genres = useMemo(() => watchNextGenres(films), [films])
-  const pool = useMemo(() => watchNextPool(films, { genre }), [films, genre])
+  const pool = useMemo(
+    () => watchNextPool(films, { genres: chosenGenres }),
+    [films, chosenGenres],
+  )
 
-  // A new run whenever the genre changes, including the first draw. Keyed on
-  // the genre, not the pool: the collection refreshing in the background
+  // A new run whenever the genres change, including the first draw. Keyed on
+  // the genres, not the pool: the collection refreshing in the background
   // rebuilds the pool, and that must not throw away the pick on screen.
   const poolRef = useRef(pool)
   poolRef.current = pool
@@ -45,7 +49,7 @@ export default function WatchNext({ films, onClose, onOpenFilm }) {
     const first = drawNext(poolRef.current, [])
     setCurrent(first)
     setShown(first ? [first.id] : [])
-  }, [genre])
+  }, [chosenGenres.join('\n')])
 
   function spinAgain() {
     const next = drawNext(pool, shown)
@@ -80,27 +84,23 @@ export default function WatchNext({ films, onClose, onOpenFilm }) {
         </div>
 
         <div className="detail-body watch-body">
-          <label htmlFor="watch-genre" className="watch-genre">
-            Genre
-            <select
-              id="watch-genre"
-              value={genre}
-              onChange={(e) => setGenre(e.target.value)}
-            >
-              <option value="">Any genre</option>
-              {genres.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="watch-genre">
+            <MultiSelect
+              label="Genre"
+              options={genres}
+              selected={chosenGenres}
+              onChange={setChosenGenres}
+            />
+          </div>
 
-          {pool.length === 0 && <p className="muted">No movies on the shelf match that genre.</p>}
+          {pool.length === 0 && <p className="muted">No movies on the shelf match {chosenGenres.length > 1 ? 'those genres' : 'that genre'}.</p>}
 
           {pool.length > 0 && !current && (
             <div className="watch-empty">
-              <p>That’s every movie{genre ? ` in ${genre}` : ''} — {pool.length} in all.</p>
+              <p>
+                That’s every movie
+                {chosenGenres.length ? ` in ${chosenGenres.join(', ')}` : ''} — {pool.length} in all.
+              </p>
               <button type="button" className="form-action" onClick={startOver}>
                 Start over
               </button>

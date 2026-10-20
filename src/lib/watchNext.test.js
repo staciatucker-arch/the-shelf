@@ -16,7 +16,15 @@ test('only movies are drawn — no seasons, no box sets, nothing untyped', () =>
 })
 
 test('a genre narrows the draw', () => {
-  assert.deepEqual(watchNextPool(films, { genre: 'horror' }).map((f) => f.id), ['a'])
+  assert.deepEqual(watchNextPool(films, { genres: ['horror'] }).map((f) => f.id), ['a'])
+})
+
+test('several genres match a movie with any of them, as the shelf filter does', () => {
+  assert.deepEqual(watchNextPool(films, { genres: ['horror', 'sci-fi'] }).map((f) => f.id), ['a', 'd'])
+})
+
+test('no genres chosen means every movie', () => {
+  assert.deepEqual(watchNextPool(films, { genres: [] }).map((f) => f.id), ['a', 'd'])
 })
 
 test('the genre list offers only genres a movie actually has', () => {
