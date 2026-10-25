@@ -47,14 +47,22 @@ export default function StatsBar({ stats }) {
     })
   }
 
-  // The folded line (Stacia's wording, 2026-10-25): money only. The count
-  // lives on the line above the covers, where it changes with a filter, so
-  // it is not said twice. A figure nobody has recorded is left out rather
-  // than shown as $0, and with nothing recorded at all the line says "Value".
-  const summary = []
-  if (costCount > 0) summary.push(`${money(spent)} spent`)
-  if (gain != null) summary.push(signedMoney(gain))
-  if (summary.length === 0) summary.push('Value')
+  // The folded line (Stacia's wording, 2026-10-25): money only — spent,
+  // market, and the gain in green or red. The count lives on the line above
+  // the covers, where it changes with a filter, so it is not said twice. A
+  // figure nobody has recorded is left out rather than shown as $0, and with
+  // nothing recorded at all the line says "Value".
+  const parts = []
+  if (costCount > 0) parts.push(<span key="spent">{money(spent)} spent</span>)
+  if (marketCount > 0) parts.push(<span key="market">{money(market)} market</span>)
+  if (gain != null) {
+    parts.push(
+      <span key="gain" className={gain >= 0 ? 'positive' : 'negative'}>
+        {signedMoney(gain)}
+      </span>,
+    )
+  }
+  if (parts.length === 0) parts.push(<span key="none">Value</span>)
 
   return (
     <div className="stats">
@@ -64,7 +72,14 @@ export default function StatsBar({ stats }) {
         aria-expanded={open}
         onClick={toggle}
       >
-        <span>{summary.join(' · ')}</span>
+        <span className="stats-summary-text">
+          {parts.map((part, i) => (
+            <span key={part.key}>
+              {i > 0 && ' · '}
+              {part}
+            </span>
+          ))}
+        </span>
         <span className="stats-caret" aria-hidden="true">
           {open ? '▴' : '▾'}
         </span>

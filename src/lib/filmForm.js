@@ -25,6 +25,7 @@ export const EDITABLE_FIELDS = [
   'type',
   'last_watched_on',
   'never_watched',
+  'occasions',
 ]
 
 // What this form must never write, and why it is absent rather than disabled:
@@ -65,6 +66,7 @@ export function filmToForm(film) {
     type: text(film.type),
     last_watched_on: text(film.last_watched_on),
     never_watched: Boolean(film.never_watched),
+    occasions: [...(film.occasions ?? [])],
   }
 }
 
@@ -123,6 +125,7 @@ export function formToRow(form) {
     // A date wins: the database refuses a film that is both never watched
     // and watched on a day, so a stray tick is dropped rather than refused.
     never_watched: Boolean(form.never_watched) && textOrNull(form.last_watched_on) === null,
+    occasions: [...(form.occasions ?? [])],
   }
 }
 

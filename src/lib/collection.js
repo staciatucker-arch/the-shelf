@@ -32,6 +32,7 @@ export function normaliseFilm(row) {
     market_value: row.market_value == null ? null : Number(row.market_value),
     genres: row.genres ?? [],
     formats: row.formats ?? [],
+    occasions: row.occasions ?? [],
     never_watched: Boolean(row.never_watched),
   }
 }
@@ -123,9 +124,9 @@ export const EMPTY_FILTERS = {
   formats: [],
   types: [],
   statuses: [],
-  vendors: [],
   universes: [],
   genres: [],
+  occasions: [],
   watched: [],
   blanks: [],
 }
@@ -157,9 +158,9 @@ export function availableFilterValues(films) {
     formats: collect((f) => f.formats),
     types: collect((f) => f.type),
     statuses: collect((f) => f.status),
-    vendors: collect((f) => f.vendor),
     universes: collect((f) => f.universe),
     genres: collect((f) => f.genres),
+    occasions: collect((f) => f.occasions),
     watched: WATCHED_STATES.filter((state) => films.some(state.matches)),
   }
 }
@@ -196,9 +197,9 @@ function matchesFilters(film, filters) {
   // single-value columns must equal one of them.
   if (filters.formats.length && !film.formats.some((v) => filters.formats.includes(v))) return false
   if (filters.genres.length && !film.genres.some((v) => filters.genres.includes(v))) return false
+  if (filters.occasions.length && !film.occasions.some((v) => filters.occasions.includes(v))) return false
   if (filters.types.length && !filters.types.includes(film.type)) return false
   if (filters.statuses.length && !filters.statuses.includes(film.status)) return false
-  if (filters.vendors.length && !filters.vendors.includes(film.vendor)) return false
   if (filters.universes.length && !filters.universes.includes(film.universe)) return false
   if (
     filters.watched.length &&

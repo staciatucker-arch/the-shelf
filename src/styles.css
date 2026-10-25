@@ -121,6 +121,11 @@ main { padding: 1rem; max-width: 1400px; margin: 0 auto; }
   text-align: left;
 }
 .stats-caret { color: var(--text); }
+/* On a narrow phone with large text the line wraps — between figures, never
+   inside "$1,261 spent". */
+.stats-summary-text > span { white-space: nowrap; }
+.stats-summary .positive { color: var(--green); }
+.stats-summary .negative { color: var(--red); }
 
 .stats-bar {
   display: grid;

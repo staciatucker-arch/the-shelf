@@ -6,9 +6,9 @@
 // rule that decides what the manager shows is worth testing; the fetch that
 // feeds it is not.
 
-export const OPTION_KINDS = ['genre', 'format', 'status', 'type', 'vendor', 'universe']
+export const OPTION_KINDS = ['genre', 'format', 'status', 'type', 'vendor', 'universe', 'occasion']
 
-/** Human labels for the six kinds, in the order the panel shows them. */
+/** Human labels for the seven kinds, in the order the panel shows them. */
 export const OPTION_LABELS = {
   genre: 'Genres',
   format: 'Formats',
@@ -16,6 +16,7 @@ export const OPTION_LABELS = {
   type: 'Type',
   vendor: 'Bought from',
   universe: 'Universe',
+  occasion: 'Occasion',
 }
 
 /**

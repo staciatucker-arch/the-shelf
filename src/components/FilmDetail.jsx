@@ -170,6 +170,16 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
               </div>
             )}
 
+            {film.occasions.length > 0 && (
+              <div className="tag-row">
+                {film.occasions.map((o) => (
+                  <span key={o} className="meta-tag occasion-tag">
+                    {o}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {film.genres.length > 0 && (
               <div className="tag-row">
                 {film.genres.map((g) => (

@@ -61,6 +61,7 @@ const FILM_COLUMNS = [
   'type',
   'last_watched_on',
   'never_watched',
+  'occasions',
   'poster_url',
   // The other two poster columns are needed for their own sake, not for
   // display: `poster_storage_path` is the file a replacement has to delete,

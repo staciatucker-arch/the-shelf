@@ -546,3 +546,9 @@ test('a date wins over a stray Never watched tick', () => {
   assert.equal(row.never_watched, false)
   assert.equal(row.last_watched_on, '2026-10-25')
 })
+
+test('ticking an occasion sends only that column', () => {
+  assert.deepEqual(changedFields(film, editing({ occasions: ['Halloween'] })), {
+    occasions: ['Halloween'],
+  })
+})

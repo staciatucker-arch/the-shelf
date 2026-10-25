@@ -143,3 +143,22 @@ test('year sorts put unknown years in their own group, ties by title', () => {
 test('every sort has a name for the line above the covers', () => {
   for (const mode of SORT_MODES) assert.ok(mode.named, mode.value)
 })
+
+// --- Occasion (2026-10-25) --------------------------------------------------
+
+test('the Occasion filter matches a film with any chosen occasion', () => {
+  const films = [
+    { title: 'Nightmare', occasions: ['Halloween', 'Christmas'] },
+    { title: 'Gremlins', occasions: ['Christmas'] },
+    { title: 'Untagged' },
+  ].map(normaliseFilm)
+  const titles = (occasions) =>
+    filterFilms(films, '', { ...EMPTY_FILTERS, occasions }).map((f) => f.title)
+  assert.deepEqual(titles(['Halloween']), ['Nightmare'])
+  assert.deepEqual(titles(['Christmas']), ['Nightmare', 'Gremlins'])
+  assert.deepEqual(availableFilterValues(films).occasions, ['Christmas', 'Halloween'])
+})
+
+test('Bought from is no longer a filter group', () => {
+  assert.equal('vendors' in EMPTY_FILTERS, false)
+})

@@ -669,6 +669,15 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
               onChange={set('universe')}
             />
 
+            {/* Times of year (Stacia, 2026-10-25). Several per film, so
+                boxes like Formats; a short list, so no search box. */}
+            <CheckList
+              label="Occasion"
+              selected={form.occasions}
+              offered={options.occasion}
+              onChange={set('occasions')}
+            />
+
             <TokenPicker
               id="film-genres"
               label="Genres"

@@ -7,9 +7,14 @@ const GROUPS = [
   { key: 'statuses', label: 'Status' },
   { key: 'watched', label: 'Last watched' },
   { key: 'genres', label: 'Genre' },
+  { key: 'occasions', label: 'Occasion' },
   { key: 'universes', label: 'Universe' },
-  { key: 'vendors', label: 'Bought from' },
 ]
+
+// "Bought from" was a group until 2026-10-25, when Stacia swapped it for
+// Occasion. It is still on the edit form and under Categories.
+// A group with no values yet (Occasion, before anything is tagged) is not
+// shown, as before — no filter may lead to an empty shelf.
 
 // Every choice applies immediately. The old app had a "Show Results" button
 // because it re-rendered the whole sheet on each change; here the work is a
