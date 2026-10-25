@@ -16,6 +16,8 @@ import {
   filterFilms,
   lastWatched,
   normaliseFilm,
+  SORT_MODES,
+  sortFilms,
   titleSortKey,
 } from './collection.js'
 
@@ -120,4 +122,24 @@ test('lastWatched says "Never watched" only when it is known', () => {
   assert.equal(lastWatched(watchedFilms[2]), null)
   // Status no longer means anything here.
   assert.equal(lastWatched(normaliseFilm({ status: 'Unwatched' })), null)
+})
+
+// --- Year released sorts (2026-10-25) ---------------------------------------
+
+test('year sorts put unknown years in their own group, ties by title', () => {
+  const films = [
+    { title: 'B', release_year: 1999 },
+    { title: 'A', release_year: 1999 },
+    { title: 'Old', release_year: 1942 },
+    { title: 'Nobody knows', release_year: null },
+  ]
+  const newest = sortFilms(films, 'year-desc')
+  assert.deepEqual(newest.rows.map((f) => f.title), ['A', 'B', 'Old'])
+  assert.deepEqual(newest.unknowns.map((f) => f.title), ['Nobody knows'])
+  assert.equal(newest.unknownLabel, 'Unknown year')
+  assert.deepEqual(sortFilms(films, 'year-asc').rows.map((f) => f.title), ['Old', 'A', 'B'])
+})
+
+test('every sort has a short name for the closed button', () => {
+  for (const mode of SORT_MODES) assert.ok(mode.short, mode.value)
 })

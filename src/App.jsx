@@ -423,6 +423,21 @@ export default function App() {
   )
 
   const activeFilterCount = countActiveFilters(filters)
+
+  // The sort list with its headings: consecutive modes sharing a group go
+  // under one <optgroup>; A → Z, with no group, stands alone.
+  const sortOptions = []
+  for (const mode of SORT_MODES) {
+    const option = (
+      <option key={mode.value} value={mode.value}>
+        {mode.label}
+      </option>
+    )
+    const last = sortOptions[sortOptions.length - 1]
+    if (!mode.group) sortOptions.push(option)
+    else if (last?.group === mode.group) last.options.push(option)
+    else sortOptions.push({ group: mode.group, options: [option] })
+  }
   const shown = visible.rows.length + visible.unknowns.length
   const isNarrowed = Boolean(query.trim()) || activeFilterCount > 0
   const searching = query.trim() !== ''
@@ -509,28 +524,10 @@ export default function App() {
                 onChange={(e) => setQuery(e.target.value)}
               />
 
+              {/* Two fixed rows, never wrapping (Stacia, 2026-10-25): search,
+                  then Filter and Sort together with Add film on the right.
+                  The count sits on its own line, next to what it counts. */}
               <div className="controls-row">
-                <span className="muted result-count">
-                  {isNarrowed ? `${shown} of ${films.length}` : `${films.length} titles`}
-                </span>
-
-                <select
-                  className="sort-select"
-                  aria-label="Sort"
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value)}
-                >
-                  {SORT_MODES.map((mode) => (
-                    <option key={mode.value} value={mode.value}>
-                      {mode.label}
-                    </option>
-                  ))}
-                </select>
-
-                <button type="button" className="add-film" onClick={() => setAddingFilm(true)}>
-                  <span aria-hidden="true">+</span> Add film
-                </button>
-
                 <button
                   type="button"
                   className={'ghost filter-toggle' + (activeFilterCount ? ' has-filters' : '')}
@@ -539,8 +536,41 @@ export default function App() {
                 >
                   Filter{activeFilterCount ? ` (${activeFilterCount})` : ''}
                 </button>
+
+                {/* The closed button says which sort is on, in a short form
+                    that fits; the real <select> lies over it, invisible, so
+                    the phone's own picker opens with the full list. */}
+                <label className="sort-button">
+                  <span className="sort-button-text" aria-hidden="true">
+                    ⇅ {SORT_MODES.find((m) => m.value === sortMode)?.short}
+                  </span>
+                  <select
+                    className="sort-select"
+                    aria-label="Sort"
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.target.value)}
+                  >
+                    {sortOptions.map((item) =>
+                      item.group ? (
+                        <optgroup key={item.group} label={item.group}>
+                          {item.options}
+                        </optgroup>
+                      ) : (
+                        item
+                      ),
+                    )}
+                  </select>
+                </label>
+
+                <button type="button" className="add-film" onClick={() => setAddingFilm(true)}>
+                  <span aria-hidden="true">+</span> Add film
+                </button>
               </div>
             </div>
+
+            <p className="muted result-count">
+              {isNarrowed ? `${shown} of ${films.length}` : `${films.length} titles`}
+            </p>
 
             <FilterPanel
               open={filtersOpen}

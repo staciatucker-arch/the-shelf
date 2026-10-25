@@ -228,17 +228,26 @@ export function filterFilms(films, query, filters) {
   })
 }
 
+/**
+ * The sort list, in the order it is offered (Stacia, 2026-10-25): movie-night
+ * sorts first, Ingrid's money sorts grouped under "Value". Z → A was dropped.
+ *
+ * `group` is the heading a mode sits under in the opened list; `short` is
+ * what the closed Sort button says, because the full label does not fit
+ * beside Filter and Add film on a phone.
+ */
 export const SORT_MODES = [
-  { value: 'alpha-asc', label: 'A → Z' },
-  { value: 'alpha-desc', label: 'Z → A' },
-  { value: 'cost-desc', label: 'Spent: High → Low' },
-  { value: 'cost-asc', label: 'Spent: Low → High' },
-  { value: 'market-desc', label: 'Market: High → Low' },
-  { value: 'market-asc', label: 'Market: Low → High' },
+  { value: 'alpha-asc', label: 'A → Z', short: 'A → Z', group: null },
+  { value: 'year-desc', label: 'Newest', short: 'Newest released', group: 'Year released' },
+  { value: 'year-asc', label: 'Oldest', short: 'Oldest released', group: 'Year released' },
+  { value: 'cost-desc', label: 'Spent: High → Low', short: 'Most spent', group: 'Value' },
+  { value: 'cost-asc', label: 'Spent: Low → High', short: 'Least spent', group: 'Value' },
+  { value: 'market-desc', label: 'Market: High → Low', short: 'Highest market', group: 'Value' },
+  { value: 'market-asc', label: 'Market: Low → High', short: 'Lowest market', group: 'Value' },
 ]
 
 /**
- * Sort, and — when sorting by money — hand back the films with no figure
+ * Sort, and — when sorting by money or year — hand back the films with no figure
  * separately instead of silently treating "unknown" as zero. A film with no
  * recorded cost is not the cheapest thing on the shelf, and burying it at one
  * end of the list is how it stays unrecorded.
@@ -250,18 +259,21 @@ export function sortFilms(films, mode) {
   if (mode === 'alpha-asc') return { rows: rows.sort(byTitle), unknowns: [], unknownLabel: null }
   if (mode === 'alpha-desc') return { rows: rows.sort((a, b) => byTitle(b, a)), unknowns: [], unknownLabel: null }
 
-  const field = mode.startsWith('cost') ? 'cost' : 'market_value'
+  const field = mode.startsWith('cost') ? 'cost' : mode.startsWith('year') ? 'release_year' : 'market_value'
   const descending = mode.endsWith('-desc')
 
   const known = rows.filter((f) => f[field] != null)
   const unknowns = rows.filter((f) => f[field] == null).sort(byTitle)
 
-  known.sort((a, b) => (descending ? b[field] - a[field] : a[field] - b[field]))
+  // Ties (same year, same price) fall back to the title, so the order is
+  // the same every time the shelf is drawn.
+  known.sort((a, b) => (descending ? b[field] - a[field] : a[field] - b[field]) || byTitle(a, b))
 
   return {
     rows: known,
     unknowns,
-    unknownLabel: field === 'cost' ? 'Unknown cost' : 'Unknown market value',
+    unknownLabel:
+      field === 'cost' ? 'Unknown cost' : field === 'release_year' ? 'Unknown year' : 'Unknown market value',
   }
 }
 
