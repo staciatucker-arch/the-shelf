@@ -133,8 +133,10 @@ export function wishToForm(wish) {
 }
 
 /** Field errors, by field. Empty when the wish can be saved. */
-export function validateWish(form) {
+export function validateWish(form, { requireType = false } = {}) {
   const errors = {}
+  // Required when adding (Stacia, 2026-10-25), as for a film.
+  if (requireType && String(form.type ?? '').trim() === '') errors.type = 'Choose what it is.'
   if (String(form.title ?? '').trim() === '') errors.title = 'A wish needs a title.'
   const year = String(form.release_year ?? '').trim()
   if (year !== '' && !/^\d{4}$/.test(year)) errors.release_year = 'A year is four digits, like 1982.'

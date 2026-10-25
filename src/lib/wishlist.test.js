@@ -216,3 +216,9 @@ test('moving a wish to the shelf never carries a cover', () => {
   const fields = [...Object.keys(start.form), ...Object.keys(start.match)]
   assert.ok(!fields.some((k) => k.startsWith('poster')), fields.join(', '))
 })
+
+test('a new wish needs What is it?; an existing one does not', () => {
+  assert.equal(validateWish({ title: 'Alien' }, { requireType: true }).type, 'Choose what it is.')
+  assert.deepEqual(validateWish({ title: 'Alien', type: 'Movie' }, { requireType: true }), {})
+  assert.deepEqual(validateWish({ title: 'Alien' }), {})
+})

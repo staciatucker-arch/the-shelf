@@ -552,3 +552,9 @@ test('ticking an occasion sends only that column', () => {
     occasions: ['Halloween'],
   })
 })
+
+test('What is it? is required when adding, not when editing', () => {
+  assert.equal(validateForm({ ...blankForm(), title: 'Alien' }, { requireType: true }).type, 'Choose what it is.')
+  assert.equal(validateForm({ ...blankForm(), title: 'Alien', type: 'Movie' }, { requireType: true }).type, undefined)
+  assert.equal(validateForm(editing({ type: '' })).type, undefined)
+})

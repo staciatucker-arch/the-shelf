@@ -19,31 +19,37 @@ import { withCurrent } from '../lib/filmForm.js'
  * them. Pressing the chosen one again clears it, which keeps "unset" reachable
  * without a "— none —" button competing for space with the real answers.
  */
-export function TypeChooser({ value, offered, onChange }) {
+// A dropdown since 2026-10-25 (Stacia); it was four buttons. Required when
+// adding a film or a wish — TMDB numbers films and shows separately, so a
+// match made without it can name the wrong title. Not required when editing:
+// 32 films have no type yet, and a blank one must not stop somebody saving
+// an unrelated change.
+export function TypeChooser({ id = 'type-chooser', value, offered, onChange, required = false, error }) {
   const choices = withCurrent(offered, value ? [value] : [])
   return (
-    <fieldset className="form-fieldset type-chooser">
-      <legend>What is it?</legend>
-      <div className="seg-row">
-        {choices.map((choice) => {
-          const on = value === choice
-          return (
-            <button
-              key={choice}
-              type="button"
-              className={`seg-btn${on ? ' is-on' : ''}`}
-              aria-pressed={on}
-              onClick={() => onChange(on ? '' : choice)}
-            >
+    <div className="type-chooser">
+      <label htmlFor={id}>
+        What is it?{required && <span className="label-aside"> (Required)</span>}
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-required={required || undefined}
+          aria-invalid={Boolean(error)}
+        >
+          <option value="">— choose —</option>
+          {choices.map((choice) => (
+            <option key={choice} value={choice}>
               {choice}
-            </button>
-          )
-        })}
-      </div>
+            </option>
+          ))}
+        </select>
+      </label>
+      <FieldError message={error} />
       <p className="form-hint muted">
         Films and shows are listed separately, so this decides where we look.
       </p>
-    </fieldset>
+    </div>
   )
 }
 

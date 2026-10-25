@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { applyMatch, describeFill } from '../lib/filmForm.js'
 import { newId } from '../lib/ids.js'
 import { lockScroll } from '../lib/scrollLock.js'
-import { mapTmdbGenres } from '../lib/tmdbGenres.js'
 import {
   blankWish,
   newWishRow,
@@ -10,7 +9,7 @@ import {
   wishPatch,
   wishToForm,
 } from '../lib/wishlist.js'
-import { FieldError, TokenPicker, TypeChooser } from './formControls.jsx'
+import { FieldError, TypeChooser } from './formControls.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
 import { useBackToClose } from './useBackToClose.js'
 
@@ -23,8 +22,8 @@ const SAVE_INTERRUPTED =
  * One wish — a new one, or one that already exists.
  *
  * Designed with Stacia, 2026-10-11: the same "is this the one?" TMDB step as
- * adding a film, with a way through for titles TMDB lacks; then genres, an
- * optional note and an optional buy link. No price (she listed only note and
+ * adding a film, with a way through for titles TMDB lacks; then an optional
+ * note and an optional buy link. Genres were removed on 2026-10-25 (Stacia). No price (she listed only note and
  * link), no cover, no season — a wish is for a film, not for a disc in hand.
  *
  * Editing sends only what changed, adding sends one complete row, and both
@@ -36,8 +35,6 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
   const [match, setMatch] = useState(null)
   const [matchTouched, setMatchTouched] = useState(false)
   const [filled, setFilled] = useState([])
-  const [autoGenres, setAutoGenres] = useState([])
-  const [unmappedGenres, setUnmappedGenres] = useState([])
   const [errors, setErrors] = useState({})
   const [saveError, setSaveError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -78,7 +75,7 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
   async function onSubmit(e) {
     e.preventDefault()
     setSaveError(null)
-    const found = validateWish(form)
+    const found = validateWish(form, { requireType: adding })
     setErrors(found)
     if (Object.keys(found).length > 0) return
     if (!adding && !patch) {
@@ -100,12 +97,12 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
   }
 
   function confirmMatch(candidate) {
-    const next = applyMatch(form, candidate, { genreOptions: options.genre })
+    // No genreOptions: a wish has no genres since 2026-10-25 (Stacia), so a
+    // match must not fill in any it would then hide.
+    const next = applyMatch(form, candidate)
     setMatch(candidate)
     setMatchTouched(true)
     setFilled(describeFill(form, next))
-    setAutoGenres((next.genres ?? []).filter((g) => !(form.genres ?? []).includes(g)))
-    setUnmappedGenres(mapTmdbGenres(candidate.genres, options.genre).unmatched)
     setForm(next)
   }
 
@@ -148,8 +145,6 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
         setMatch(null)
         setMatchTouched(true)
         setFilled([])
-        setAutoGenres([])
-        setUnmappedGenres([])
       }}
     />
   )
@@ -196,7 +191,14 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
                 />
               </label>
               <FieldError message={errors.title} />
-              <TypeChooser value={form.type} offered={options.type} onChange={set('type')} />
+              <TypeChooser
+                id="wish-type"
+                value={form.type}
+                offered={options.type}
+                onChange={set('type')}
+                required={adding}
+                error={errors.type}
+              />
               {!adding && yearField}
               {matchBlock}
             </div>
@@ -205,21 +207,6 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
               <strong>That’s the part that matters.</strong>
               Everything below is optional.
             </div>
-
-            <TokenPicker
-              id="wish-genres"
-              label="Genres"
-              selected={form.genres}
-              offered={options.genre}
-              onChange={set('genres')}
-              highlight={autoGenres}
-              note={autoGenres.length > 0 ? 'The marked ones came from TMDB. Tap any to remove it.' : null}
-            />
-            {unmappedGenres.length > 0 && (
-              <p className="form-hint muted">
-                TMDB also called this {unmappedGenres.join(', ')}, not on your list.
-              </p>
-            )}
 
             <label htmlFor="wish-note">
               Note

@@ -137,8 +137,13 @@ export function formToRow(form) {
  * constraint violation surfaces as Postgres error text, which is not an
  * explanation anybody should have to read.
  */
-export function validateForm(form) {
+export function validateForm(form, { requireType = false } = {}) {
   const errors = {}
+
+  // Required when adding (Stacia, 2026-10-25); see TypeChooser.
+  if (requireType && String(form.type ?? '').trim() === '') {
+    errors.type = 'Choose what it is.'
+  }
 
   if (String(form.title ?? '').trim() === '') {
     errors.title = 'A title is required.'

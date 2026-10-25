@@ -34,9 +34,7 @@ export function WishRow({ wish, posterUrl = null, highlighted = false, onEdit, o
           {wish.title}
           {wish.release_year ? <span className="muted"> ({wish.release_year})</span> : null}
         </button>
-        <p className="wish-meta muted">
-          {[wish.type, (wish.genres ?? []).join(', ')].filter(Boolean).join(' · ')}
-        </p>
+        {wish.type && <p className="wish-meta muted">{wish.type}</p>}
         {wish.note && <p className="wish-note">{wish.note}</p>}
         {link && (
           <a className="wish-link" href={link} target="_blank" rel="noopener noreferrer">

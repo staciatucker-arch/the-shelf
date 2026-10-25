@@ -220,7 +220,7 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
     e.preventDefault()
     setSaveError(null)
 
-    const found = validateForm(form)
+    const found = validateForm(form, { requireType: adding })
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -361,7 +361,14 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
   )
 
   const typeField = (
-    <TypeChooser value={form.type} offered={options.type} onChange={set('type')} />
+    <TypeChooser
+      id="film-type"
+      value={form.type}
+      offered={options.type}
+      onChange={set('type')}
+      required={adding}
+      error={errors.type}
+    />
   )
 
   const yearField = (
