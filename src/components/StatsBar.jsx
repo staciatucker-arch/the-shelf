@@ -47,11 +47,14 @@ export default function StatsBar({ stats }) {
     })
   }
 
-  // The folded line (Stacia's wording, 2026-10-25). A figure nobody has
-  // recorded is left out rather than shown as $0.
-  const summary = [`${titles} titles`]
+  // The folded line (Stacia's wording, 2026-10-25): money only. The count
+  // lives on the line above the covers, where it changes with a filter, so
+  // it is not said twice. A figure nobody has recorded is left out rather
+  // than shown as $0, and with nothing recorded at all the line says "Value".
+  const summary = []
   if (costCount > 0) summary.push(`${money(spent)} spent`)
   if (gain != null) summary.push(signedMoney(gain))
+  if (summary.length === 0) summary.push('Value')
 
   return (
     <div className="stats">
