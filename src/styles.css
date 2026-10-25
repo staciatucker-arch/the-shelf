@@ -426,7 +426,6 @@ button.ghost {
 .fmt-digital { color: var(--muted); }
 
 .status-tag.keep { color: var(--green); }
-.status-tag.unwatched { color: var(--blue); }
 .status-tag.sell { color: var(--red); }
 .universe-tag { color: var(--accent); }
 .genre-chip { border-radius: 6px; }
@@ -627,9 +626,8 @@ button.ghost {
 }
 .detail dd { margin: 0.1rem 0 0; font-size: 0.9rem; }
 .detail .ok { color: var(--green); font-size: 0.75rem; }
-/* Same blue as the Unwatched status tag it is read from, so the connection
-   between the two is visible rather than needing explanation. */
-.detail .derived { color: var(--blue); }
+/* "Never watched" in blue, so it never passes for a date. */
+.detail .never { color: var(--blue); }
 
 .detail .up { color: var(--green); }
 .detail .down { color: var(--red); }

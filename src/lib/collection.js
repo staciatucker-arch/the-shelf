@@ -32,6 +32,7 @@ export function normaliseFilm(row) {
     market_value: row.market_value == null ? null : Number(row.market_value),
     genres: row.genres ?? [],
     formats: row.formats ?? [],
+    never_watched: Boolean(row.never_watched),
   }
 }
 
@@ -125,6 +126,7 @@ export const EMPTY_FILTERS = {
   vendors: [],
   universes: [],
   genres: [],
+  watched: [],
   blanks: [],
 }
 
@@ -158,8 +160,26 @@ export function availableFilterValues(films) {
     vendors: collect((f) => f.vendor),
     universes: collect((f) => f.universe),
     genres: collect((f) => f.genres),
+    watched: WATCHED_STATES.filter((state) => films.some(state.matches)),
   }
 }
+
+/**
+ * The Last watched filter (Stacia, 2026-10-25). "Never watched" was a Status
+ * until then; it is about watching, not about what to do with the disc.
+ *
+ * Three states, not two: "Never watched" is something somebody knows, "Not
+ * recorded" is a gap, and the filter must not let one pass for the other.
+ */
+export const WATCHED_STATES = [
+  { value: 'never', label: 'Never watched', matches: (f) => Boolean(f.never_watched) },
+  { value: 'watched', label: 'Watched', matches: (f) => Boolean(f.last_watched_on) },
+  {
+    value: 'unrecorded',
+    label: 'Not recorded',
+    matches: (f) => !f.never_watched && !f.last_watched_on,
+  },
+]
 
 /** The six "Show Blanks" checkboxes — the data-cleanup workflow. */
 export const BLANK_FIELDS = [
@@ -180,6 +200,12 @@ function matchesFilters(film, filters) {
   if (filters.statuses.length && !filters.statuses.includes(film.status)) return false
   if (filters.vendors.length && !filters.vendors.includes(film.vendor)) return false
   if (filters.universes.length && !filters.universes.includes(film.universe)) return false
+  if (
+    filters.watched.length &&
+    !WATCHED_STATES.some((state) => filters.watched.includes(state.value) && state.matches(film))
+  ) {
+    return false
+  }
 
   // Show Blanks narrows to items missing ANY of the ticked fields, so ticking
   // several widens the cleanup list rather than demanding all of them at once.
@@ -295,17 +321,15 @@ export function computeStats(films) {
 /**
  * What to show for "last watched".
  *
- * A status of "Unwatched" is a real statement — 18 films carry it and none of
- * them has a date — so it is worth saying "Never watched" rather than showing
- * the same blank dash as the 223 films where nobody has recorded anything. The
- * two states must stay visibly different: one is knowledge, the other is a
- * gap. Returns null when it is genuinely unknown.
+ * "Never watched" is a real statement — 19 films carried it as a Status until
+ * 2026-10-25, when it moved to its own column — so it is worth saying rather
+ * than showing the same blank dash as the films where nobody has recorded
+ * anything. The two states must stay visibly different: one is knowledge, the
+ * other is a gap. Returns null when it is genuinely unknown.
  */
 export function lastWatched(film) {
-  if (film.last_watched_on) return { text: film.last_watched_on, derived: false }
-  if (String(film.status ?? '').toLowerCase() === 'unwatched') {
-    return { text: 'Never watched', derived: true }
-  }
+  if (film.last_watched_on) return { text: film.last_watched_on, never: false }
+  if (film.never_watched) return { text: 'Never watched', never: true }
   return null
 }
 

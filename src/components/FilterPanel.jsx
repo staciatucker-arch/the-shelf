@@ -5,6 +5,7 @@ const GROUPS = [
   { key: 'formats', label: 'Format' },
   { key: 'types', label: 'Type' },
   { key: 'statuses', label: 'Status' },
+  { key: 'watched', label: 'Last watched' },
   { key: 'genres', label: 'Genre' },
   { key: 'universes', label: 'Universe' },
   { key: 'vendors', label: 'Bought from' },

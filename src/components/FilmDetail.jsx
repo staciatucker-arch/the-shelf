@@ -22,7 +22,6 @@ function formatClass(format) {
 function statusClass(status) {
   const key = String(status).toLowerCase()
   if (key === 'keep') return 'status-tag keep'
-  if (key === 'unwatched') return 'status-tag unwatched'
   if (key.includes('sell')) return 'status-tag sell'
   return 'status-tag'
 }
@@ -197,10 +196,9 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
               <Detail label="Acquired">{film.acquired_on}</Detail>
               <Detail label="Last watched">
                 {watched &&
-                  (watched.derived ? (
-                    // Read off the status, not recorded as a date — styled so
-                    // it never passes for one.
-                    <span className="derived">{watched.text}</span>
+                  (watched.never ? (
+                    // Not a date — styled so it never passes for one.
+                    <span className="never">{watched.text}</span>
                   ) : (
                     watched.text
                   ))}

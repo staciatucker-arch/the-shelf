@@ -24,6 +24,7 @@ export const EDITABLE_FIELDS = [
   'status',
   'type',
   'last_watched_on',
+  'never_watched',
 ]
 
 // What this form must never write, and why it is absent rather than disabled:
@@ -63,6 +64,7 @@ export function filmToForm(film) {
     status: text(film.status),
     type: text(film.type),
     last_watched_on: text(film.last_watched_on),
+    never_watched: Boolean(film.never_watched),
   }
 }
 
@@ -118,6 +120,9 @@ export function formToRow(form) {
     status: textOrNull(form.status),
     type: textOrNull(form.type),
     last_watched_on: textOrNull(form.last_watched_on),
+    // A date wins: the database refuses a film that is both never watched
+    // and watched on a day, so a stray tick is dropped rather than refused.
+    never_watched: Boolean(form.never_watched) && textOrNull(form.last_watched_on) === null,
   }
 }
 
@@ -201,7 +206,9 @@ export function changedFields(film, form) {
   const patch = {}
 
   for (const field of EDITABLE_FIELDS) {
-    const before = film[field] ?? null
+    // A row loaded before 2026-10-25 has no never_watched at all, which means
+    // false, not a change waiting to be written.
+    const before = field === 'never_watched' ? Boolean(film[field]) : film[field] ?? null
     const after = next[field]
 
     if (Array.isArray(after)) {

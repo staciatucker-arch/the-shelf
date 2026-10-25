@@ -8,7 +8,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { contentsList, displayYear, titleSortKey } from './collection.js'
+import {
+  EMPTY_FILTERS,
+  availableFilterValues,
+  contentsList,
+  displayYear,
+  filterFilms,
+  lastWatched,
+  normaliseFilm,
+  titleSortKey,
+} from './collection.js'
 
 // Four sets keep the list in `title`, under the set's own name, with an empty
 // year column.
@@ -77,4 +86,38 @@ test('a leading article does not decide where a title sorts', () => {
 
 test('only the first line of a multi-line title decides its place', () => {
   assert.equal(titleSortKey(matrix.title), 'matrix triple feature')
+})
+
+// --- Last watched (2026-10-25: "Unwatched" moved here from Status) ----------
+
+const watchedFilms = [
+  { title: 'Seen', last_watched_on: '2026-10-01', never_watched: false },
+  { title: 'Never', last_watched_on: null, never_watched: true },
+  { title: 'Gap', last_watched_on: null, never_watched: false },
+].map(normaliseFilm)
+
+const titlesFor = (watched) =>
+  filterFilms(watchedFilms, '', { ...EMPTY_FILTERS, watched }).map((f) => f.title)
+
+test('the Last watched filter keeps "never watched" and "not recorded" apart', () => {
+  assert.deepEqual(titlesFor(['never']), ['Never'])
+  assert.deepEqual(titlesFor(['watched']), ['Seen'])
+  assert.deepEqual(titlesFor(['unrecorded']), ['Gap'])
+  assert.deepEqual(titlesFor(['never', 'unrecorded']), ['Never', 'Gap'])
+})
+
+test('Last watched offers only states some film is in', () => {
+  const values = availableFilterValues([watchedFilms[0]]).watched.map((s) => s.value)
+  assert.deepEqual(values, ['watched'])
+})
+
+test('a row without the column reads as not never-watched', () => {
+  assert.equal(normaliseFilm({ title: 'Old' }).never_watched, false)
+})
+
+test('lastWatched says "Never watched" only when it is known', () => {
+  assert.deepEqual(lastWatched(watchedFilms[1]), { text: 'Never watched', never: true })
+  assert.equal(lastWatched(watchedFilms[2]), null)
+  // Status no longer means anything here.
+  assert.equal(lastWatched(normaliseFilm({ status: 'Unwatched' })), null)
 })

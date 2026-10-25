@@ -629,11 +629,33 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
                     id="film-watched"
                     type="date"
                     value={form.last_watched_on}
-                    onChange={(e) => set('last_watched_on')(e.target.value)}
+                    onChange={(e) => {
+                      setForm((f) => ({
+                        ...f,
+                        last_watched_on: e.target.value,
+                        // A date and "never watched" cannot both be true.
+                        never_watched: e.target.value ? false : f.never_watched,
+                      }))
+                    }}
                     aria-invalid={Boolean(errors.last_watched_on)}
                   />
                 </label>
                 <FieldError message={errors.last_watched_on} />
+                <label className="check-item never-watched">
+                  <input
+                    type="checkbox"
+                    checked={form.never_watched}
+                    onChange={(e) => {
+                      const never = e.target.checked
+                      setForm((f) => ({
+                        ...f,
+                        never_watched: never,
+                        last_watched_on: never ? '' : f.last_watched_on,
+                      }))
+                    }}
+                  />
+                  Never watched
+                </label>
               </div>
             </div>
 

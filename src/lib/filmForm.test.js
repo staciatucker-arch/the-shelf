@@ -530,3 +530,19 @@ test('a candidate confirmed in this session wins over everything else', () => {
   )
   assert.equal(matchPanelState({ confirmedNow: true }), 'confirmed')
 })
+
+// --- never_watched (2026-10-25) ---------------------------------------------
+
+test('ticking Never watched sends only that column', () => {
+  assert.deepEqual(changedFields(film, editing({ never_watched: true })), { never_watched: true })
+})
+
+test('a row loaded without never_watched is not a change', () => {
+  assert.equal(changedFields(film, filmToForm(film)), null)
+})
+
+test('a date wins over a stray Never watched tick', () => {
+  const row = formToRow(editing({ never_watched: true, last_watched_on: '2026-10-25' }))
+  assert.equal(row.never_watched, false)
+  assert.equal(row.last_watched_on, '2026-10-25')
+})
