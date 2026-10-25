@@ -140,6 +140,6 @@ test('year sorts put unknown years in their own group, ties by title', () => {
   assert.deepEqual(sortFilms(films, 'year-asc').rows.map((f) => f.title), ['Old', 'A', 'B'])
 })
 
-test('every sort has a short name for the closed button', () => {
-  for (const mode of SORT_MODES) assert.ok(mode.short, mode.value)
+test('every sort has a name for the line above the covers', () => {
+  for (const mode of SORT_MODES) assert.ok(mode.named, mode.value)
 })

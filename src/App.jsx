@@ -537,12 +537,12 @@ export default function App() {
                   Filter{activeFilterCount ? ` (${activeFilterCount})` : ''}
                 </button>
 
-                {/* The closed button says which sort is on, in a short form
-                    that fits; the real <select> lies over it, invisible, so
-                    the phone's own picker opens with the full list. */}
+                {/* Just "⇅ Sort" — the line above the covers says which sort is
+                    on. The real <select> lies over it, invisible, so the
+                    phone's own picker opens with the full list. */}
                 <label className="sort-button">
                   <span className="sort-button-text" aria-hidden="true">
-                    ⇅ {SORT_MODES.find((m) => m.value === sortMode)?.short}
+                    ⇅ Sort
                   </span>
                   <select
                     className="sort-select"
@@ -570,6 +570,8 @@ export default function App() {
 
             <p className="muted result-count">
               {isNarrowed ? `${shown} of ${films.length}` : `${films.length} titles`}
+              {' · '}
+              {SORT_MODES.find((m) => m.value === sortMode)?.named}
             </p>
 
             <FilterPanel

@@ -232,18 +232,19 @@ export function filterFilms(films, query, filters) {
  * The sort list, in the order it is offered (Stacia, 2026-10-25): movie-night
  * sorts first, Ingrid's money sorts grouped under "Value". Z → A was dropped.
  *
- * `group` is the heading a mode sits under in the opened list; `short` is
- * what the closed Sort button says, because the full label does not fit
- * beside Filter and Add film on a phone.
+ * `group` is the heading a mode sits under in the opened list. `named` is how
+ * the line above the covers says which sort is on: the closed button is just
+ * "⇅ Sort", because no sort's name fits beside Filter and Add film on a phone
+ * with large text (measured 2026-10-25: 88 px of room at 130 %).
  */
 export const SORT_MODES = [
-  { value: 'alpha-asc', label: 'A → Z', short: 'A → Z', group: null },
-  { value: 'year-desc', label: 'Newest', short: 'Newest released', group: 'Year released' },
-  { value: 'year-asc', label: 'Oldest', short: 'Oldest released', group: 'Year released' },
-  { value: 'cost-desc', label: 'Spent: High → Low', short: 'Most spent', group: 'Value' },
-  { value: 'cost-asc', label: 'Spent: Low → High', short: 'Least spent', group: 'Value' },
-  { value: 'market-desc', label: 'Market: High → Low', short: 'Highest market', group: 'Value' },
-  { value: 'market-asc', label: 'Market: Low → High', short: 'Lowest market', group: 'Value' },
+  { value: 'alpha-asc', label: 'A → Z', named: 'A → Z', group: null },
+  { value: 'year-desc', label: 'Newest', named: 'Year released: Newest', group: 'Year released' },
+  { value: 'year-asc', label: 'Oldest', named: 'Year released: Oldest', group: 'Year released' },
+  { value: 'cost-desc', label: 'Spent: High → Low', named: 'Spent: High → Low', group: 'Value' },
+  { value: 'cost-asc', label: 'Spent: Low → High', named: 'Spent: Low → High', group: 'Value' },
+  { value: 'market-desc', label: 'Market: High → Low', named: 'Market: High → Low', group: 'Value' },
+  { value: 'market-asc', label: 'Market: Low → High', named: 'Market: Low → High', group: 'Value' },
 ]
 
 /**

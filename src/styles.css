@@ -207,8 +207,8 @@ button.ghost {
 }
 .controls-row .add-film { margin-left: auto; }
 .controls-row > * { flex: none; }
-/* With large phone text the sort name can outgrow its space; it shortens
-   with "…" rather than pushing Add film off the screen. */
+/* "⇅ Sort" fits at any text size measured; this is only the safety net that
+   keeps Add film on screen if a phone's text is larger still. */
 .controls-row .sort-button { flex: 0 1 auto; min-width: 0; }
 .sort-button-text { overflow: hidden; text-overflow: ellipsis; }
 .result-count { margin: 0 0 0.6rem; font-size: 0.85rem; }
