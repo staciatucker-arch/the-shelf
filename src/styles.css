@@ -1707,3 +1707,19 @@ button.danger {
 .watch-actions::before { left: -10px; }
 .watch-actions::after { right: -10px; }
 .watch-title { font-size: 1.3rem; line-height: 1.2; }
+
+/* The board's two small lines and the ticket's words (Stacia's wording,
+   2026-11-05: "Now showing" / count; "Tonight's pick" / "Admit two"). */
+.board { display: flex; flex-direction: column; gap: 0.15rem; }
+.board-line,
+.ticket-kicker,
+.ticket-admit {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+.board-line { font-size: 0.72rem; letter-spacing: 0.3em; color: var(--accent); }
+.board-line:last-child { color: var(--muted); letter-spacing: 0.2em; }
+.ticket-kicker { margin: 0 0 0.2rem; font-size: 0.85rem; letter-spacing: 0.18em; color: var(--accent); }
+.ticket-admit { margin: 0.9rem 0 0.2rem; font-size: 1.3rem; font-weight: 900; letter-spacing: 0.12em; color: var(--text); }

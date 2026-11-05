@@ -473,7 +473,17 @@ export default function App() {
   return (
     <>
       <header className="bar">
-        <h1>The Shelf</h1>
+        {/* The title board (Stacia's wording, 2026-11-05). The count appears
+            only once the films have loaded, never a guess. */}
+        <div className="board">
+          <span className="board-line">Now showing</span>
+          <h1>The Shelf</h1>
+          {films && (
+            <span className="board-line">
+              {films.length} {films.length === 1 ? 'title' : 'titles'}
+            </span>
+          )}
+        </div>
         <div className="bar-right">
           <span className="muted">{session.user.email}</span>
           <button

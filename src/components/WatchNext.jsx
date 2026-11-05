@@ -116,6 +116,7 @@ export default function WatchNext({ films, onClose, onOpenFilm }) {
                   <div className="no-poster">no poster</div>
                 )}
               </div>
+              <p className="ticket-kicker">Tonight&rsquo;s pick</p>
               <h3 className="watch-title">{displayTitle(current.title)}</h3>
               {displayYear(current) && <p className="muted">{displayYear(current)}</p>}
               {current.genres?.length > 0 && (
@@ -136,6 +137,7 @@ export default function WatchNext({ films, onClose, onOpenFilm }) {
                   Open the film to mark as watched
                 </button>
               </div>
+              <p className="ticket-admit">Admit two</p>
               <p className="form-hint muted">
                 {shown.length} of {pool.length} shown this time
               </p>
