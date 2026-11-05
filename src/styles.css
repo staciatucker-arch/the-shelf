@@ -1,26 +1,60 @@
 /* The Shelf — collection UI (§6b step 5).
    Mobile-first: the phone layout is the base, wider screens add columns.
 
-   The palette is the old app's, kept deliberately so the rebuild reads as the
-   same shelf rather than a new product. Everything is a custom property, so
-   restyling later is one block of edits, not a sweep. */
+   "The Late Show" (Stacia chose it, 2026-11-05): a small cinema before the
+   lights go down. Midnight violet room, indigo seats, emerald for what you can
+   press. Everything is a custom property, so restyling later is one block of
+   edits, not a sweep.
+
+   Two faces, both self-hosted in src/fonts (SIL Open Font License, copies of
+   the licence beside them) so the app never asks Google for anything:
+   Big Shoulders Display is signage — the title board, section names, years —
+   and always capitals, the way a cinema sign is. Atkinson Hyperlegible,
+   drawn for low-vision readers, is everything you actually read. Titles are
+   never set in capitals. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("./fonts/atkinson-hyperlegible-400.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("./fonts/atkinson-hyperlegible-400-italic.woff2") format("woff2");
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("./fonts/atkinson-hyperlegible-700.woff2") format("woff2");
+  font-weight: 500 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Big Shoulders Display";
+  src: url("./fonts/big-shoulders-display-variable.woff2") format("woff2");
+  font-weight: 100 900; font-style: normal; font-display: swap;
+}
 
 :root {
-  --bg: #0a0a0f;
-  --surface: #13131d;
-  --surface2: #1a1a28;
-  --line: #252536;
-  --text: #e8e6e1;
-  --muted: #8a8898;
-  --accent: #d4a843;
-  --accent-glow: #d4a84333;
-  --green: #4ade80;
-  --red: #f87171;
-  --orange: #fb923c;
-  --blue: #60a5fa;
-  --tag-bg: #1e1e2e;
-  --danger: #f87171;
+  --bg: #260F26;          /* Midnight Violet — the room */
+  --surface: #251F47;     /* Space Indigo — panels and tiles */
+  --surface2: #2E2858;
+  --line: #3A3466;
+  --text: #F4EFE6;        /* warm bulb white */
+  --muted: #A8A3C4;
+  --accent: #86CB92;      /* Emerald — what you can press */
+  --accent-glow: #86CB9233;
+  --on-accent: #1A0A1A;
+  --green: #86CB92;
+  --red: #F28B9A;
+  --orange: #F5B57A;
+  --blue: #9DB4F0;
+  --tag-bg: #2A2350;
+  --danger: #F28B9A;
+  --board: #120712;       /* the title board behind the name */
+  --cover-ring: rgba(244, 239, 230, 0.85); /* the thin light edge on every cover */
   --radius: 10px;
+  --font-sign: "Big Shoulders Display", "Arial Narrow", sans-serif-condensed, sans-serif;
+  --font-read: "Atkinson Hyperlegible", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color-scheme: dark;
 }
 
@@ -30,17 +64,28 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.5 var(--font-read);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.08em; text-transform: uppercase; }
+/* Buttons, inputs and selects do not inherit the page's font by default. */
+button, input, select, textarea { font-family: inherit; }
+
+h1 {
+  font-family: var(--font-sign);
+  font-weight: 900;
+  font-size: 1.7rem;
+  line-height: 1;
+  margin: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .muted { color: var(--muted); }
 
 .error {
   color: var(--danger);
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(242, 139, 154, 0.08);
+  border: 1px solid rgba(242, 139, 154, 0.3);
   border-radius: 8px;
   padding: 0.75rem 1rem;
 }
@@ -83,10 +128,12 @@ h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.08em; text-transform: uppe
   gap: 1rem;
   padding: 0.75rem 1rem;
   padding-top: calc(0.75rem + env(safe-area-inset-top));
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  /* The title board: dark, with the faint grooves of a letter board. */
+  background-color: var(--board);
+  background-image: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 12px);
+  border-bottom: 3px solid var(--surface);
 }
-.bar h1 { color: var(--accent); }
+.bar h1 { color: var(--text); }
 .bar-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; }
 .bar-right .muted { display: none; }
 @media (min-width: 560px) { .bar-right .muted { display: inline; } }
@@ -140,7 +187,7 @@ main { padding: 1rem; max-width: 1400px; margin: 0 auto; }
 @media (min-width: 560px) { .stats-bar { grid-template-columns: repeat(4, 1fr); } }
 
 .stat { background: var(--surface); padding: 0.7rem 0.4rem; text-align: center; }
-.stat-value { font-size: 1.15rem; font-weight: 600; color: var(--accent); line-height: 1.25; }
+.stat-value { font-family: var(--font-sign); font-size: 1.45rem; font-weight: 800; letter-spacing: 0.02em; color: var(--accent); line-height: 1.15; font-variant-numeric: tabular-nums; }
 .stat-value.positive { color: var(--green); }
 .stat-value.negative { color: var(--red); }
 .stat-value.unknown { color: var(--muted); }
@@ -185,7 +232,7 @@ button {
   margin-top: 1rem;
   padding: 0.6rem 1rem;
   background: var(--accent);
-  color: #1a1408;
+  color: var(--on-accent);
   border: 0;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -373,11 +420,12 @@ button.ghost {
 }
 
 .section-divider {
-  font-size: 0.72rem;
+  font-family: var(--font-sign);
+  font-size: 0.95rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  font-weight: 800;
   margin: 1.75rem 0 0.75rem;
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--line);
@@ -426,6 +474,17 @@ button.ghost {
   border-radius: 4px;
   display: block;
 }
+/* Every cover gets a thin light edge, so a dark scan (True Blood, Alien)
+   keeps its shape against the dark room instead of melting into it. A
+   box-shadow rather than a border, so it adds nothing to the image's size
+   and the contain-fit above is untouched. */
+.film-art img,
+.detail-art img,
+.watch-art img,
+.wish-art img,
+.poster-thumb img {
+  box-shadow: 0 0 0 1.5px var(--cover-ring), 0 6px 16px rgba(0, 0, 0, 0.45);
+}
 .film-art .no-poster {
   color: var(--muted);
   font-size: 0.75rem;
@@ -440,7 +499,7 @@ button.ghost {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.film-year { font-size: 0.75rem; color: var(--muted); }
+.film-year { font-family: var(--font-sign); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; line-height: 1.1; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* --- tags and badges --------------------------------------------------- */
 
@@ -494,7 +553,7 @@ button.ghost {
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: rgba(5, 5, 9, 0.75);
+  background: rgba(18, 7, 18, 0.78);
   /* Flex, not grid: a centred grid track is sized by its content, so the
      panel grew past the edge of the screen and everything inside it was laid
      out at that too-wide size. Flex centring holds the panel to the space
@@ -1356,7 +1415,7 @@ button.danger {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(5, 5, 9, 0.92);
+  background: rgba(18, 7, 18, 0.92);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1481,7 +1540,7 @@ button.danger {
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--orange);
   border-radius: var(--radius);
-  background: rgba(251, 146, 60, 0.08);
+  background: rgba(245, 181, 122, 0.08);
   font-size: 0.88rem;
   line-height: 1.4;
 }
@@ -1596,3 +1655,55 @@ button.danger {
 .watch-pick .tag-row { justify-content: center; margin-top: 0.5rem; }
 .watch-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; margin: 1rem 0 0.5rem; }
 .watch-empty { text-align: center; }
+
+/* ------------------------------------------------------ The Late Show signs
+   The small capitals labels are signage, so they use the sign face. It is
+   narrow, so each runs about a quarter larger than the size it replaced. */
+.stat-label,
+.filter-section-label,
+.form-fieldset legend,
+.film-contents-label,
+.tmdb-results-title,
+.multi-label,
+.group-label {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+}
+.detail dt {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+}
+
+/* Watch Next's pick is a ticket: an indigo card, and a torn-off line with a
+   notch at each side above the two buttons. Purely the look — the markup and
+   what the buttons do are unchanged. */
+.watch-pick {
+  position: relative;
+  background: var(--surface2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.1rem 1rem 0.8rem;
+}
+.watch-actions {
+  position: relative;
+  border-top: 2px dashed var(--line);
+  margin: 1rem -1rem 0.5rem;
+  padding: 1rem 1rem 0;
+}
+.watch-actions::before,
+.watch-actions::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.watch-actions::before { left: -10px; }
+.watch-actions::after { right: -10px; }
+.watch-title { font-size: 1.3rem; line-height: 1.2; }
