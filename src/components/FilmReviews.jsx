@@ -175,7 +175,6 @@ export default function FilmReviews({ filmId, userId }) {
           disabled={saving}
           onChange={(e) => edit({ comment: e.target.value })}
         />
-        <p className="form-hint muted">Everyone in the household sees your rating and comment.</p>
 
         <div className="review-actions">
           <button
