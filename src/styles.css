@@ -40,7 +40,10 @@
   --surface2: #2E2858;
   --line: #3A3466;
   --text: #F4EFE6;        /* warm bulb white */
-  --muted: #A8A3C4;
+  --muted: #C9C3DD;       /* lavender, lifted 2026-11-08 for reading (was #A8A3C4) */
+  --field-bg: #17122F;    /* inside a form box — darker than the panel so the box shows */
+  --field-line: #7D76B3;  /* a form box's edge: 3.7:1 against the panel */
+  --placeholder: #A8A3C4; /* hint text inside an empty box */
   --accent: #86CB92;      /* Emerald — what you can press */
   --accent-glow: #86CB9233;
   --on-accent: #1A0A1A;
@@ -215,12 +218,14 @@ input {
   width: 100%;
   padding: 0.6rem 0.7rem;
   margin-top: 0.25rem;
-  background: var(--surface);
+  background: var(--field-bg);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-line);
   border-radius: 8px;
   font-size: 1rem; /* 16px stops iOS zooming the page on focus */
 }
+/* The browser's own grey was 3.3:1 here — too faint. */
+::placeholder { color: var(--placeholder); opacity: 1; }
 input:focus-visible,
 button:focus-visible,
 select:focus-visible {
@@ -815,9 +820,9 @@ button.ghost {
   width: 100%;
   padding: 0.6rem 0.7rem;
   margin-top: 0.25rem;
-  background: var(--surface);
+  background: var(--field-bg);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-line);
   border-radius: 8px;
   font: inherit;
   font-size: 1rem; /* 16px stops iOS zooming the page on focus */
@@ -829,9 +834,9 @@ button.ghost {
   width: 100%;
   padding: 0.6rem 0.7rem;
   margin-top: 0.25rem;
-  background: var(--surface);
+  background: var(--field-bg);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-line);
   border-radius: 8px;
   font-size: 1rem;
   min-height: 44px;
@@ -1678,19 +1683,24 @@ button.danger {
   letter-spacing: 0.1em;
 }
 
-/* Watch Next's pick is a ticket: an indigo card, and a torn-off line with a
-   notch at each side above the two buttons. Purely the look — the markup and
-   what the buttons do are unchanged. */
+/* Watch Next's pick is a ticket: an emerald card (2026-11-08, as in the
+   mock-up Stacia chose), and a torn-off line with a notch at each side above
+   the two buttons. Purely the look — the markup and what the buttons do are
+   unchanged. On the green, words are violet and the main button turns violet
+   so it does not vanish into the card. */
 .watch-pick {
+  --ticket-ink: #260F26;
+  --ticket-quiet: #3D2A44;
   position: relative;
-  background: var(--surface2);
-  border: 1px solid var(--line);
+  background: var(--accent);
+  color: var(--ticket-ink);
+  border: 1px solid var(--accent);
   border-radius: 12px;
   padding: 1.1rem 1rem 0.8rem;
 }
 .watch-actions {
   position: relative;
-  border-top: 2px dashed var(--line);
+  border-top: 2px dashed rgba(38, 15, 38, 0.45);
   margin: 1rem -1rem 0.5rem;
   padding: 1rem 1rem 0;
 }
@@ -1707,6 +1717,18 @@ button.danger {
 .watch-actions::before { left: -10px; }
 .watch-actions::after { right: -10px; }
 .watch-title { font-size: 1.3rem; line-height: 1.2; }
+.watch-pick .watch-title,
+.watch-pick .ticket-kicker,
+.watch-pick .ticket-admit { color: var(--ticket-ink); }
+.watch-pick .muted { color: var(--ticket-quiet); }
+.watch-pick .genre-chip {
+  background: rgba(38, 15, 38, 0.12);
+  border-color: rgba(38, 15, 38, 0.25);
+  color: var(--ticket-ink);
+}
+.watch-pick button.ghost { color: var(--ticket-ink); border-color: var(--ticket-ink); }
+.watch-pick button:not(.ghost) { background: var(--ticket-ink); color: var(--text); }
+.watch-pick button:focus-visible { outline-color: var(--ticket-ink); }
 
 /* The board's two small lines and the ticket's words (Stacia's wording,
    2026-11-05: "Now showing" / count; "Tonight's pick" / "Admit two"). */
