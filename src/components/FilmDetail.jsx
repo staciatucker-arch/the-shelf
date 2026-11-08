@@ -9,6 +9,7 @@ import {
   money,
 } from '../lib/collection.js'
 import { lockScroll } from '../lib/scrollLock.js'
+import FilmReviews from './FilmReviews.jsx'
 
 function formatClass(format) {
   const key = String(format).toLowerCase()
@@ -43,7 +44,7 @@ function Detail({ label, children }) {
  * phone the expansion pushed everything else around. Here the rest of the
  * collection stays put and comes back untouched when the panel closes.
  */
-export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
+export default function FilmDetail({ film, userId, onClose, onEdit, hidden = false }) {
   // The phone's back gesture closes this panel rather than leaving the app.
   // This is the panel it matters most for: its X is in the top corner, and
   // Android's back arrow is at the bottom of the screen under your thumb.
@@ -214,6 +215,10 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
                   ))}
               </Detail>
             </dl>
+
+            {/* Ratings and comments (2026-11-08). Keyed by film so moving
+                to another film starts a fresh draft, never carries one over. */}
+            {userId && <FilmReviews key={film.id} filmId={film.id} userId={userId} />}
 
             {/* Admin, not a browsing fact: the id number means nothing to a
                 reader, and its real job is feeding trigger lookups. Kept

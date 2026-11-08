@@ -700,6 +700,7 @@ export default function App() {
         >
           <FilmDetail
             film={openFilm}
+            userId={session.user.id}
             hidden={Boolean(editingFilm)}
             onClose={() => setOpenFilmId(null)}
             onEdit={() => setEditingFilmId(openFilm.id)}
