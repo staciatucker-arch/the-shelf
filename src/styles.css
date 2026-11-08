@@ -1662,8 +1662,11 @@ button.danger {
 .watch-empty { text-align: center; }
 
 /* ------------------------------------------------------ The Late Show signs
-   The small capitals labels are signage, so they use the sign face. It is
-   narrow, so each runs about a quarter larger than the size it replaced. */
+   Small capitals labels: "readable caps" (Stacia, 2026-11-08). The sign face
+   is tall and narrow and was hard to read this small, so these use the
+   reading face, bold, in capitals with a little spacing. Big Shoulders stays
+   only where it is big: the title board, section names, Admit two, years
+   and money. */
 .stat-label,
 .filter-section-label,
 .form-fieldset legend,
@@ -1671,16 +1674,16 @@ button.danger {
 .tmdb-results-title,
 .multi-label,
 .group-label {
-  font-family: var(--font-sign);
+  font-family: var(--font-read);
   font-weight: 700;
-  font-size: 0.88rem;
-  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
 }
 .detail dt {
-  font-family: var(--font-sign);
+  font-family: var(--font-read);
   font-weight: 700;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
 }
 
 /* Watch Next's pick is a ticket: an emerald card (2026-11-08, as in the
@@ -1741,7 +1744,7 @@ button.danger {
   text-transform: uppercase;
   line-height: 1.1;
 }
-.board-line { font-size: 0.72rem; letter-spacing: 0.3em; color: var(--accent); }
+.board-line { font-family: var(--font-read); font-size: 0.72rem; letter-spacing: 0.14em; color: var(--accent); }
 .board-line:last-child { color: var(--muted); letter-spacing: 0.2em; }
-.ticket-kicker { margin: 0 0 0.2rem; font-size: 0.85rem; letter-spacing: 0.18em; color: var(--accent); }
+.ticket-kicker { margin: 0 0 0.2rem; font-family: var(--font-read); font-size: 0.8rem; letter-spacing: 0.1em; color: var(--accent); }
 .ticket-admit { margin: 0.9rem 0 0.2rem; font-size: 1.3rem; font-weight: 900; letter-spacing: 0.12em; color: var(--text); }
