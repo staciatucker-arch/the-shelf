@@ -107,7 +107,7 @@ export default function FilmDetail({ film, onClose, onEdit, hidden = false }) {
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="detail-head">
+        <div className="detail-head ticket-head">
           <div>
             <h2 className="detail-title">{title}</h2>
             {year && <p className="detail-year muted">{year}</p>}

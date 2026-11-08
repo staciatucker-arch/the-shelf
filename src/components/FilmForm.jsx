@@ -438,7 +438,7 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
               can be an ordinary submit button while sitting up here. The
               fields scroll under it; the buttons never scroll away. There is
               no separate × — Cancel is the same action, said in a word. */}
-          <div className="detail-head form-head">
+          <div className="detail-head form-head ticket-head">
             <h2 className="detail-title">{heading}</h2>
             <div className="detail-head-actions">
               <button
