@@ -191,6 +191,11 @@ export default function FilmDetail({ film, userId, onClose, onEdit, hidden = fal
               </div>
             )}
 
+            {/* Ratings and comments (2026-11-08), above the money and dates
+                (Stacia: "ratings should be above $ info"). Keyed by film so
+                moving to another film starts a fresh draft. */}
+            {userId && <FilmReviews key={film.id} filmId={film.id} userId={userId} />}
+
             {/* Two rows, each one a theme: what it is worth and what we plan
                 to do with it, then where it came from and its life since. */}
             <dl className="detail-grid">
@@ -215,10 +220,6 @@ export default function FilmDetail({ film, userId, onClose, onEdit, hidden = fal
                   ))}
               </Detail>
             </dl>
-
-            {/* Ratings and comments (2026-11-08). Keyed by film so moving
-                to another film starts a fresh draft, never carries one over. */}
-            {userId && <FilmReviews key={film.id} filmId={film.id} userId={userId} />}
 
             {/* Admin, not a browsing fact: the id number means nothing to a
                 reader, and its real job is feeding trigger lookups. Kept
