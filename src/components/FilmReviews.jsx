@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import {
   COMMENT_MAX,
@@ -27,6 +27,17 @@ export default function FilmReviews({ filmId, userId }) {
   const [state, setState] = useState({ status: 'loading', reviews: [], profiles: [], error: null })
   const [draft, setDraft] = useState({ rating: null, comment: '' })
   const [save, setSave] = useState({ status: 'idle', error: null })
+  const commentRef = useRef(null)
+
+  // The comment box grows to show all of its text (Stacia, 2026-11-08: the
+  // only way to read a long comment was to drag a tiny corner a finger cannot
+  // grab). The panel scrolls instead, which a finger can do anywhere.
+  useLayoutEffect(() => {
+    const box = commentRef.current
+    if (!box) return
+    box.style.height = 'auto'
+    box.style.height = `${box.scrollHeight + 2}px` // + the 1px border, top and bottom
+  }, [draft.comment, state.status])
 
   const mine = state.reviews.find((r) => r.profile_id === userId) ?? null
 
@@ -156,6 +167,7 @@ export default function FilmReviews({ filmId, userId }) {
         </label>
         <textarea
           id={`comment-${filmId}`}
+          ref={commentRef}
           className="review-comment"
           rows={2}
           maxLength={COMMENT_MAX}
