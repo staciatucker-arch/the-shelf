@@ -425,12 +425,13 @@ button.ghost {
 }
 
 .section-divider {
-  font-family: var(--font-sign);
-  font-size: 0.95rem;
+  /* Readable caps, like the board's small lines (Stacia, 2026-11-08). */
+  font-family: var(--font-read);
+  font-size: 0.82rem;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   color: var(--accent);
-  font-weight: 800;
+  font-weight: 700;
   margin: 1.75rem 0 0.75rem;
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--line);
@@ -504,7 +505,7 @@ button.ghost {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.film-year { font-family: var(--font-sign); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.04em; line-height: 1.1; color: var(--muted); font-variant-numeric: tabular-nums; }
+.film-year { font-family: var(--font-read); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.02em; line-height: 1.1; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* --- tags and badges --------------------------------------------------- */
 
