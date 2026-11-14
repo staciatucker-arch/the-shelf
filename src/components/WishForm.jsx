@@ -61,9 +61,11 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
     }
   }, [onCancel, busy])
 
-  // Focus the title once, on opening — not on every re-render.
+  // Focus the title once, on opening — not on every re-render. Only when
+  // adding: editing leaves the keyboard closed until a box is tapped
+  // (Stacia, 2026-11-14).
   useEffect(() => {
-    titleRef.current?.focus()
+    if (!wish) titleRef.current?.focus()
   }, [])
 
   const patch = useMemo(

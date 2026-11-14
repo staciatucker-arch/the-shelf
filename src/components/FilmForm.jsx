@@ -184,12 +184,18 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
     }
     document.addEventListener('keydown', onKeyDown)
     const releaseScroll = lockScroll()
-    titleRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       releaseScroll()
     }
   }, [onCancel, busy])
+
+  // Adding: the cursor starts in Title, the first thing to type. Editing: no
+  // field is focused, so a phone's keyboard opens only when a box is tapped
+  // (Stacia, 2026-11-14). Once, on opening — not again after every save.
+  useEffect(() => {
+    if (!film) titleRef.current?.focus()
+  }, [])
 
   const patch = useMemo(
     () => (film ? changedFields(film, form) : null),
