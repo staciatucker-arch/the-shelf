@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { displayTitle } from '../lib/collection.js'
 import {
   applyMatch,
@@ -167,14 +167,6 @@ export default function FilmForm({
   const [deleteError, setDeleteError] = useState(null)
   const titleRef = useRef(null)
   const formRef = useRef(null)
-  // Title starts one line tall and grows with its text (Stacia, 2026-11-14),
-  // as the comment box does — a box set's contents list shows in full.
-  useLayoutEffect(() => {
-    const box = titleRef.current
-    if (!box) return
-    box.style.height = 'auto'
-    box.style.height = `${box.scrollHeight + 2}px` // + the 1px border, top and bottom
-  }, [form.title])
   // The duplicate question (Stacia, 2026-11-14): asking, and — once Add
   // anyway is tapped — let the next submit through without asking again.
   const [askingDuplicate, setAskingDuplicate] = useState(false)
@@ -406,12 +398,11 @@ export default function FilmForm({
             list. */}
         <textarea
           id="film-title"
-          className="grow-box"
           ref={titleRef}
           // Editing: a box set's title can hold its contents, one per line.
           data-enter={adding ? undefined : 'newline'}
           enterKeyHint={adding ? 'done' : undefined}
-          rows={1}
+          rows={2}
           value={form.title}
           onChange={(e) => set('title')(e.target.value)}
           aria-invalid={Boolean(errors.title)}
@@ -570,6 +561,19 @@ export default function FilmForm({
                 {titleField}
                 {typeField}
                 {matchBlock}
+                <div className="find-card-actions">
+                  <button
+                    type="button"
+                    className="ghost form-action"
+                    onClick={onCancel}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="form-action" disabled={busy || !dirty}>
+                    {saving ? 'Saving…' : 'Add to Shelf'}
+                  </button>
+                </div>
                 <p className="find-card-next">Add a cover and fill out optional details.</p>
               </div>
             ) : (
@@ -867,20 +871,6 @@ export default function FilmForm({
             )}
 
           </div>
-
-          {/* Adding: Cancel and Add to Shelf stay at the bottom of the panel
-              whatever is scrolled (Stacia, 2026-11-14). Editing keeps its
-              buttons at the top. */}
-          {adding && (
-            <div className="form-foot">
-              <button type="button" className="ghost form-action" onClick={onCancel} disabled={busy}>
-                Cancel
-              </button>
-              <button type="submit" className="form-action" disabled={busy || !dirty}>
-                {saving ? 'Saving…' : 'Add to Shelf'}
-              </button>
-            </div>
-          )}
         </form>
       </div>
     </div>

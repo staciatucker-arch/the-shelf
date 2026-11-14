@@ -1905,36 +1905,16 @@ button.danger {
 }
 .find-card .label-aside { color: var(--muted); }
 .find-card label .find-lede { display: block; margin: 0.2rem 0 0.4rem; font-size: 0.85rem; color: var(--text); }
-.find-card-next { margin: 1.1rem 0 0; padding-top: 0.9rem; border-top: 1px solid var(--line); font-weight: 700; font-size: 0.9rem; color: var(--text); }
-/* Adding: Cancel and Add to Shelf pinned to the foot of the panel. */
-.form-foot {
-  flex: none;
+.find-card-next { margin: 0.9rem 0 0; font-weight: 700; font-size: 0.9rem; color: var(--text); }
+.find-card-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  padding: 0.7rem 1.1rem;
-  padding-bottom: calc(0.7rem + env(safe-area-inset-bottom));
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
   border-top: 1px solid var(--line);
-  background: var(--surface);
 }
-.form-foot button { margin: 0; }
-/* A one-line box that grows with its text (FilmForm.jsx). */
-.form-body textarea.grow-box { resize: none; overflow: hidden; }
+.find-card-actions button { margin: 0; }
 
 /* "Add to the Shelf" in the card's green (Stacia, 2026-11-14). */
 .detail-title.add-heading { color: var(--accent); }
-
-/* Year now sits above the search button; give the button room. */
-.find-card .tmdb-search { margin-top: 0.9rem; }
-
-/* The boxes inside the green-caps labels type in plain text. */
-.find-card label textarea,
-.find-card label input,
-.find-card label select {
-  font-family: var(--font-read);
-  font-weight: 400;
-  font-size: 1rem;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--text);
-}
