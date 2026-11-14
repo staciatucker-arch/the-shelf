@@ -385,6 +385,13 @@ export default function FilmForm({
     <>
       <label htmlFor="film-title">
         Title
+        {/* Adding: the one instruction sits under its heading (Stacia,
+            2026-11-14). */}
+        {adding && (
+          <span className="find-lede">
+            Start typing in the title, choose what it is, and find the title in the database.
+          </span>
+        )}
         {/* A textarea, not a text input: four box sets carry their contents
             list in this column across several lines, and an <input> silently
             collapses newlines. Editing the vendor would have destroyed the
@@ -548,10 +555,6 @@ export default function FilmForm({
                  instruction, the fields with bold labels, then Add to Shelf
                  and Cancel at the end of the card, after the match step. */
               <div className="find-card">
-                <p className="find-lede">
-                  Start typing in the title, choose what it is, and find the title in the
-                  database.
-                </p>
                 {titleField}
                 {typeField}
                 {matchBlock}
@@ -568,6 +571,7 @@ export default function FilmForm({
                     {saving ? 'Saving…' : 'Add to Shelf'}
                   </button>
                 </div>
+                <p className="find-card-next">Add a cover and fill out optional details.</p>
               </div>
             ) : (
               <>
@@ -581,11 +585,7 @@ export default function FilmForm({
             {/* Only the title is required. Saying so outright is what stops
                 the fourteen controls below reading as fourteen more questions
                 that have to be answered before anything can be saved. */}
-            {adding ? (
-              <div className="form-divider">
-                <strong>Add a cover and fill out optional details.</strong>
-              </div>
-            ) : (
+            {!adding && (
               <div className="form-divider">
                 <strong>That’s the part that matters.</strong>
                 Everything below is optional — add it now, or any time later.

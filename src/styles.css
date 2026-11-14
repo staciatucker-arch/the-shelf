@@ -1886,9 +1886,26 @@ button.danger {
 
 /* The add card (Stacia, 2026-11-14): bold field labels, and Cancel and Add
    to Shelf at its foot, after the match step. */
-.find-card label { font-weight: 700; color: var(--text); font-size: 0.85rem; }
-.find-card .label-aside { font-weight: 400; }
-.find-card > .find-lede:first-child { margin-top: 0; }
+/* Labels in the card look like the green headings below it (Cover, Your
+   copy): caps, accent colour. Their asides and the instruction stay plain. */
+.find-card label {
+  font-family: var(--font-read);
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.find-card > label:first-of-type { margin-top: 0; }
+.find-card .label-aside,
+.find-card label .find-lede {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.find-card .label-aside { color: var(--muted); }
+.find-card label .find-lede { display: block; margin: 0.2rem 0 0.4rem; font-size: 0.85rem; color: var(--text); }
+.find-card-next { margin: 0.9rem 0 0; font-weight: 700; font-size: 0.9rem; color: var(--text); }
 .find-card-actions {
   display: flex;
   justify-content: flex-end;
