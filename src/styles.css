@@ -1935,3 +1935,6 @@ button.danger {
   text-transform: none;
   color: var(--text);
 }
+
+/* A one-line box that grows with its text (FilmForm.jsx Title). */
+.form-body textarea.grow-box { resize: none; overflow: hidden; }
