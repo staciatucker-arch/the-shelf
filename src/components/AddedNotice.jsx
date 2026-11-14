@@ -8,11 +8,16 @@ import { displayTitle } from '../lib/collection.js'
  * [Remove from Wishlist] [View in Wishlist]", closed with a small ✕ that keeps
  * the wish. Shown only after the film's save is confirmed.
  *
+ * Stacia, 2026-11-14: while the new film has no cover, a middle button
+ * "Edit to add cover" opens its edit form — a friendly reminder, since a
+ * moved wish never brings TMDB's poster with it. The notice hides while the
+ * form is open and comes back after, so Remove is not lost.
+ *
  * "Remove" is offered only when the wish and the film are the same confirmed
  * TMDB record. A match on the title alone gets "View" only, so one tap cannot
  * remove a same-named different film (lib/wishlist.js, wishMatchesForFilm).
  */
-export default function AddedNotice({ film, match, onRemove, onView, onClose }) {
+export default function AddedNotice({ film, match, onRemove, onEditCover, onView, onClose }) {
   const [removing, setRemoving] = useState(false)
   const [removed, setRemoved] = useState(false)
   const [error, setError] = useState(null)
@@ -44,6 +49,11 @@ export default function AddedNotice({ film, match, onRemove, onView, onClose }) 
             {match.sameFilm && (
               <button type="button" className="form-action" onClick={remove} disabled={removing}>
                 {removing ? 'Removing…' : 'Remove from Wishlist'}
+              </button>
+            )}
+            {onEditCover && (
+              <button type="button" className="ghost form-action" onClick={onEditCover} disabled={removing}>
+                Edit to add cover
               </button>
             )}
             <button type="button" className="ghost form-action" onClick={onView} disabled={removing}>

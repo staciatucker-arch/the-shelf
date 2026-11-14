@@ -886,11 +886,18 @@ export default function App() {
         </ErrorBoundary>
       )}
 
-      {addedNotice && (
+      {addedNotice && !editingFilmId && (
         <AddedNotice
           film={addedNotice.film}
           match={addedNotice.match}
           onRemove={deleteWish}
+          onEditCover={
+            // The live row, not the copy saved with the notice: once a cover
+            // is added the button goes away.
+            (films ?? []).some((f) => f.id === addedNotice.film.id && !f.poster_url)
+              ? () => setEditingFilmId(addedNotice.film.id)
+              : undefined
+          }
           onView={() => {
             setFocusWishId(addedNotice.match.wish.id)
             setAddedNotice(null)
