@@ -12,6 +12,8 @@ import {
 import { FieldError, TypeChooser } from './formControls.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
 import { useBackToClose } from './useBackToClose.js'
+import DuplicateAsk from './DuplicateAsk.jsx'
+import { shelfDuplicates } from '../lib/search.js'
 
 /* Same rule as the film form's: a failure part-way must not claim the save
    worked, or that it did not. Wording approved by Stacia, 2026-10-18. */
@@ -29,7 +31,16 @@ const SAVE_INTERRUPTED =
  * Editing sends only what changed, adding sends one complete row, and both
  * close only on a confirmed write, exactly as the film form does.
  */
-export default function WishForm({ wish, initialTitle = '', options, onCancel, onSaved, onDelete }) {
+export default function WishForm({
+  wish,
+  initialTitle = '',
+  options,
+  shelf = [],
+  wishes = [],
+  onCancel,
+  onSaved,
+  onDelete,
+}) {
   const adding = !wish
   const [form, setForm] = useState(() => (wish ? wishToForm(wish) : blankWish({ title: initialTitle })))
   const [match, setMatch] = useState(null)
@@ -42,6 +53,19 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const titleRef = useRef(null)
+  const formRef = useRef(null)
+  // The duplicate question (Stacia, 2026-11-14): a new wish already on the
+  // wishlist OR already on the shelf. Asked on Add, never refused.
+  const [askingDuplicate, setAskingDuplicate] = useState(false)
+  const duplicateOk = useRef(false)
+  const duplicates = useMemo(() => {
+    if (!adding) return { onShelf: [], onWishlist: [] }
+    const what = { title: form.title, type: form.type, match }
+    return {
+      onShelf: shelfDuplicates(what, shelf).slice(0, 3),
+      onWishlist: shelfDuplicates(what, wishes).slice(0, 3),
+    }
+  }, [adding, form.title, form.type, match, shelf, wishes])
   const draftId = useMemo(() => (adding ? newId() : null), [adding])
   const busy = saving || deleting
 
@@ -80,6 +104,14 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
     const found = validateWish(form, { requireType: adding })
     setErrors(found)
     if (Object.keys(found).length > 0) return
+    if (
+      adding &&
+      !duplicateOk.current &&
+      duplicates.onShelf.length + duplicates.onWishlist.length > 0
+    ) {
+      setAskingDuplicate(true)
+      return
+    }
     if (!adding && !patch) {
       onCancel()
       return
@@ -160,7 +192,20 @@ export default function WishForm({ wish, initialTitle = '', options, onCancel, o
         aria-label={heading}
         onClick={(e) => e.stopPropagation()}
       >
-        <form className="form-shell" onSubmit={onSubmit}>
+        {askingDuplicate && (
+          <DuplicateAsk
+            where="Wishlist"
+            onShelf={duplicates.onShelf}
+            onWishlist={duplicates.onWishlist}
+            onBack={() => setAskingDuplicate(false)}
+            onAdd={() => {
+              duplicateOk.current = true
+              setAskingDuplicate(false)
+              formRef.current?.requestSubmit()
+            }}
+          />
+        )}
+        <form className="form-shell" ref={formRef} onSubmit={onSubmit}>
           <div className="detail-head form-head">
             <h2 className="detail-title">{heading}</h2>
             <div className="detail-head-actions">

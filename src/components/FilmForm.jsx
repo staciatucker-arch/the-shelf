@@ -23,6 +23,7 @@ import TmdbMatch from './TmdbMatch.jsx'
 import { FieldError, TokenPicker, TypeChooser } from './formControls.jsx'
 import { lockScroll } from '../lib/scrollLock.js'
 import { duplicateLabel, shelfDuplicates } from '../lib/search.js'
+import DuplicateAsk from './DuplicateAsk.jsx'
 
 /** A single-value pick list that can still show a value the list has dropped. */
 function PickList({ label, id, value, offered, onChange }) {
@@ -165,6 +166,11 @@ export default function FilmForm({
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
   const titleRef = useRef(null)
+  const formRef = useRef(null)
+  // The duplicate question (Stacia, 2026-11-14): asking, and — once Add
+  // anyway is tapped — let the next submit through without asking again.
+  const [askingDuplicate, setAskingDuplicate] = useState(false)
+  const duplicateOk = useRef(false)
 
   // Minted once, here, and kept for the life of this form. The poster upload
   // (§6b step 7) will want the same id before the row exists, so that a cover
@@ -239,6 +245,12 @@ export default function FilmForm({
     const found = validateForm(form, { requireType: adding })
     setErrors(found)
     if (Object.keys(found).length > 0) return
+
+    // Adding something already on the shelf: ask first, never refuse.
+    if (adding && duplicates.length > 0 && !duplicateOk.current) {
+      setAskingDuplicate(true)
+      return
+    }
 
     // Editing, with nothing changed: closing is the honest outcome, and
     // writing a row to say so would only bump updated_at and invite a
@@ -481,7 +493,19 @@ export default function FilmForm({
         aria-label={heading}
         onClick={(e) => e.stopPropagation()}
       >
-        <form className="form-shell" onSubmit={onSubmit}>
+        {askingDuplicate && (
+          <DuplicateAsk
+            where="Shelf"
+            onShelf={duplicates}
+            onBack={() => setAskingDuplicate(false)}
+            onAdd={() => {
+              duplicateOk.current = true
+              setAskingDuplicate(false)
+              formRef.current?.requestSubmit()
+            }}
+          />
+        )}
+        <form className="form-shell" ref={formRef} onSubmit={onSubmit}>
           {/* The form wraps the header rather than starting below it, so Save
               can be an ordinary submit button while sitting up here. The
               fields scroll under it; the buttons never scroll away. There is

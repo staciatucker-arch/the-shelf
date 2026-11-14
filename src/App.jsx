@@ -907,6 +907,8 @@ export default function App() {
             wish={wishForm.mode === 'edit' ? (wishes ?? []).find((w) => w.id === wishForm.id) ?? null : null}
             initialTitle={wishForm.mode === 'add' ? wishForm.title : ''}
             options={options}
+            shelf={films ?? []}
+            wishes={wishes ?? []}
             onCancel={() => setWishForm(null)}
             onSaved={async (rowOrPatch) => {
               const result =
