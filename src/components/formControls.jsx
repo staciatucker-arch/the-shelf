@@ -199,3 +199,22 @@ export function TokenPicker({ id, label, selected, offered, onChange, highlight,
     </fieldset>
   )
 }
+
+/**
+ * Enter closes the phone keyboard in a form's typing boxes (Stacia,
+ * 2026-11-14), instead of submitting the form — which used to save a film
+ * when Enter was pressed in, say, Year. Put on the <form> as onKeyDown.
+ *
+ * Left alone: a box that already uses Enter (the token pickers stop it
+ * themselves), buttons and selects, and a textarea marked
+ * data-enter="newline", where Enter starts a new line (box-set lists).
+ */
+export function enterClosesKeyboard(e) {
+  if (e.key !== 'Enter' || e.defaultPrevented || e.nativeEvent?.isComposing) return
+  const el = e.target
+  const typing = el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'file'].includes(el.type))
+  if (!typing) return
+  if (el.dataset?.enter === 'newline') return
+  e.preventDefault()
+  el.blur()
+}

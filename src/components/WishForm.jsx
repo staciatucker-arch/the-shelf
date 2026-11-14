@@ -9,7 +9,7 @@ import {
   wishPatch,
   wishToForm,
 } from '../lib/wishlist.js'
-import { FieldError, TypeChooser } from './formControls.jsx'
+import { enterClosesKeyboard, FieldError, TypeChooser } from './formControls.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
 import { useBackToClose } from './useBackToClose.js'
 import DuplicateAsk from './DuplicateAsk.jsx'
@@ -205,7 +205,7 @@ export default function WishForm({
             }}
           />
         )}
-        <form className="form-shell" ref={formRef} onSubmit={onSubmit}>
+        <form className="form-shell" ref={formRef} onSubmit={onSubmit} onKeyDown={enterClosesKeyboard}>
           <div className="detail-head form-head">
             <h2 className="detail-title">{heading}</h2>
             <div className="detail-head-actions">

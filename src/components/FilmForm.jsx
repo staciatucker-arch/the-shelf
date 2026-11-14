@@ -20,7 +20,7 @@ import { removePoster, uploadPoster } from '../lib/posterStorage.js'
 import { mapTmdbGenres } from '../lib/tmdbGenres.js'
 import PosterPicker from './PosterPicker.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
-import { FieldError, TokenPicker, TypeChooser } from './formControls.jsx'
+import { enterClosesKeyboard, FieldError, TokenPicker, TypeChooser } from './formControls.jsx'
 import { lockScroll } from '../lib/scrollLock.js'
 import { duplicateLabel, shelfDuplicates } from '../lib/search.js'
 import DuplicateAsk from './DuplicateAsk.jsx'
@@ -399,6 +399,9 @@ export default function FilmForm({
         <textarea
           id="film-title"
           ref={titleRef}
+          // Editing: a box set's title can hold its contents, one per line.
+          data-enter={adding ? undefined : 'newline'}
+          enterKeyHint={adding ? 'done' : undefined}
           rows={2}
           value={form.title}
           onChange={(e) => set('title')(e.target.value)}
@@ -512,7 +515,7 @@ export default function FilmForm({
             }}
           />
         )}
-        <form className="form-shell" ref={formRef} onSubmit={onSubmit}>
+        <form className="form-shell" ref={formRef} onSubmit={onSubmit} onKeyDown={enterClosesKeyboard}>
           {/* The form wraps the header rather than starting below it, so Save
               can be an ordinary submit button while sitting up here. The
               fields scroll under it; the buttons never scroll away. There is
@@ -627,6 +630,7 @@ export default function FilmForm({
                   several lines, and an <input> silently collapses newlines. */}
               <textarea
                 id="film-edition"
+                data-enter="newline"
                 rows={2}
                 placeholder="optional — “Volume 1”, or what a box set contains"
                 value={form.edition}
