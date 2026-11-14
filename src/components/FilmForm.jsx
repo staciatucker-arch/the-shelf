@@ -518,7 +518,7 @@ export default function FilmForm({
               fields scroll under it; the buttons never scroll away. There is
               no separate × — Cancel is the same action, said in a word. */}
           <div className="detail-head form-head">
-            <h2 className="detail-title">{heading}</h2>
+            <h2 className={'detail-title' + (adding ? ' add-heading' : '')}>{heading}</h2>
             {/* Editing keeps Cancel and Save up here (Stacia, 2026-09-13).
                 Adding has them at the end of the green card instead, after
                 the match step (Stacia, 2026-11-14). */}

@@ -1915,3 +1915,6 @@ button.danger {
   border-top: 1px solid var(--line);
 }
 .find-card-actions button { margin: 0; }
+
+/* "Add to the Shelf" in the card's green (Stacia, 2026-11-14). */
+.detail-title.add-heading { color: var(--accent); }
