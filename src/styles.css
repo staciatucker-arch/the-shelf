@@ -1883,3 +1883,18 @@ button.danger {
 .dup-ask-list { margin: 0 0 0.9rem; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
 .dup-ask-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
 .dup-ask-actions button { margin: 0; }
+
+/* The add card (Stacia, 2026-11-14): bold field labels, and Cancel and Add
+   to Shelf at its foot, after the match step. */
+.find-card label { font-weight: 700; color: var(--text); font-size: 0.85rem; }
+.find-card .label-aside { font-weight: 400; }
+.find-card > .find-lede:first-child { margin-top: 0; }
+.find-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.find-card-actions button { margin: 0; }

@@ -512,6 +512,10 @@ export default function FilmForm({
               no separate × — Cancel is the same action, said in a word. */}
           <div className="detail-head form-head">
             <h2 className="detail-title">{heading}</h2>
+            {/* Editing keeps Cancel and Save up here (Stacia, 2026-09-13).
+                Adding has them at the end of the green card instead, after
+                the match step (Stacia, 2026-11-14). */}
+            {!adding && (
             <div className="detail-head-actions">
               <button
                 type="button"
@@ -522,15 +526,10 @@ export default function FilmForm({
                 Cancel
               </button>
               <button type="submit" className="form-action" disabled={busy || !dirty}>
-                {saving
-                  ? 'Saving…'
-                  : adding
-                    ? 'Add to the shelf'
-                    : dirty
-                      ? 'Save changes'
-                      : 'No changes'}
+                {saving ? 'Saving…' : dirty ? 'Save changes' : 'No changes'}
               </button>
             </div>
+            )}
           </div>
 
           <div className="form-body">
@@ -545,17 +544,30 @@ export default function FilmForm({
                  inside it. The old layout put its instructions at the top and
                  the button five fields below them, so on a phone the last step
                  of a three-step instruction was off the screen. */
+              /* Stacia's wording and order, 2026-11-14: one line of
+                 instruction, the fields with bold labels, then Add to Shelf
+                 and Cancel at the end of the card, after the match step. */
               <div className="find-card">
-                <h3 className="form-section-title">
-                  Start with the title — we’ll fill in the rest
-                </h3>
                 <p className="find-lede">
-                  Type a few words. You don’t need the whole title, and you don’t
-                  need the year — picking your film from the list fills those in.
+                  Start typing in the title, choose what it is, and find the title in the
+                  database.
                 </p>
                 {titleField}
                 {typeField}
                 {matchBlock}
+                <div className="find-card-actions">
+                  <button
+                    type="button"
+                    className="ghost form-action"
+                    onClick={onCancel}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="form-action" disabled={busy || !dirty}>
+                    {saving ? 'Saving…' : 'Add to Shelf'}
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -569,10 +581,16 @@ export default function FilmForm({
             {/* Only the title is required. Saying so outright is what stops
                 the fourteen controls below reading as fourteen more questions
                 that have to be answered before anything can be saved. */}
-            <div className="form-divider">
-              <strong>That’s the part that matters.</strong>
-              Everything below is optional — add it now, or any time later.
-            </div>
+            {adding ? (
+              <div className="form-divider">
+                <strong>Add a cover and fill out optional details.</strong>
+              </div>
+            ) : (
+              <div className="form-divider">
+                <strong>That’s the part that matters.</strong>
+                Everything below is optional — add it now, or any time later.
+              </div>
+            )}
 
             {/* The cover comes first among the optional things because it is
                 the one somebody can see from across the room, and because on
