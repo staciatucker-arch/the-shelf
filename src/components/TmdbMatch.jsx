@@ -293,6 +293,8 @@ export default function TmdbMatch({
           (settled 2026-09-14). The old wording said TMDB did not list them,
           which was false (review B4). Wording and placement chosen by
           Stacia, 2026-10-11. */}
+      {/* Year first, above the search it narrows (Stacia, 2026-11-14). */}
+      {yearField}
       {isBoxSet && !editing && boxSetNotice('Box sets can’t be matched. Add the title of the set.')}
       {editing && <p className="tmdb-ask-title">Confirm database match</p>}
       <div className={editing ? 'tmdb-line' : undefined}>
@@ -311,12 +313,6 @@ export default function TmdbMatch({
           </button>
         )}
       </div>
-
-      {/* The year sits here, under the button, rather than above the search
-          that exists to fill it in. It still narrows a search — "Total Recall"
-          is ambiguous where "Total Recall 1990" is not — so it stays; it is
-          just no longer the second thing a newcomer is asked for. */}
-      {yearField}
 
       {error && (
         <p className="error" role="alert">
