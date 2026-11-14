@@ -533,6 +533,16 @@ export default function App() {
                 aria-label="Search titles"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                // The shelf filters as you type, so the keyboard's search key
+                // has nothing left to do but get out of the way (Stacia,
+                // 2026-11-14): it closes the keyboard and keeps the results.
+                enterKeyHint="search"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    e.currentTarget.blur()
+                  }
+                }}
               />
 
               {/* Two fixed rows, never wrapping (Stacia, 2026-10-25): search,
