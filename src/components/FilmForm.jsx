@@ -381,6 +381,30 @@ export default function FilmForm({
     [adding, form.title, form.type, match, season, shelf],
   )
 
+  // The duplicate notes (Stacia, 2026-11-14): green and bold. A sure match
+  // (same TMDB record) sits under the matched box; a title-only lookalike
+  // under the title.
+  function duplicateNotes(list) {
+    return list.map(({ film: existing, sameFilm }) => (
+      <p key={existing.id} className="form-hint duplicate-note">
+        {/* Stacia's wording, 2026-11-14. The "looks like" line is Dana's
+            option for a title-only match: the app cannot be sure. */}
+        {sameFilm ? 'Already on your shelf: ' : 'Looks like a film you have: '}
+        {duplicateLabel(existing)}.{' '}
+        {onOpenExisting && (
+          <button
+            type="button"
+            className="link-button"
+            disabled={busy}
+            onClick={() => onOpenExisting(existing.id)}
+          >
+            Open it
+          </button>
+        )}
+      </p>
+    ))
+  }
+
   const titleField = (
     <>
       <label htmlFor="film-title">
@@ -409,24 +433,8 @@ export default function FilmForm({
         />
       </label>
       <FieldError message={errors.title} />
-      {duplicates.map(({ film: existing, sameFilm }) => (
-        <p key={existing.id} className="form-hint duplicate-note">
-          {/* Stacia's wording, 2026-11-14. The "looks like" line is Dana's
-              option for a title-only match: the app cannot be sure. */}
-          {sameFilm ? 'Already on your shelf: ' : 'Looks like a film you have: '}
-          {duplicateLabel(existing)}.{' '}
-          {onOpenExisting && (
-            <button
-              type="button"
-              className="link-button"
-              disabled={busy}
-              onClick={() => onOpenExisting(existing.id)}
-            >
-              Open it
-            </button>
-          )}
-        </p>
-      ))}
+      {/* A title-only lookalike sits under the title it matched on. */}
+      {duplicateNotes(duplicates.filter((d) => !d.sameFilm))}
     </>
   )
 
@@ -468,6 +476,7 @@ export default function FilmForm({
       existingId={!adding && !matchTouched ? film.tmdb_id : null}
       existingVerified={!adding ? film.tmdb_verified : false}
       editing={!adding}
+      afterConfirmed={duplicateNotes(duplicates.filter((d) => d.sameFilm))}
       // Only while adding: when editing, the year belongs with the other
       // details rather than tucked under a button that may not be shown.
       yearField={adding ? yearField : null}

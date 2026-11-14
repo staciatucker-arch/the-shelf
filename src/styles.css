@@ -1918,3 +1918,20 @@ button.danger {
 
 /* "Add to the Shelf" in the card's green (Stacia, 2026-11-14). */
 .detail-title.add-heading { color: var(--accent); }
+
+/* The duplicate notes in the add form: green and bold (Stacia, 2026-11-14). */
+.duplicate-note { color: var(--accent); font-weight: 700; font-size: 0.85rem; }
+.duplicate-note .link-button { color: var(--accent); font-weight: 700; padding-left: 0; }
+.tmdb-matched > .duplicate-note { margin-top: 0.5rem; }
+
+/* The boxes inside the green-caps labels type in plain text. */
+.find-card label textarea,
+.find-card label input,
+.find-card label select {
+  font-family: var(--font-read);
+  font-weight: 400;
+  font-size: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+}

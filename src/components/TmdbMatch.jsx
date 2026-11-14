@@ -30,6 +30,7 @@ import { lookupTmdb, searchTmdb } from '../lib/tmdb.js'
 export default function TmdbMatch({
   title, year, type, match, season, existingId, existingVerified,
   yearField, filled, editing = false, askSeason = true,
+  afterConfirmed = null,
   onConfirm, onSeason, onClear,
 }) {
   const [candidates, setCandidates] = useState(null)
@@ -125,6 +126,9 @@ export default function TmdbMatch({
             Change
           </button>
         </div>
+        {/* Whatever the form wants said right under the match — the
+            "Already on your shelf" note (Stacia, 2026-11-14). */}
+        {afterConfirmed}
 
         {/* TMDB catalogues shows, not seasons — there is no id for "Buffy
             series 3". The show is the match; the season is a separate choice
