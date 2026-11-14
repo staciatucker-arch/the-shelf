@@ -3,7 +3,8 @@ import { supabase } from './lib/supabase.js'
 import Login from './components/Login.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import UpdateBanner from './components/UpdateBanner.jsx'
-import StatsBar from './components/StatsBar.jsx'
+import UserMenu from './components/UserMenu.jsx'
+import { FilterIcon, SortIcon, UserIcon } from './components/icons.jsx'
 import FilterPanel from './components/FilterPanel.jsx'
 import FilmCard from './components/FilmCard.jsx'
 import FilmDetail from './components/FilmDetail.jsx'
@@ -124,6 +125,12 @@ export default function App() {
   // What was in the search box when Add film was tapped: the form starts with
   // it as the title (Stacia, 2026-11-14). Matching then fixes the spelling.
   const [addTitle, setAddTitle] = useState('')
+  // The person icon's menu: money line and Sign out (Stacia, 2026-11-14).
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const closeUserMenu = useCallback(() => setUserMenuOpen(false), [])
+  // While the search box has the keyboard, the bottom bar steps aside so the
+  // results get the room (Stacia, 2026-11-14).
+  const [searchFocused, setSearchFocused] = useState(false)
 
   // The add/edit pick lists. Loaded once alongside the collection; a failure
   // here is not fatal to browsing, so it degrades to empty lists and says so
@@ -490,40 +497,94 @@ export default function App() {
 
   return (
     <>
+      {/* The layout Stacia set out on 2026-11-14, after Chewy's: the search
+          box at the very top so results start right under it, a row of
+          icons below, and the three ways in at the bottom of the screen.
+          The title board and the money line moved out of the way — the
+          money into the person icon's menu. */}
       <header className="bar">
-        {/* The title board (Stacia's wording, 2026-11-05). The count appears
-            only once the films have loaded, never a guess. */}
-        <div className="board">
-          <span className="board-line">Now showing</span>
-          <h1>The Shelf</h1>
-          {films && (
-            <span className="board-line">
-              {films.length} {films.length === 1 ? 'title' : 'titles'}
-            </span>
-          )}
-        </div>
-        <div className="bar-right">
-          <span className="muted">{session.user.email}</span>
-          <button
-            className="ghost"
-            onClick={() => {
-              setFocusWishId(null)
-              setWishlistOpen(true)
-            }}
-          >
-            Wishlist{wishes && wishes.length > 0 ? ` (${wishes.length})` : ''}
-          </button>
-          {/* Beside Wishlist, as the other way in that is not about one film
-              (Stacia, 2026-10-18). Only once the films are loaded. */}
-          {films && (
-            <button className="ghost" onClick={() => setWatchNextOpen(true)}>
-              Watch Next
+        <input
+          type="search"
+          className="search"
+          placeholder="Search The Shelf"
+          aria-label="Search The Shelf"
+          value={query}
+          disabled={!films}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
+          // The shelf filters as you type, so the keyboard's search key
+          // has nothing left to do but get out of the way (Stacia,
+          // 2026-11-14): it closes the keyboard and keeps the results.
+          enterKeyHint="search"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.currentTarget.blur()
+            }
+          }}
+        />
+
+        {films && (
+          <div className="bar-icons">
+            <button
+              type="button"
+              className={'ghost icon-button filter-toggle' + (activeFilterCount ? ' has-filters' : '')}
+              aria-expanded={filtersOpen}
+              onClick={() => {
+                // The panel opens at the top of the shelf, under this bar.
+                if (!filtersOpen) window.scrollTo({ top: 0 })
+                setFiltersOpen((open) => !open)
+              }}
+            >
+              <FilterIcon />
+              <span>Filter{activeFilterCount ? ` (${activeFilterCount})` : ''}</span>
             </button>
-          )}
-          <button className="ghost" onClick={() => supabase.auth.signOut()}>
-            Sign out
-          </button>
-        </div>
+
+            {/* The real <select> lies over it, invisible, so the phone's own
+                picker opens with the full list. The line above the covers
+                says which sort is on. */}
+            <label className="icon-button sort-button">
+              <SortIcon />
+              <span aria-hidden="true">Sort</span>
+              <select
+                className="sort-select"
+                aria-label="Sort"
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+              >
+                {sortOptions.map((item) =>
+                  item.group ? (
+                    <optgroup key={item.group} label={item.group}>
+                      {item.options}
+                    </optgroup>
+                  ) : (
+                    item
+                  ),
+                )}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              className="ghost icon-button user-button"
+              aria-label="Account"
+              aria-expanded={userMenuOpen}
+              onClick={() => setUserMenuOpen((open) => !open)}
+            >
+              <UserIcon />
+            </button>
+          </div>
+        )}
+
+        {userMenuOpen && (
+          <UserMenu
+            email={session.user.email}
+            stats={films ? stats : null}
+            onSignOut={() => supabase.auth.signOut()}
+            onClose={closeUserMenu}
+          />
+        )}
       </header>
 
       <main>
@@ -541,72 +602,6 @@ export default function App() {
 
         {films && (
           <>
-            <StatsBar stats={stats} />
-
-            <div className="controls">
-              <input
-                type="search"
-                className="search"
-                placeholder="Search titles…"
-                aria-label="Search titles"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                // The shelf filters as you type, so the keyboard's search key
-                // has nothing left to do but get out of the way (Stacia,
-                // 2026-11-14): it closes the keyboard and keeps the results.
-                enterKeyHint="search"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    e.currentTarget.blur()
-                  }
-                }}
-              />
-
-              {/* Two fixed rows, never wrapping (Stacia, 2026-10-25): search,
-                  then Filter and Sort together with Add film on the right.
-                  The count sits on its own line, next to what it counts. */}
-              <div className="controls-row">
-                <button
-                  type="button"
-                  className={'ghost filter-toggle' + (activeFilterCount ? ' has-filters' : '')}
-                  aria-expanded={filtersOpen}
-                  onClick={() => setFiltersOpen((open) => !open)}
-                >
-                  Filter{activeFilterCount ? ` (${activeFilterCount})` : ''}
-                </button>
-
-                {/* Just "⇅ Sort" — the line above the covers says which sort is
-                    on. The real <select> lies over it, invisible, so the
-                    phone's own picker opens with the full list. */}
-                <label className="sort-button">
-                  <span className="sort-button-text" aria-hidden="true">
-                    ⇅ Sort
-                  </span>
-                  <select
-                    className="sort-select"
-                    aria-label="Sort"
-                    value={sortMode}
-                    onChange={(e) => setSortMode(e.target.value)}
-                  >
-                    {sortOptions.map((item) =>
-                      item.group ? (
-                        <optgroup key={item.group} label={item.group}>
-                          {item.options}
-                        </optgroup>
-                      ) : (
-                        item
-                      ),
-                    )}
-                  </select>
-                </label>
-
-                <button type="button" className="add-film" onClick={() => startAdding(query.trim())}>
-                  <span aria-hidden="true">+</span> Add film
-                </button>
-              </div>
-            </div>
-
             {/* While searching, this line is what stays above a phone's
                 keyboard, so it names what was found rather than counting it
                 (Stacia, 2026-11-14, from Dana's review). */}
@@ -738,6 +733,27 @@ export default function App() {
             of anything. */}
         <p className="build-stamp muted">{__BUILD_STAMP__}</p>
       </main>
+
+      {films && (
+        <nav className={'bottom-bar' + (searchFocused ? ' is-hidden' : '')} aria-label="Main">
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              setFocusWishId(null)
+              setWishlistOpen(true)
+            }}
+          >
+            Wishlist{wishes && wishes.length > 0 ? ` (${wishes.length})` : ''}
+          </button>
+          <button type="button" className="ghost" onClick={() => setWatchNextOpen(true)}>
+            Watch Next
+          </button>
+          <button type="button" className="add-film" onClick={() => startAdding(query.trim())}>
+            <span aria-hidden="true">+</span> Add Film
+          </button>
+        </nav>
+      )}
 
       {/* Kept mounted, and hidden, while the edit form is over it. Not a
           cosmetic choice: rebuilding it when the form closes would mean
