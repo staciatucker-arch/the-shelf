@@ -22,6 +22,7 @@ import PosterPicker from './PosterPicker.jsx'
 import TmdbMatch from './TmdbMatch.jsx'
 import { FieldError, TokenPicker, TypeChooser } from './formControls.jsx'
 import { lockScroll } from '../lib/scrollLock.js'
+import { duplicateLabel, shelfDuplicates } from '../lib/search.js'
 
 /** A single-value pick list that can still show a value the list has dropped. */
 function PickList({ label, id, value, offered, onChange }) {
@@ -111,10 +112,19 @@ const SAVE_INTERRUPTED_ADDING =
 const SAVE_INTERRUPTED_EDITING =
   'Something went wrong. Close this form and see if your changes were saved.'
 
-export default function FilmForm({ film, start = null, options, onCancel, onSaved, onDelete }) {
+export default function FilmForm({
+  film,
+  start = null,
+  options,
+  shelf = [],
+  onOpenExisting,
+  onCancel,
+  onSaved,
+  onDelete,
+}) {
   const adding = !film
 
-  // `start`, when adding: what a wish already knows ("Move to my Shelf") —
+  // `start`, when adding: what a wish already knows ("Move to your Shelf") —
   // see filmStartFromWish in lib/wishlist.js. Its match was confirmed by a
   // person when the wish was added, so it arrives confirmed here too.
   const [form, setForm] = useState(() =>
@@ -345,6 +355,20 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
     setForm(next)
   }
 
+  // While adding: films already on the shelf this might be (Stacia,
+  // 2026-11-14, from Dana's review). A quiet line, never a block — a second
+  // copy on another format is often on purpose. See lib/search.js.
+  const duplicates = useMemo(
+    () =>
+      adding
+        ? shelfDuplicates(
+            { title: form.title, type: form.type, match, seasonNumber: season?.season_number ?? null },
+            shelf,
+          ).slice(0, 3)
+        : [],
+    [adding, form.title, form.type, match, season, shelf],
+  )
+
   const titleField = (
     <>
       <label htmlFor="film-title">
@@ -363,6 +387,24 @@ export default function FilmForm({ film, start = null, options, onCancel, onSave
         />
       </label>
       <FieldError message={errors.title} />
+      {duplicates.map(({ film: existing, sameFilm }) => (
+        <p key={existing.id} className="form-hint duplicate-note">
+          {/* Stacia's wording, 2026-11-14. The "looks like" line is Dana's
+              option for a title-only match: the app cannot be sure. */}
+          {sameFilm ? 'Already on your shelf: ' : 'Looks like a film you have: '}
+          {duplicateLabel(existing)}.{' '}
+          {onOpenExisting && (
+            <button
+              type="button"
+              className="link-button"
+              disabled={busy}
+              onClick={() => onOpenExisting(existing.id)}
+            >
+              Open it
+            </button>
+          )}
+        </p>
+      ))}
     </>
   )
 

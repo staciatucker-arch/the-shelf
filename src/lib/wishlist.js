@@ -260,7 +260,7 @@ export function postersFromBatch(results) {
 
 /**
  * Where the Add film form starts when a wish is moved to the shelf
- * ("Move to my Shelf", Stacia's wording, 2026-10-17).
+ * ("Move to your Shelf", Stacia's wording, 2026-10-17).
  *
  * Carries what the wish already knows — title, type, year, genres and a
  * confirmed match — so nothing is retyped or matched twice. Everything about

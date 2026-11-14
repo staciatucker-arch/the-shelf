@@ -18,6 +18,7 @@ import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
 import { isStale, refreshDecision } from './lib/refresh.js'
 import { removePoster } from './lib/posterStorage.js'
+import { searchAnswer } from './lib/search.js'
 import {
   EMPTY_FILTERS,
   SORT_MODES,
@@ -118,8 +119,11 @@ export default function App() {
   // After a film is added that is also on the wishlist: { film, match }.
   const [addedNotice, setAddedNotice] = useState(null)
   const [watchNextOpen, setWatchNextOpen] = useState(false)
-  // "Move to my Shelf": the wish the add form was started from, if any.
+  // "Move to your Shelf": the wish the add form was started from, if any.
   const [movingWishId, setMovingWishId] = useState(null)
+  // What was in the search box when Add film was tapped: the form starts with
+  // it as the title (Stacia, 2026-11-14). Matching then fixes the spelling.
+  const [addTitle, setAddTitle] = useState('')
 
   // The add/edit pick lists. Loaded once alongside the collection; a failure
   // here is not fatal to browsing, so it degrades to empty lists and says so
@@ -273,8 +277,22 @@ export default function App() {
   /** Open Add film filled in from a wish. Nothing moves until that save. */
   const moveWishToShelf = useCallback((id) => {
     setMovingWishId(id)
+    setAddTitle('')
     setWishlistOpen(false)
     setAddingFilm(true)
+  }, [])
+
+  /** Open Add film, starting from the search text when there is some. */
+  const startAdding = useCallback((title) => {
+    setMovingWishId(null)
+    setAddTitle(title)
+    setAddingFilm(true)
+  }, [])
+
+  const closeAdding = useCallback(() => {
+    setAddingFilm(false)
+    setMovingWishId(null)
+    setAddTitle('')
   }, [])
 
   const deleteWish = useCallback(async (id) => {
@@ -583,17 +601,29 @@ export default function App() {
                   </select>
                 </label>
 
-                <button type="button" className="add-film" onClick={() => setAddingFilm(true)}>
+                <button type="button" className="add-film" onClick={() => startAdding(query.trim())}>
                   <span aria-hidden="true">+</span> Add film
                 </button>
               </div>
             </div>
 
-            <p className="muted result-count">
-              {isNarrowed ? `${shown} of ${films.length}` : `${films.length} titles`}
-              {' · '}
-              {SORT_MODES.find((m) => m.value === sortMode)?.named}
-            </p>
+            {/* While searching, this line is what stays above a phone's
+                keyboard, so it names what was found rather than counting it
+                (Stacia, 2026-11-14, from Dana's review). */}
+            {searching ? (
+              <p className="muted result-count search-answer" aria-live="polite">
+                {searchAnswer(
+                  [...visible.rows, ...visible.unknowns],
+                  wishes == null || wishError ? null : wishHits,
+                )}
+              </p>
+            ) : (
+              <p className="muted result-count">
+                {isNarrowed ? `${shown} of ${films.length}` : `${films.length} titles`}
+                {' · '}
+                {SORT_MODES.find((m) => m.value === sortMode)?.named}
+              </p>
+            )}
 
             <FilterPanel
               open={filtersOpen}
@@ -613,7 +643,21 @@ export default function App() {
               searching ? (
                 /* Same look as the wishlist's line below, so the two
                    sections read as a pair (Stacia, 2026-10-18). */
-                <p className="muted">Nothing on your shelf matches.</p>
+                <>
+                  <p className="muted">Nothing on your shelf matches.</p>
+                  {/* Beside its pair below, and offered on the same terms:
+                      only when the wishlist has nothing either — a wish
+                      already there is moved, not re-entered. */}
+                  {wishHits.length === 0 && !wishError && (
+                    <button
+                      type="button"
+                      className="form-action search-add"
+                      onClick={() => startAdding(query.trim())}
+                    >
+                      Add “{query.trim()}” to your shelf
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className="empty-state">
                   No titles match. Try a shorter search, or clear the filters.
@@ -757,10 +801,7 @@ export default function App() {
           overlay
           title="The add form stopped working."
           detail={SAVE_UNKNOWN}
-          onDismiss={() => {
-            setAddingFilm(false)
-            setMovingWishId(null)
-          }}
+          onDismiss={closeAdding}
           dismissLabel="Close the form"
         >
           <FilmForm
@@ -768,13 +809,17 @@ export default function App() {
             start={
               movingWishId
                 ? filmStartFromWish((wishes ?? []).find((w) => w.id === movingWishId))
-                : null
+                : addTitle
+                  ? { form: { title: addTitle }, match: null }
+                  : null
             }
             options={options}
-            onCancel={() => {
-              setAddingFilm(false)
-              setMovingWishId(null)
+            shelf={films ?? []}
+            onOpenExisting={(id) => {
+              closeAdding()
+              setOpenFilmId(id)
             }}
+            onCancel={closeAdding}
             onSaved={async (row) => {
               const result = await addFilm(row)
               // The new film opens on success, so the thing just added is the
@@ -788,6 +833,7 @@ export default function App() {
                 const offer = wishOfferAfterAdd(result.film, wishes ?? [], movingWishId)
                 setAddedNotice(offer ? { film: result.film, match: offer } : null)
                 setMovingWishId(null)
+                setAddTitle('')
               }
               return result
             }}

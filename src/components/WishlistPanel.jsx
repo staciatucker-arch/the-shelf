@@ -74,7 +74,7 @@ export function WishRow({ wish, posterUrl = null, highlighted = false, onEdit, o
                 in from this wish; nothing moves until that save. */}
             {onMove && (
               <button type="button" className="form-action" onClick={onMove}>
-                Move to my Shelf
+                Move to your Shelf
               </button>
             )}
             <button type="button" className="ghost form-action" onClick={() => setAsking(true)}>

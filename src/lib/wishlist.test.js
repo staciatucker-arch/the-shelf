@@ -136,7 +136,7 @@ test('removing a match clears the id as well as the tick', () => {
   })
 })
 
-// ---------------------------------------------------------------- Move to my Shelf
+// ---------------------------------------------------------------- Move to your Shelf
 
 import { filmStartFromWish, wishOfferAfterAdd } from './wishlist.js'
 
