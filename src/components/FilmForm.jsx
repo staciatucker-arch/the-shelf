@@ -862,7 +862,7 @@ export default function FilmForm({
                     </p>
                     {/* Deleting a film deletes everyone's ratings and
                         comments on it, not only your own (review B4).
-                        ⚠ Draft wording, for Stacia to change. */}
+                        Wording approved by Stacia, 2026-11-15. */}
                     {reviewCount > 0 && (
                       <p className="form-danger-ask">
                         {reviewCount === 1

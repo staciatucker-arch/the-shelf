@@ -419,7 +419,7 @@ export default function App() {
 
     // PGRST116: the update matched no row, so the film is gone — removed on
     // another phone while this form was open. Said in words rather than as
-    // the database's own text. ⚠ Draft wording, for Stacia to change.
+    // the database's own text. Wording approved by Stacia, 2026-11-15.
     if (error?.code === 'PGRST116') {
       return { error: 'This film is no longer on the shelf. It may have been removed on another device.' }
     }
