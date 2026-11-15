@@ -183,6 +183,26 @@ export default function TriggerSettings({ triggers, onClose }) {
             </ul>
           )}
 
+          {starters.length > 0 && (
+            <>
+              <h3 className="group-label">Starter list</h3>
+              {/* First for everyone (Stacia, 2026-11-15): the 20 most people
+                  will want, then search and the categories for any other. */}
+              <ul className="topic-list">
+                {starters.map((t) => (
+                  <TopicRow
+                    key={t.id}
+                    topic={t}
+                    chosen={myTopics.has(t.id)}
+                    busy={busyId === t.id}
+                    onToggle={onToggle}
+                    nameProps={propsFor(t)}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+
           <label htmlFor="trigger-search" className="group-label">
             Find a trigger
           </label>
@@ -218,24 +238,6 @@ export default function TriggerSettings({ triggers, onClose }) {
                 ))}
               </ul>
             ))}
-
-          {starters.length > 0 && (
-            <>
-              <h3 className="group-label">Starter list</h3>
-              <ul className="topic-list">
-                {starters.map((t) => (
-                  <TopicRow
-                    key={t.id}
-                    topic={t}
-                    chosen={myTopics.has(t.id)}
-                    busy={busyId === t.id}
-                    onToggle={onToggle}
-                    nameProps={propsFor(t)}
-                  />
-                ))}
-              </ul>
-            </>
-          )}
 
           <h3 className="group-label">All triggers, by category</h3>
           <div className="topic-groups">
