@@ -44,7 +44,9 @@ export function useTriggers(userId) {
         : allRows(() =>
             supabase
               .from('v_dtdd_votes')
-              .select('media_id,topic_id,is_flagged')
+              .select('media_id,topic_id,yes_count,no_count')
+              // DoesTheDogDie's "more yes than no" is the outer net; the
+              // stricter rule (lib/triggers.js, verdict) is applied here.
               .eq('is_flagged', true)
               .in('topic_id', [...mine])
               .order('media_id'),

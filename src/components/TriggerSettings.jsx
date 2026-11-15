@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { lockScroll } from '../lib/scrollLock.js'
-import { searchTopics, topicsByCategory } from '../lib/triggers.js'
+import { MIN_LEAD, MIN_VOTES, searchTopics, topicsByCategory } from '../lib/triggers.js'
 import { useBackToClose } from './useBackToClose.js'
 
 // ⚠ WORDING IS A DRAFT (2026-11-15) — Stacia writes the UI copy. Built from
@@ -151,8 +151,10 @@ export default function TriggerSettings({ triggers, onClose }) {
 
         <div className="detail-body trigger-body">
           <p className="trigger-how">
-            Choose what you want to know about before you watch. A trigger is flagged on a film when
-            more DoesTheDogDie users voted yes than no. Votes can be incomplete or wrong.
+            Choose what you want to know about before you watch. A trigger is flagged on a film when at
+            least {MIN_VOTES} DoesTheDogDie users have voted and yes is ahead of no by {MIN_LEAD} or more.
+            Fewer or closer votes are shown on the film as “not enough votes yet”. Votes can be incomplete
+            or wrong.
           </p>
 
           {error && (

@@ -12,6 +12,7 @@ import {
   showsNotChecked,
   splitForPanel,
   topicsByCategory,
+  verdict,
 } from './triggers.js'
 
 const alien = { tmdb_verified: true, tmdb_id: 348, tmdb_kind: 'movie', season_number: null }
@@ -34,9 +35,11 @@ const media = indexMedia([
   { id: 'm-gone', tmdb_kind: 'movie', tmdb_id: 7, season: -1, lookup_status: 'no_match' },
 ])
 const flagged = flaggedByMedia([
-  { media_id: 'm-alien', topic_id: 'blood', is_flagged: true },
-  { media_id: 'm-alien', topic_id: 'dog', is_flagged: false },
-  { media_id: 'm-b1', topic_id: 'kid', is_flagged: true },
+  { media_id: 'm-alien', topic_id: 'blood', yes_count: 125, no_count: 1 },
+  { media_id: 'm-alien', topic_id: 'dog', yes_count: 7, no_count: 195 },
+  { media_id: 'm-b1', topic_id: 'kid', yes_count: 59, no_count: 0 },
+  // More yes than no, but on one vote: not flagged by Stacia's rule.
+  { media_id: 'm-alien', topic_id: 'kid', yes_count: 1, no_count: 0, is_flagged: true },
 ])
 
 test('a person with no topics chosen gets nothing at all', () => {
@@ -75,15 +78,29 @@ test('the scope is always said', () => {
   assert.equal(scopeLabel(buffyAll, { tmdb_kind: 'tv', season: -1 }), 'Whole series')
 })
 
-test('the panel splits your topics into flagged, more voted no, and no answer yet', () => {
-  const topics = new Map(['blood', 'dog', 'kid', 'spider'].map((id) => [id, { id, name: id }]))
+test('flagged needs 5 votes and a 5-vote lead (Stacia, 2026-11-15)', () => {
+  assert.equal(verdict(5, 0), 'flagged')
+  assert.equal(verdict(10, 5), 'flagged')
+  assert.equal(verdict(4, 0), 'unsure') // too few votes
+  assert.equal(verdict(1, 0), 'unsure') // one vote is never enough
+  assert.equal(verdict(40, 37), 'unsure') // too close
+  assert.equal(verdict(0, 5), 'no')
+  assert.equal(verdict(2, 1), 'unsure')
+  assert.equal(verdict(0, 0), 'unanswered')
+})
+
+test('the panel splits your topics: flagged, not enough votes, more voted no, no answer', () => {
+  const topics = new Map(['blood', 'dog', 'kid', 'spider', 'close'].map((id) => [id, { id, name: id }]))
   const votes = [
     { topic_id: 'blood', yes_count: 125, no_count: 1, is_flagged: true },
     { topic_id: 'dog', yes_count: 7, no_count: 195, is_flagged: false },
     { topic_id: 'spider', yes_count: 0, no_count: 0, is_flagged: false },
+    { topic_id: 'close', yes_count: 2, no_count: 0, is_flagged: true },
   ]
-  const s = splitForPanel(votes, new Set(['blood', 'dog', 'kid', 'spider']), topics)
+  const s = splitForPanel(votes, new Set(['blood', 'dog', 'kid', 'spider', 'close']), topics)
   assert.deepEqual(s.flagged.map((x) => x.topic.id), ['blood'])
+  // Nothing is dropped: a weak yes is listed, labelled for what it is.
+  assert.deepEqual(s.unsure.map((x) => x.topic.id), ['close'])
   assert.deepEqual(s.votedNo.map((x) => x.topic.id), ['dog'])
   // No row, and a row of 0 and 0, are both "no answer yet" — never "no".
   assert.deepEqual(s.noAnswer.map((x) => x.topic.id), ['kid', 'spider'])

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { checkedOn, filmTriggerState, scopeLabel, splitForPanel } from '../lib/triggers.js'
+import { MIN_LEAD, MIN_VOTES, checkedOn, filmTriggerState, scopeLabel, splitForPanel } from '../lib/triggers.js'
 import { TopicName } from './TriggerSettings.jsx'
 
 // ⚠ WORDING IS A DRAFT (2026-11-15) — Stacia writes the UI copy.
@@ -31,6 +31,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   const [votes, setVotes] = useState(null)
   const [voteError, setVoteError] = useState(null)
   const [showNo, setShowNo] = useState(false)
+  const [showUnsure, setShowUnsure] = useState(false)
   const [showUnknown, setShowUnknown] = useState(false)
   const [revealed, setRevealed] = useState(() => new Set())
   const [checking, setChecking] = useState(false)
@@ -42,6 +43,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
     setOpen(false)
     setVotes(null)
     setShowNo(false)
+    setShowUnsure(false)
     setShowUnknown(false)
   }, [mediaId, film.id])
 
@@ -178,6 +180,32 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
             </ul>
           )}
 
+          {/* Close or thinly-voted answers: listed, never dropped (Stacia's
+              rule, 2026-11-15) — a real trigger with few votes is still
+              worth seeing. */}
+          {split.unsure.length > 0 && (
+            <div className="trigger-more">
+              <p>
+                {split.unsure.length} of your triggers: not enough votes yet{' '}
+                <button type="button" className="link-button" onClick={() => setShowUnsure((v) => !v)}>
+                  {showUnsure ? 'Hide' : 'Show'}
+                </button>
+              </p>
+              {showUnsure && (
+                <ul className="trigger-list quiet">
+                  {split.unsure.map(({ topic, yes, no }) => (
+                    <li key={topic.id}>
+                      <TopicName topic={topic} {...nameProps(topic)} />
+                      <span className="muted trigger-votes">
+                        {yes} yes · {no} no
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {split.votedNo.length > 0 && (
             <div className="trigger-more">
               <p>
@@ -204,7 +232,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
           {split.noAnswer.length > 0 && (
             <div className="trigger-more">
               <p>
-                {split.noAnswer.length} of your triggers have no answer yet{' '}
+                {split.noAnswer.length} of your triggers {split.noAnswer.length === 1 ? 'has' : 'have'} no answer yet{' '}
                 <button type="button" className="link-button" onClick={() => setShowUnknown((v) => !v)}>
                   {showUnknown ? 'Hide' : 'Which?'}
                 </button>
@@ -236,8 +264,9 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
         </p>
       )}
       <p className="muted form-hint">
-        Votes from DoesTheDogDie users. They can be incomplete or wrong — a trigger not flagged here may
-        still be in it. Checked {checkedOn(s.row.checked_at)}.
+        Flagged means at least {MIN_VOTES} DoesTheDogDie users voted, with yes ahead by {MIN_LEAD} or
+        more. Votes can be incomplete or wrong — a trigger not flagged here may still be in it. Checked{' '}
+        {checkedOn(s.row.checked_at)}.
       </p>
       <Credit />
     </section>

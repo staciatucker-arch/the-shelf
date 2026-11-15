@@ -10,10 +10,34 @@
 // The rules this file holds:
 //   * A film's answer is found by (tmdb_kind, tmdb_id, season) — the same
 //     key dtdd-lookup stores under. Only a CONFIRMED match has one.
-//   * Flagged = more yes than no, DoesTheDogDie's own rule (`is_flagged`).
+//   * Flagged = at least MIN_VOTES votes, with yes ahead of no by at least
+//     MIN_LEAD (Stacia, 2026-11-15). DoesTheDogDie's own `is_flagged` is
+//     only "more yes than no", which flagged 1,277 film/trigger pairs on a
+//     single vote. Answers that are close, or have few votes, are still
+//     shown on the film — as "Not enough votes yet" — never dropped.
 //   * A topic nobody voted on has "no answer yet". Never "no".
 //   * No answer at all reads "not checked". Nothing here can produce "safe".
 //   * Only the signed-in person's own topics count.
+
+/** Stacia's rule, 2026-11-15: 5 votes or more, and yes ahead by 5 or more. */
+export const MIN_VOTES = 5
+export const MIN_LEAD = 5
+
+/**
+ * What one topic's votes amount to:
+ *   'flagged'    enough votes, and clearly yes
+ *   'no'         enough votes, and clearly no
+ *   'unsure'     some votes, but too few or too close to say
+ *   'unanswered' no votes at all
+ */
+export function verdict(yes, no) {
+  const y = Math.max(0, Number(yes) || 0)
+  const n = Math.max(0, Number(no) || 0)
+  if (y + n === 0) return 'unanswered'
+  if (y + n >= MIN_VOTES && y - n >= MIN_LEAD) return 'flagged'
+  if (y + n >= MIN_VOTES && n - y >= MIN_LEAD) return 'no'
+  return 'unsure'
+}
 
 /** The lookup key a film's answer is stored under, or null if it has none. */
 export function lookupKey(film) {
@@ -34,11 +58,11 @@ export function indexMedia(rows) {
   return new Map((rows ?? []).map((r) => [mediaKey(r), r]))
 }
 
-/** Flagged topic ids per lookup id, from v_dtdd_votes rows. */
+/** Flagged topic ids per lookup id, from v_dtdd_votes rows, by Stacia's rule. */
 export function flaggedByMedia(votes) {
   const out = new Map()
   for (const v of votes ?? []) {
-    if (!v.is_flagged) continue
+    if (verdict(v.yes_count, v.no_count) !== 'flagged') continue
     if (!out.has(v.media_id)) out.set(v.media_id, new Set())
     out.get(v.media_id).add(v.topic_id)
   }
@@ -91,26 +115,36 @@ export function scopeLabel(film, row) {
 
 /**
  * One film's answer, split for the panel: your flagged topics, your topics
- * where more voted no, and your topics nobody has answered yet.
+ * with too few or too close votes to say, your topics where clearly more
+ * voted no, and your topics nobody has answered yet.
  * `votes` are v_dtdd_votes rows for this one lookup.
  */
 export function splitForPanel(votes, myTopics, topicsById) {
   const byTopic = new Map((votes ?? []).map((v) => [v.topic_id, v]))
   const flagged = []
+  const unsure = []
   const votedNo = []
   const noAnswer = []
   for (const id of myTopics ?? []) {
     const topic = topicsById?.get(id)
     if (!topic) continue
     const v = byTopic.get(id)
-    if (!v || (v.yes_count === 0 && v.no_count === 0)) noAnswer.push({ topic })
-    else if (v.is_flagged) flagged.push({ topic, yes: v.yes_count, no: v.no_count })
-    else votedNo.push({ topic, yes: v.yes_count, no: v.no_count })
+    const entry = { topic, yes: v?.yes_count ?? 0, no: v?.no_count ?? 0 }
+    const said = verdict(entry.yes, entry.no)
+    if (said === 'unanswered') noAnswer.push({ topic })
+    else if (said === 'flagged') flagged.push(entry)
+    else if (said === 'no') votedNo.push(entry)
+    else unsure.push(entry)
   }
   const byName = (a, b) => a.topic.name.localeCompare(b.topic.name)
   // Most-agreed first: the strongest answers are the ones to read first.
-  flagged.sort((a, b) => b.yes - b.no - (a.yes - a.no) || byName(a, b))
-  return { flagged, votedNo: votedNo.sort(byName), noAnswer: noAnswer.sort(byName) }
+  const byLead = (a, b) => b.yes - b.no - (a.yes - a.no) || byName(a, b)
+  return {
+    flagged: flagged.sort(byLead),
+    unsure: unsure.sort(byLead),
+    votedNo: votedNo.sort(byName),
+    noAnswer: noAnswer.sort(byName),
+  }
 }
 
 /**
