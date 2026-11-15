@@ -389,13 +389,21 @@ export function seasonLabel(season) {
  * which is the exact failure the trigger design exists to prevent — and it
  * would appear silently, at step 9, long after the edit.
  */
+/** 'movie' or 'tv' for a confirmed candidate. Every candidate carries one. */
+function kindOfMatch(match) {
+  return match?.kind === 'tv' ? 'tv' : 'movie'
+}
+
 export function matchPatch(match, { season = null } = {}) {
   if (!match) {
     // Cleared. "Not yet checked" is honest; a stale id is not.
-    return { tmdb_id: null, tmdb_verified: false, dtdd_media_id: null, season_number: null }
+    return { tmdb_id: null, tmdb_kind: null, tmdb_verified: false, dtdd_media_id: null, season_number: null }
   }
   return {
     tmdb_id: match.tmdb_id,
+    // Which of TMDB's two lists the number came from, stored beside it so
+    // the pair can never be re-read through a later change of Type (A2).
+    tmdb_kind: kindOfMatch(match),
     // True because a human just confirmed this candidate, which is the only
     // thing that ever sets it.
     tmdb_verified: true,
@@ -417,6 +425,7 @@ export function newFilmRow(form, { id, match = null, season = null, poster = nul
     ...(poster ? posterColumns(poster) : {}),
     id,
     tmdb_id: match ? match.tmdb_id : null,
+    tmdb_kind: match ? kindOfMatch(match) : null,
     tmdb_verified: Boolean(match),
     // Set only when a human picked the season from TMDB's list, so a number
     // here is known rather than parsed out of free text. Null makes trigger

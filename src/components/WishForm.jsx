@@ -42,6 +42,9 @@ export default function WishForm({
   onDelete,
 }) {
   const adding = !wish
+  // The wish as it was when this form opened; changes are measured against
+  // it, never the live row — see the same note in FilmForm (review A1).
+  const opened = useRef(wish).current
   const [form, setForm] = useState(() => (wish ? wishToForm(wish) : blankWish({ title: initialTitle })))
   const [match, setMatch] = useState(null)
   const [matchTouched, setMatchTouched] = useState(false)
@@ -93,8 +96,8 @@ export default function WishForm({
   }, [])
 
   const patch = useMemo(
-    () => (wish ? wishPatch(wish, form, { match, matchTouched }) : null),
-    [wish, form, match, matchTouched],
+    () => (opened ? wishPatch(opened, form, { match, matchTouched }) : null),
+    [opened, form, match, matchTouched],
   )
   const dirty = adding || patch !== null
 

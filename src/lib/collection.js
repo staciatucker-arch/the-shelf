@@ -221,10 +221,22 @@ function matchesFilters(film, filters) {
   return true
 }
 
+/**
+ * Everything about a film that a search looks through: its title, and — for
+ * a box set — the titles of what is inside it.
+ *
+ * Until 2026-11-15 only the title was searched, so "Resurrection" found
+ * nothing although Alien Quadrilogy holds it. Standing in a shop asking "do
+ * we own this?" is the search's whole job, and a film inside a set is owned.
+ */
+export function searchText(film) {
+  return [String(film?.title ?? ''), ...contentsList(film)].join('\n').toLowerCase()
+}
+
 export function filterFilms(films, query, filters) {
   const needle = query.trim().toLowerCase()
   return films.filter((film) => {
-    if (needle && !String(film.title).toLowerCase().includes(needle)) return false
+    if (needle && !searchText(film).includes(needle)) return false
     return matchesFilters(film, filters)
   })
 }

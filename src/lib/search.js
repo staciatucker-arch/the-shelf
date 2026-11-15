@@ -1,5 +1,5 @@
 import { displayTitle, displayYear, titleSortKey } from './collection.js'
-import { tmdbKind } from './wishlist.js'
+import { kindOf, tmdbKind } from './wishlist.js'
 
 /**
  * The one-line answer under the search box (Stacia, 2026-11-14, from Dana's
@@ -53,7 +53,7 @@ export function shelfDuplicates({ title, type, match = null, seasonNumber = null
       match.tmdb_id != null &&
       filmConfirmed &&
       Number(film.tmdb_id) === Number(match.tmdb_id) &&
-      tmdbKind(film.type) === (match.kind ?? tmdbKind(type))
+      kindOf(film) === (match.kind ?? tmdbKind(type))
     if (sameRecord) {
       const otherSeason =
         seasonNumber != null &&

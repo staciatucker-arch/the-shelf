@@ -18,6 +18,7 @@ import { isClockSkewError, withClockSkewRetry } from './lib/loadRetry.js'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
 import { isStale, refreshDecision } from './lib/refresh.js'
+import { keepSession, userIdOf } from './lib/session.js'
 import { removePoster } from './lib/posterStorage.js'
 import { searchAnswer } from './lib/search.js'
 import {
@@ -73,6 +74,8 @@ const FILM_COLUMNS = [
   'poster_source',
   'poster_storage_path',
   'tmdb_id',
+  // Which TMDB list the id is from — stored with it, never guessed from Type.
+  'tmdb_kind',
   'tmdb_verified',
 ].join(',')
 
@@ -144,14 +147,25 @@ export default function App() {
   const [refreshDue, setRefreshDue] = useState(false)
   const lastLoadedAt = useRef(0)
   const writeCount = useRef(0)
+  // Whether a shelf is on screen right now, readable from inside a load.
+  const hasFilms = useRef(false)
+  hasFilms.current = films !== null
+
+  // Everything below loads per PERSON, so it is keyed on who is signed in
+  // and never on the session object (lib/session.js).
+  const userId = userIdOf(session)
 
   useEffect(() => {
+    // `keepSession`, not a plain set: the library announces the same person
+    // again on every return to the app and every token refresh, each time
+    // with a new object. Storing that would reload everything below with a
+    // form open — see lib/session.js (review A1, 2026-11-15).
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
+      setSession((current) => keepSession(current, data.session))
       setCheckingSession(false)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next)
+      setSession((current) => keepSession(current, next))
     })
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -176,6 +190,10 @@ export default function App() {
     // Never let a failure look like an empty collection. The old app's habit
     // of silently degrading is the thing this codebase is built against.
     if (error) {
+      // A shelf already on screen stays there. Blanking it would also close
+      // whatever form or panel is open over it, typing and all — the next
+      // return to the app tries again (review A1, 2026-11-15).
+      if (hasFilms.current) return
       setLoadError({
         text: isClockSkewError(error)
           ? 'Could not load the collection — your login could not be verified.'
@@ -218,9 +236,32 @@ export default function App() {
   }, [loadFilms])
 
   useEffect(() => {
-    if (session) loadFilms()
-    else setFilms(null)
-  }, [session, loadFilms])
+    // A different person, or nobody: nothing of the last person's stays on
+    // screen — not their search, their filters, or a panel they left open
+    // (review B5). Trigger settings will be personal; this is the place that
+    // keeps one person's from reaching the next on a shared phone.
+    setFilms(null)
+    setLoadError(null)
+    setQuery('')
+    setFilters(EMPTY_FILTERS)
+    setFiltersOpen(false)
+    setOpenFilmId(null)
+    setEditingFilmId(null)
+    setAddingFilm(false)
+    setManagingOptions(false)
+    setWishlistOpen(false)
+    setWishForm(null)
+    setFocusWishId(null)
+    setAddedNotice(null)
+    setWatchNextOpen(false)
+    setMovingWishId(null)
+    setAddTitle('')
+    setUserMenuOpen(false)
+    setOptions(EMPTY_OPTIONS)
+    setWishPosters({})
+    askedPosters.current = new Set()
+    if (userId) loadFilms()
+  }, [userId, loadFilms])
 
   // Read on load and on coming back to the app. A failed refresh leaves what
   // is on screen alone, as the films do; a failed first load says so.
@@ -237,9 +278,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (session) loadWishes()
-    else setWishes(null)
-  }, [session, loadWishes])
+    setWishes(null)
+    setWishError(null)
+    if (userId) loadWishes()
+  }, [userId, loadWishes])
 
   // Fetch posters for matched wishes not yet asked about. A failure just
   // means no picture; those keys are let go so a later change asks again.
@@ -315,19 +357,19 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (session) refreshOptions()
-  }, [session, refreshOptions])
+    if (userId) refreshOptions()
+  }, [userId, refreshOptions])
 
   // Coming back to the app makes a refresh due; whether it runs now, waits
   // for a panel to close, or is not worth doing is decided in lib/refresh.js.
   useEffect(() => {
-    if (!session) return undefined
+    if (!userId) return undefined
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') setRefreshDue(true)
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [session])
+  }, [userId])
 
   const panelOpen = Boolean(
     openFilmId || editingFilmId || addingFilm || managingOptions ||
@@ -375,6 +417,12 @@ export default function App() {
       .single()
     writeCount.current += 1
 
+    // PGRST116: the update matched no row, so the film is gone — removed on
+    // another phone while this form was open. Said in words rather than as
+    // the database's own text. ⚠ Draft wording, for Stacia to change.
+    if (error?.code === 'PGRST116') {
+      return { error: 'This film is no longer on the shelf. It may have been removed on another device.' }
+    }
     if (error) return { error: error.message }
 
     setFilms((current) =>
@@ -791,6 +839,17 @@ export default function App() {
             film={editingFilm}
             options={options}
             onCancel={() => setEditingFilmId(null)}
+            // How many ratings and comments go with the film if it is
+            // deleted, so the question can say so (review B4). null when it
+            // could not be counted: the question then says nothing extra
+            // rather than a wrong number.
+            countReviews={async () => {
+              const { data, error } = await supabase
+                .from('film_reviews')
+                .select('id')
+                .eq('film_id', editingFilm.id)
+              return error ? null : (data ?? []).length
+            }}
             onSaved={async (patch) => {
               const result = await saveFilm(editingFilm.id, patch)
               // Closed only on a confirmed write. A failed save leaves the form

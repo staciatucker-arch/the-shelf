@@ -558,3 +558,32 @@ test('What is it? is required when adding, not when editing', () => {
   assert.equal(validateForm({ ...blankForm(), title: 'Alien', type: 'Movie' }, { requireType: true }).type, undefined)
   assert.equal(validateForm(editing({ type: '' })).type, undefined)
 })
+
+// ---------------------------------------------------------------- reviews A1 and A2, 2026-11-15
+
+test('a new film stores which TMDB list its match came from', () => {
+  const id = '00000000-0000-4000-8000-000000000000'
+  // Matched as a film, then Type changed to Series before saving.
+  const row = newFilmRow({ ...blankForm(), title: 'Alien', type: 'Series' }, { id, match: { tmdb_id: 348, kind: 'movie' } })
+  assert.equal(row.tmdb_kind, 'movie')
+  assert.equal(newFilmRow({ ...blankForm(), title: 'Buffy', type: 'Series' }, { id, match: { tmdb_id: 95, kind: 'tv' } }).tmdb_kind, 'tv')
+  assert.equal(newFilmRow({ ...blankForm(), title: 'A set' }, { id }).tmdb_kind, null)
+})
+
+test('changing or clearing a match writes the kind with the id', () => {
+  assert.equal(matchPatch({ tmdb_id: 95, kind: 'tv' }).tmdb_kind, 'tv')
+  assert.equal(matchPatch({ tmdb_id: 348, kind: 'movie' }).tmdb_kind, 'movie')
+  assert.equal(matchPatch(null).tmdb_kind, null)
+})
+
+test('a save writes only what was edited here, measured against the row as opened', () => {
+  const opened = { title: 'Alien', status: 'Keep', vendor: 'eBay', genres: ['sci-fi'], formats: ['DVD'], occasions: [] }
+  const form = { ...filmToForm(opened), vendor: 'Target' }
+  // The other person changed Status and Genres meanwhile. Against the row as
+  // opened, the patch is the vendor alone — their two fields are left be.
+  assert.deepEqual(changedFields(opened, form), { vendor: 'Target' })
+  // Against the moved row it would put their old values back; this is the
+  // comparison FilmForm must never make (it keeps `opened` in a ref).
+  const moved = { ...opened, status: 'Sell/donate', genres: ['sci-fi', 'horror'] }
+  assert.deepEqual(Object.keys(changedFields(moved, form)).sort(), ['genres', 'status', 'vendor'])
+})

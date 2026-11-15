@@ -162,3 +162,19 @@ test('the Occasion filter matches a film with any chosen occasion', () => {
 test('Bought from is no longer a filter group', () => {
   assert.equal('vendors' in EMPTY_FILTERS, false)
 })
+
+// ---------------------------------------------------------------- search inside box sets (review B2)
+
+import { filterFilms as filterAgain, EMPTY_FILTERS as NO_FILTERS, normaliseFilm as norm } from './collection.js'
+
+test('a search finds a film inside a box set', () => {
+  const set = norm({ id: 1, title: 'Alien Quadrilogy', edition: 'Alien\nAliens\nAlien 3\nAlien Resurrection' })
+  const other = norm({ id: 2, title: 'Dune', edition: null })
+  assert.deepEqual(filterAgain([set, other], 'resurrection', NO_FILTERS).map((f) => f.id), [1])
+  assert.deepEqual(filterAgain([set, other], 'dune', NO_FILTERS).map((f) => f.id), [2])
+})
+
+test('a one-line edition is not searched — it is an edition, not contents', () => {
+  const film = norm({ id: 1, title: 'Kill Bill', edition: 'Volume 1' })
+  assert.deepEqual(filterAgain([film], 'volume', NO_FILTERS), [])
+})

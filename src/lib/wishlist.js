@@ -24,6 +24,7 @@ export const WISH_COLUMNS = [
   'note',
   'buy_url',
   'tmdb_id',
+  'tmdb_kind',
   'tmdb_verified',
   'created_at',
 ].join(',')
@@ -31,6 +32,21 @@ export const WISH_COLUMNS = [
 /** TMDB keeps films and television in separate id namespaces. */
 export function tmdbKind(type) {
   return String(type ?? '').trim().toLowerCase() === 'series' ? 'tv' : 'movie'
+}
+
+/**
+ * Which of TMDB's two lists a row's `tmdb_id` belongs to: 'movie' or 'tv'.
+ *
+ * Read from `tmdb_kind`, which is written at the moment a person confirms a
+ * match (review A2, 2026-11-15). Until then it was worked out from Type on
+ * every read, so changing Type after matching silently re-pointed a
+ * "confirmed" number at a different title — film 348 is Alien, show 348 is
+ * not. Type now only decides where a NEW search looks. The fallback is for a
+ * row not yet loaded with the column; no stored row lacks it.
+ */
+export function kindOf(row) {
+  const stored = row?.tmdb_kind
+  return stored === 'tv' || stored === 'movie' ? stored : tmdbKind(row?.type)
 }
 
 export function normaliseWish(row) {
@@ -74,7 +90,7 @@ export function wishMatchesForFilm(film, wishes) {
       filmConfirmed &&
       Boolean(wish.tmdb_verified && wish.tmdb_id != null) &&
       Number(wish.tmdb_id) === Number(film.tmdb_id) &&
-      tmdbKind(wish.type) === tmdbKind(film.type)
+      kindOf(wish) === kindOf(film)
     if (sameFilm) out.push({ wish, sameFilm: true })
     else if (filmKey !== '' && titleSortKey(wish.title) === filmKey) {
       out.push({ wish, sameFilm: false })
@@ -169,8 +185,13 @@ function formColumns(form) {
  */
 function matchColumns(match) {
   return match
-    ? { tmdb_id: Number(match.tmdb_id), tmdb_verified: true }
-    : { tmdb_id: null, tmdb_verified: false }
+    ? {
+        tmdb_id: Number(match.tmdb_id),
+        // The list the person actually picked from, kept with the number.
+        tmdb_kind: match.kind === 'tv' ? 'tv' : 'movie',
+        tmdb_verified: true,
+      }
+    : { tmdb_id: null, tmdb_kind: null, tmdb_verified: false }
 }
 
 /** One complete new row, id and all, for a single insert. */
@@ -217,7 +238,7 @@ export function wishPatch(wish, form, { match = null, matchTouched = false } = {
 /** The key a wish's poster is looked up under, or null if it has none. */
 export function wishPosterKey(wish) {
   if (!wish?.tmdb_verified || wish.tmdb_id == null) return null
-  return `${tmdbKind(wish.type)}:${Number(wish.tmdb_id)}`
+  return `${kindOf(wish)}:${Number(wish.tmdb_id)}`
 }
 
 /**
@@ -232,7 +253,7 @@ export function wishPosterRequests(wishes, known = new Set()) {
     const key = wishPosterKey(wish)
     if (!key || seen.has(key)) continue
     seen.add(key)
-    const kind = tmdbKind(wish.type)
+    const kind = kindOf(wish)
     items.push({ ref: key, tmdb_id: Number(wish.tmdb_id), type: kind === 'tv' ? 'series' : 'movie' })
   }
   return items
@@ -282,7 +303,7 @@ export function filmStartFromWish(wish) {
     match: confirmed
       ? {
           tmdb_id: Number(wish.tmdb_id),
-          kind: tmdbKind(wish.type),
+          kind: kindOf(wish),
           title: wish.title,
           year: wish.release_year ?? null,
         }

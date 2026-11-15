@@ -107,6 +107,7 @@ test('a new wish is one complete row, with the match marked as confirmed', () =>
     note: null,
     buy_url: null,
     tmdb_id: 348,
+    tmdb_kind: 'movie',
     tmdb_verified: true,
   })
 })
@@ -132,6 +133,7 @@ test('removing a match clears the id as well as the tick', () => {
   const wish = { ...thing82, release_year: 1982, genres: [], note: null, buy_url: null }
   assert.deepEqual(wishPatch(wish, wishToForm(wish), { match: null, matchTouched: true }), {
     tmdb_id: null,
+    tmdb_kind: null,
     tmdb_verified: false,
   })
 })
@@ -221,4 +223,31 @@ test('a new wish needs What is it?; an existing one does not', () => {
   assert.equal(validateWish({ title: 'Alien' }, { requireType: true }).type, 'Choose what it is.')
   assert.deepEqual(validateWish({ title: 'Alien', type: 'Movie' }, { requireType: true }), {})
   assert.deepEqual(validateWish({ title: 'Alien' }), {})
+})
+
+// ---------------------------------------------------------------- film or TV (review A2)
+
+import { kindOf, wishMatchesForFilm as matchesAgain, wishPosterKey as posterKeyAgain } from './wishlist.js'
+
+test('the stored kind wins over Type, so changing Type cannot re-point a match', () => {
+  // Alien, matched as a film, then somebody sets Type to Series.
+  assert.equal(kindOf({ type: 'Series', tmdb_kind: 'movie' }), 'movie')
+  assert.equal(kindOf({ type: 'Movie', tmdb_kind: 'tv' }), 'tv')
+})
+
+test('a row without a stored kind falls back to its Type', () => {
+  assert.equal(kindOf({ type: 'Series' }), 'tv')
+  assert.equal(kindOf({ type: 'Movie', tmdb_kind: null }), 'movie')
+  assert.equal(kindOf(null), 'movie')
+})
+
+test('a wish poster is asked for in the list the match came from', () => {
+  const wish = { tmdb_id: 348, tmdb_verified: true, tmdb_kind: 'movie', type: 'Series' }
+  assert.equal(posterKeyAgain(wish), 'movie:348')
+})
+
+test('film 348 and show 348 are not the same title', () => {
+  const film = { title: 'Alien', tmdb_id: 348, tmdb_verified: true, tmdb_kind: 'movie', type: 'Movie' }
+  const wish = { id: 'w', title: 'Something else', tmdb_id: 348, tmdb_verified: true, tmdb_kind: 'tv', type: 'Series' }
+  assert.deepEqual(matchesAgain(film, [wish]), [])
 })

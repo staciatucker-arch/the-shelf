@@ -160,6 +160,9 @@ export default function OptionsManager({ onClose, onChanged }) {
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter') return
                       e.preventDefault()
+                      // Not while one is already on its way: a second Enter
+                      // used to send the same value twice.
+                      if (busyValue || draft.trim() === '') return
                       run('__add__', () => addOption(kind, draft)).then((ok) => {
                         if (ok) setDraft('')
                       })

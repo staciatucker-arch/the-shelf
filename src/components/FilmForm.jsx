@@ -122,8 +122,17 @@ export default function FilmForm({
   onCancel,
   onSaved,
   onDelete,
+  countReviews,
 }) {
   const adding = !film
+
+  // The film as it was when this form opened, kept for the life of the form.
+  // "What changed" is measured against THIS, never against the live row: if
+  // the other person saves the same film while this form is open, the live
+  // row moves, and comparing against it would count every box they changed
+  // as an edit made here — and this save would quietly put their old values
+  // back (review A1, 2026-11-15). Only what was touched here is written.
+  const opened = useRef(film).current
 
   // `start`, when adding: what a wish already knows ("Move to your Shelf") —
   // see filmStartFromWish in lib/wishlist.js. Its match was confirmed by a
@@ -165,6 +174,9 @@ export default function FilmForm({
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+  // How many ratings and comments the film carries, asked for when the
+  // delete question opens. null until known, or if it could not be counted.
+  const [reviewCount, setReviewCount] = useState(null)
   const titleRef = useRef(null)
   const formRef = useRef(null)
   // Title starts one line tall and grows with its text (Stacia, 2026-11-14),
@@ -222,8 +234,8 @@ export default function FilmForm({
   }, [])
 
   const patch = useMemo(
-    () => (film ? changedFields(film, form) : null),
-    [film, form],
+    () => (opened ? changedFields(opened, form) : null),
+    [opened, form],
   )
   const dirty = adding || patch !== null || matchTouched || poster !== null
 
@@ -309,7 +321,7 @@ export default function FilmForm({
               ...(matchTouched ? matchPatch(match, { season }) : {}),
               // Last word on season_number: it is only ever stored beside the
               // label the picker wrote (review B1).
-              ...seasonNumberPatch(film, form, { picked: season, matchTouched }),
+              ...seasonNumberPatch(opened, form, { picked: season, matchTouched }),
               ...(posterWrite ?? {}),
             },
       )
@@ -349,7 +361,7 @@ export default function FilmForm({
   // The form with its season label removed, if and only if the TMDB picker
   // wrote that label. Used wherever the picked season is being dropped.
   function withoutPickedSeason(f) {
-    return isPickerWrittenLabel(f.season, { picked: season, film }) ? { ...f, season: '' } : f
+    return isPickerWrittenLabel(f.season, { picked: season, film: opened }) ? { ...f, season: '' } : f
   }
 
   // Confirming a match rewrites several fields at once. Computing the before
@@ -848,6 +860,16 @@ export default function FilmForm({
                       Permanently remove <strong>“{displayTitle(film.title)}”</strong>{' '}
                       from the shelf? This cannot be undone.
                     </p>
+                    {/* Deleting a film deletes everyone's ratings and
+                        comments on it, not only your own (review B4).
+                        ⚠ Draft wording, for Stacia to change. */}
+                    {reviewCount > 0 && (
+                      <p className="form-danger-ask">
+                        {reviewCount === 1
+                          ? 'Its 1 rating or comment will be removed too.'
+                          : `Its ${reviewCount} ratings and comments will be removed too.`}
+                      </p>
+                    )}
                     <div className="form-danger-actions">
                       <button
                         type="button"
@@ -864,11 +886,22 @@ export default function FilmForm({
                         onClick={async () => {
                           setDeleteError(null)
                           setDeleting(true)
-                          const result = await onDelete()
-                          setDeleting(false)
-                          // Same rule as saving: the panel stays put unless
-                          // the database confirmed the row is gone.
-                          if (result?.error) setDeleteError(result.error)
+                          // try/finally, as saving has: while `deleting` is
+                          // true every way out of the form is refused, so it
+                          // must always let go (review B6, 2026-11-15).
+                          try {
+                            const result = await onDelete()
+                            // Same rule as saving: the panel stays put unless
+                            // the database confirmed the row is gone.
+                            if (result?.error) setDeleteError(result.error)
+                          } catch (thrown) {
+                            console.error('The film form failed while deleting:', thrown)
+                            setDeleteError(
+                              `Something went wrong. Close this form and see if the film is still there. (${thrown?.message ?? String(thrown)})`,
+                            )
+                          } finally {
+                            setDeleting(false)
+                          }
                         }}
                       >
                         {deleting ? 'Removing…' : 'Remove for good'}
@@ -879,7 +912,11 @@ export default function FilmForm({
                   <button
                     type="button"
                     className="ghost form-danger-open"
-                    onClick={() => setConfirmingDelete(true)}
+                    onClick={() => {
+                      setConfirmingDelete(true)
+                      setReviewCount(null)
+                      countReviews?.().then(setReviewCount, () => setReviewCount(null))
+                    }}
                     disabled={busy}
                   >
                     Remove this film from the shelf
