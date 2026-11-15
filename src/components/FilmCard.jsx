@@ -1,4 +1,4 @@
-import { displayTitle, displayYear, isPhysicalFormat } from '../lib/collection.js'
+import { displayTitle, displayYear } from '../lib/collection.js'
 
 /**
  * One tile in the grid. Opening a film is FilmDetail's job — a tile stays a
@@ -7,9 +7,6 @@ import { displayTitle, displayYear, isPhysicalFormat } from '../lib/collection.j
 export default function FilmCard({ film, onOpen }) {
   const title = displayTitle(film.title)
   const year = displayYear(film)
-
-  const hasPhysical = film.formats.some(isPhysicalFormat)
-  const hasDigital = film.formats.some((f) => !isPhysicalFormat(f))
 
   return (
     <li className="film-card">
@@ -24,11 +21,10 @@ export default function FilmCard({ film, onOpen }) {
 
         <span className="film-title">{title}</span>
         {year && <span className="film-year">{year}</span>}
-
-        <span className="badge-row">
-          {hasPhysical && <span className="format-badge fmt-physical">Physical</span>}
-          {hasDigital && <span className="format-badge fmt-digital">Digital</span>}
-        </span>
+        {/* The Physical / Digital tag was removed 2026-11-15 (Stacia: it
+            "does not relate to anything" — every disc is physical, and the
+            one "Digital" was a 3D Blu-ray). The trigger count will sit
+            here instead. */}
       </button>
     </li>
   )
