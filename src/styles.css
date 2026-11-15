@@ -1938,3 +1938,130 @@ button.danger {
 
 /* A one-line box that grows with its text (FilmForm.jsx Title). */
 .form-body textarea.grow-box { resize: none; overflow: hidden; }
+
+/* ---------------------------------------------------------------------------
+   Triggers (2026-11-15) — from Dana's mock-ups, "triggers" not "warnings",
+   nothing named until tapped (Stacia).
+   ------------------------------------------------------------------------ */
+
+/* On a cover: a count, in orange; or a quiet dashed "not checked". */
+.trigger-tag {
+  font-family: var(--font-read);
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--orange);
+  border: 1px solid var(--orange);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  white-space: nowrap;
+}
+.not-checked-tag {
+  font-family: var(--font-read);
+  font-size: 0.72rem;
+  color: var(--muted);
+  border: 1px dashed var(--field-line);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  white-space: nowrap;
+}
+.spoiler-tag {
+  font-family: var(--font-read);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  padding: 0 0.3rem;
+}
+.topic-hidden em { color: var(--muted); }
+
+/* The film panel's section. */
+.film-triggers {
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+}
+.triggers-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.trigger-scope { font-size: 0.85rem; }
+.trigger-summary { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin: 0.3rem 0 0.5rem; }
+.trigger-count { margin: 0; font-weight: 700; }
+.trigger-count.is-flagged { color: var(--orange); }
+.trigger-status { margin: 0.3rem 0 0.6rem; }
+.trigger-list {
+  list-style: none;
+  margin: 0.4rem 0 0.6rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--field-bg);
+}
+.trigger-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-top: 1px solid var(--line);
+}
+.trigger-list li:first-child { border-top: 0; }
+.trigger-list.quiet { background: transparent; }
+.trigger-votes { font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.trigger-more p { margin: 0.4rem 0; }
+.trigger-hide { margin: 0.2rem 0 0.4rem; padding-left: 0; }
+.trigger-credit { margin: 0.5rem 0 0; font-size: 0.85rem; }
+.trigger-credit a { color: var(--accent); }
+
+/* Settings. */
+.trigger-body input[type="search"] { width: 100%; margin-bottom: 0.4rem; }
+.trigger-how {
+  background: var(--field-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.92rem;
+}
+.topic-chips { list-style: none; padding: 0; margin: 0.3rem 0 0.8rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.topic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  line-height: 1.25;
+  background: var(--tag-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.15rem 0.2rem 0.15rem 0.65rem;
+  font-size: 0.9rem;
+}
+.chip-remove {
+  /* The general button style adds a 1rem top margin and 44px height. */
+  margin: 0;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+.topic-list { list-style: none; padding: 0; margin: 0.2rem 0 0.8rem; }
+.topic-row .check-item { align-items: flex-start; }
+.topic-text { display: flex; flex-direction: column; }
+.topic-category { font-size: 0.78rem; color: var(--muted); }
+.topic-groups { margin-bottom: 1rem; }
+.topic-group { border-top: 1px solid var(--line); }
+.topic-group summary { padding: 0.6rem 0; cursor: pointer; font-weight: 700; }
+.spoiler-switch { margin-top: 0.4rem; }
+
+/* The person menu's way in. */
+.user-menu .menu-triggers {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}

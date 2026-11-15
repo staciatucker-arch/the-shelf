@@ -14,6 +14,9 @@ import WishForm from './components/WishForm.jsx'
 import WishlistPanel, { WishRow } from './components/WishlistPanel.jsx'
 import WatchNext from './components/WatchNext.jsx'
 import AddedNotice from './components/AddedNotice.jsx'
+import TriggerSettings from './components/TriggerSettings.jsx'
+import { useTriggers } from './components/useTriggers.js'
+import { filmTriggerState } from './lib/triggers.js'
 import { isClockSkewError, withClockSkewRetry } from './lib/loadRetry.js'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
@@ -155,6 +158,11 @@ export default function App() {
   // and never on the session object (lib/session.js).
   const userId = userIdOf(session)
 
+  // Triggers: this person's chosen topics and the current answers. Keyed on
+  // the person, like everything else (lib/session.js).
+  const triggers = useTriggers(userId)
+  const [triggerSettingsOpen, setTriggerSettingsOpen] = useState(false)
+
   useEffect(() => {
     // `keepSession`, not a plain set: the library announces the same person
     // again on every return to the app and every token refresh, each time
@@ -257,6 +265,7 @@ export default function App() {
     setMovingWishId(null)
     setAddTitle('')
     setUserMenuOpen(false)
+    setTriggerSettingsOpen(false)
     setOptions(EMPTY_OPTIONS)
     setWishPosters({})
     askedPosters.current = new Set()
@@ -373,7 +382,7 @@ export default function App() {
 
   const panelOpen = Boolean(
     openFilmId || editingFilmId || addingFilm || managingOptions ||
-      wishlistOpen || wishForm || watchNextOpen,
+      wishlistOpen || wishForm || watchNextOpen || triggerSettingsOpen,
   )
   const loaded = films !== null
 
@@ -392,8 +401,9 @@ export default function App() {
       // The pick lists too: a genre the other person added should be offered.
       refreshOptions()
       loadWishes({ quiet: true })
+      triggers.reload()
     }
-  }, [refreshDue, loaded, panelOpen, refreshFilms, refreshOptions, loadWishes])
+  }, [refreshDue, loaded, panelOpen, refreshFilms, refreshOptions, loadWishes, triggers.reload])
 
   /**
    * Save one film's changed columns.
@@ -534,8 +544,12 @@ export default function App() {
     )
   }
 
+  const triggerFor = (film) =>
+    triggers.loaded
+      ? filmTriggerState(film, { media: triggers.media, flagged: triggers.flagged, myTopics: triggers.myTopics })
+      : null
   const cardFor = (film) => (
-    <FilmCard key={film.id} film={film} onOpen={() => setOpenFilmId(film.id)} />
+    <FilmCard key={film.id} film={film} trigger={triggerFor(film)} onOpen={() => setOpenFilmId(film.id)} />
   )
 
   // Looked up from the live list rather than held as its own copy, so an open
@@ -629,6 +643,11 @@ export default function App() {
           <UserMenu
             email={session.user.email}
             stats={films ? stats : null}
+            triggerCount={triggers.loaded ? triggers.myTopics.size : null}
+            onTriggers={() => {
+              setUserMenuOpen(false)
+              setTriggerSettingsOpen(true)
+            }}
             onSignOut={() => supabase.auth.signOut()}
             onClose={closeUserMenu}
           />
@@ -819,7 +838,9 @@ export default function App() {
           <FilmDetail
             film={openFilm}
             userId={session.user.id}
-            hidden={Boolean(editingFilm)}
+            triggers={triggers}
+            onOpenTriggerSettings={() => setTriggerSettingsOpen(true)}
+            hidden={Boolean(editingFilm) || triggerSettingsOpen}
             onClose={() => setOpenFilmId(null)}
             onEdit={() => setEditingFilmId(openFilm.id)}
           />
@@ -1029,6 +1050,18 @@ export default function App() {
           }}
           onClose={() => setAddedNotice(null)}
         />
+      )}
+
+      {triggerSettingsOpen && (
+        <ErrorBoundary
+          overlay
+          title="Trigger settings stopped working."
+          detail="The rest of the collection is fine. If you had just ticked or removed a trigger, reopen this and check it."
+          onDismiss={() => setTriggerSettingsOpen(false)}
+          dismissLabel="Close"
+        >
+          <TriggerSettings triggers={triggers} onClose={() => setTriggerSettingsOpen(false)} />
+        </ErrorBoundary>
       )}
 
       <UpdateBanner />

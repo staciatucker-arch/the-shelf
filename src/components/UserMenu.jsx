@@ -8,7 +8,7 @@ import StatsBar from './StatsBar.jsx'
  *
  * Closes on a tap outside it or Escape.
  */
-export default function UserMenu({ email, stats, onSignOut, onClose }) {
+export default function UserMenu({ email, stats, triggerCount = null, onTriggers, onSignOut, onClose }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -32,6 +32,15 @@ export default function UserMenu({ email, stats, onSignOut, onClose }) {
     <div className="user-menu" ref={ref} role="dialog" aria-label="Account">
       <p className="muted user-email">{email}</p>
       {stats && <StatsBar stats={stats} />}
+      {/* ⚠ Draft wording (2026-11-15). */}
+      {onTriggers && (
+        <button type="button" className="ghost menu-triggers" onClick={onTriggers}>
+          <span>Your triggers</span>
+          <span className="muted">
+            {triggerCount == null ? '' : `${triggerCount} chosen`} ›
+          </span>
+        </button>
+      )}
       <button type="button" className="ghost" onClick={onSignOut}>
         Sign out
       </button>
