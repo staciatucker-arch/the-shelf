@@ -51,6 +51,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The privacy page is its own page, not the app. Without this the
+        // installed app answers every address with itself, and the link to
+        // the privacy page would just reopen the shelf.
+        navigateFallbackDenylist: [/\/privacy\.html$/],
         // Posters live on other origins (GitHub Pages and Supabase Storage).
         // Cache them at runtime so a revisited shelf loads instantly, but
         // never precache them — that would download the whole collection on

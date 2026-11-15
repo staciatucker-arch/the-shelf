@@ -795,6 +795,9 @@ export default function App() {
           />
           This product uses the TMDB API but is not endorsed or certified by TMDB.
         </p>
+        <p className="credit muted">
+          <a href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy</a>
+        </p>
         {/* Which build this is. Small, grey, and at the very bottom, where it
             answers "did my phone get the new one?" without being in the way
             of anything. */}

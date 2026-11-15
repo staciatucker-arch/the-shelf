@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Shelf — Privacy</title>
+<meta name="robots" content="noindex" />
+<style>
+  /* Written 2026-11-15. Required by DoesTheDogDie's API terms (§2.4b, §5)
+     before trigger information is shown. Public on purpose: no sign-in.
+     ⚠ DRAFT wording for Stacia to review. Never put a personal email
+     address here — when other households join, add a dedicated alias. */
+  :root { --bg: #260F26; --surface: #251F47; --line: #3A3466; --text: #F4EFE6; --muted: #C9C3DD; --accent: #86CB92; }
+  html { background: var(--bg); color-scheme: dark; }
+  body {
+    margin: 0 auto; max-width: 42rem; padding: 1.5rem 1rem 3rem;
+    background: var(--bg); color: var(--text);
+    font: 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+  h2 { font-size: 1.1rem; margin: 1.8rem 0 0.4rem; color: var(--accent); }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); }
+  ul { padding-left: 1.2rem; }
+  a { color: var(--accent); }
+  .box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.8rem 1rem; }
+</style>
+</head>
+<body>
+  <h1>The Shelf — Privacy</h1>
+  <p class="muted">Last updated 15 November 2026</p>
+
+  <p class="box">
+    The Shelf is a private home-media catalogue run by one household for its own use. Only
+    people with an account can sign in, and accounts are created by hand — there is no public
+    sign-up. It has no ads, no tracking and no analytics, and nothing in it is sold or shared
+    for marketing.
+  </p>
+
+  <h2>What it stores</h2>
+  <ul>
+    <li><strong>Your account:</strong> your email address and a display name, so you can sign in.</li>
+    <li><strong>The collection:</strong> the titles we own, what we paid, where we bought them, when we last watched them, and our wishlist.</li>
+    <li><strong>Ratings and comments</strong> you leave on a film. Everyone signed in to the household can read them.</li>
+    <li><strong>Your triggers:</strong> the topics you chose to be told about. These are private to you — the database lets no one else read them, including other members of the household.</li>
+    <li><strong>Cover photos</strong> you take or upload. Before saving, the app redraws each photo, which removes hidden details such as the camera and location.</li>
+  </ul>
+
+  <h2>Who can see what</h2>
+  <ul>
+    <li>Everything except your triggers is shared with the other people signed in to the household.</li>
+    <li>Cover photos are stored so that anyone who has a photo's exact web address can open it. The addresses are not listed or published anywhere. Please don't photograph anything private behind a disc case.</li>
+  </ul>
+
+  <h2>Services it uses</h2>
+  <ul>
+    <li><strong>Supabase</strong> stores the data and handles sign-in (servers in the United States).</li>
+    <li><strong>GitHub</strong> serves the app's pages and keeps a nightly backup of the collection in a private repository.</li>
+    <li><strong>TMDB</strong> (The Movie Database) supplies film details. Only a title or a film's TMDB number is sent. This product uses the TMDB API but is not endorsed or certified by TMDB.</li>
+    <li><strong>DoesTheDogDie.com</strong> supplies trigger information. Only a film's title and its database number are sent — never your name, your account or your chosen triggers. Its answers are kept for at most 30 days, refreshed regularly, never copied into backups, and deleted if the app stops using the service.</li>
+  </ul>
+
+  <h2>About trigger information</h2>
+  <p>
+    Trigger information comes from votes by DoesTheDogDie.com users. It can be incomplete or
+    wrong, and a topic that isn't flagged may still appear in a film. It is not a guarantee and
+    is not suitable for medical, therapeutic or safety decisions. The Shelf never describes a
+    film as "safe".
+  </p>
+
+  <h2>Reporting a problem</h2>
+  <ul>
+    <li>
+      <strong>Something wrong in The Shelf</strong> — a mistake, misuse, or anything you want
+      changed or removed: tell the household member who gave you your account. They run the app
+      and can correct or delete your information, including your account.
+    </li>
+    <li>
+      <strong>Wrong or missing trigger votes</strong> belong to DoesTheDogDie: you can vote or
+      comment on the film's page at
+      <a href="https://www.doesthedogdie.com" rel="noopener noreferrer">doesthedogdie.com</a>.
+    </li>
+  </ul>
+
+  <h2>Changes</h2>
+  <p>If this page changes, the date at the top changes with it.</p>
+
+  <p class="muted"><a href="./">Back to The Shelf</a></p>
+</body>
+</html>

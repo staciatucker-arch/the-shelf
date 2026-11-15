@@ -17,6 +17,8 @@ function Credit() {
       <a href="https://www.doesthedogdie.com" target="_blank" rel="noopener noreferrer">
         Powered by DoesTheDogDie.com
       </a>
+      {' · '}
+      <a href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy</a>
     </p>
   )
 }
