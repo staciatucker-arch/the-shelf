@@ -10,8 +10,9 @@ test('an uploaded cover may be kept', () => {
   assert.equal(isPosterRequest(req(`${SUPABASE}/storage/v1/object/public/posters/abc/cover-1.jpg`)), true)
 })
 
-test('a cover still served from GitHub may be kept', () => {
-  assert.equal(isPosterRequest(req('https://staciatucker-arch.github.io/shelf-life/posters/x.jpg')), true)
+test('nothing on GitHub Pages is a poster any more, the app itself included', () => {
+  assert.equal(isPosterRequest(req('https://staciatucker-arch.github.io/shelf-life/posters/x.jpg')), false)
+  assert.equal(isPosterRequest(req('https://staciatucker-arch.github.io/the-shelf/index.html')), false)
 })
 
 test('the collection is never kept', () => {

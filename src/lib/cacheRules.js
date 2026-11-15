@@ -19,15 +19,19 @@
 // to check it survived.
 
 /**
- * True only for a poster image: anything from GitHub Pages (the 122 covers
- * still served from `shelf-life`), or a file in Supabase Storage. Never the
+ * True only for a poster image: a file in Supabase Storage. Never the
  * database, sign-in, or Edge Functions.
+ *
+ * Until 2026-11-15 anything on GitHub Pages counted too, for the covers the
+ * old `shelf-life` repo served. Phase 5.5 moved them all into Storage and the
+ * repo is deleted, and the rule had a side effect worth losing: this app is
+ * itself served from github.io, so its own pages matched a rule meant for
+ * pictures.
  *
  * Takes `{ url }`, where `url` is a URL object, because that is what Workbox
  * passes.
  */
 export function isPosterRequest({ url }) {
-  if (url.hostname.endsWith('github.io')) return true
   return url.hostname.endsWith('supabase.co') && url.pathname.startsWith('/storage/v1/object/')
 }
 
