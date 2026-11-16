@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import {
   featuredTopics,
   filmTriggerState,
-  flaggedByMedia,
+  indexVotes,
+  showsNotEnoughVotes,
   indexMedia,
   lookupKey,
   scopeLabel,
@@ -34,37 +35,38 @@ const media = indexMedia([
   { id: 'm-b1', tmdb_kind: 'tv', tmdb_id: 95, season: 1, lookup_status: 'matched' },
   { id: 'm-gone', tmdb_kind: 'movie', tmdb_id: 7, season: -1, lookup_status: 'no_match' },
 ])
-const flagged = flaggedByMedia([
+const flagged = indexVotes([
   { media_id: 'm-alien', topic_id: 'blood', yes_count: 125, no_count: 1 },
   { media_id: 'm-alien', topic_id: 'dog', yes_count: 7, no_count: 195 },
   { media_id: 'm-b1', topic_id: 'kid', yes_count: 59, no_count: 0 },
   // More yes than no, but on one vote: not flagged by Stacia's rule.
-  { media_id: 'm-alien', topic_id: 'kid', yes_count: 1, no_count: 0, is_flagged: true },
+  { media_id: 'm-alien', topic_id: 'kid', yes_count: 1, no_count: 0 },
 ])
+const at = (film, myTopics) => filmTriggerState(film, { media, votes: flagged, myTopics })
 
 test('a person with no topics chosen gets nothing at all', () => {
-  assert.equal(filmTriggerState(alien, { media, flagged, myTopics: new Set() }).state, 'none-chosen')
+  assert.equal(at(alien, new Set()).state, 'none-chosen')
 })
 
 test('only your own topics are counted', () => {
-  const s = filmTriggerState(alien, { media, flagged, myTopics: new Set(['blood', 'dog', 'kid']) })
+  const s = at(alien, new Set(['blood', 'dog', 'kid']))
   assert.deepEqual([s.state, s.count], ['checked', 1])
-  const other = filmTriggerState(alien, { media, flagged, myTopics: new Set(['kid']) })
+  const other = at(alien, new Set(['kid']))
   assert.deepEqual([other.state, other.count], ['checked', 0])
 })
 
 test('a season uses its own answer; the whole show is a different lookup', () => {
   const mine = new Set(['kid'])
-  assert.equal(filmTriggerState(buffyS1, { media, flagged, myTopics: mine }).count, 1)
-  assert.equal(filmTriggerState(buffyAll, { media, flagged, myTopics: mine }).state, 'unchecked')
+  assert.equal(at(buffyS1, mine).count, 1)
+  assert.equal(at(buffyAll, mine).state, 'unchecked')
 })
 
 test('every way of not knowing is "not checked", never a clean answer', () => {
   const mine = new Set(['blood'])
   const states = [
-    filmTriggerState({ title: 'box set' }, { media, flagged, myTopics: mine }).state,
-    filmTriggerState({ ...alien, tmdb_id: 999 }, { media, flagged, myTopics: mine }).state,
-    filmTriggerState({ ...alien, tmdb_id: 7 }, { media, flagged, myTopics: mine }).state,
+    at({ title: 'box set' }, mine).state,
+    at({ ...alien, tmdb_id: 999 }, mine).state,
+    at({ ...alien, tmdb_id: 7 }, mine).state,
   ]
   assert.deepEqual(states, ['unmatched', 'unchecked', 'not-listed'])
   assert.ok(states.every(showsNotChecked))
@@ -91,19 +93,65 @@ test('flagged needs 5 votes and a 5-vote lead (Stacia, 2026-11-15)', () => {
 
 test('the panel splits your topics: flagged, not enough votes, more voted no, no answer', () => {
   const topics = new Map(['blood', 'dog', 'kid', 'spider', 'close'].map((id) => [id, { id, name: id }]))
-  const votes = [
-    { topic_id: 'blood', yes_count: 125, no_count: 1, is_flagged: true },
-    { topic_id: 'dog', yes_count: 7, no_count: 195, is_flagged: false },
-    { topic_id: 'spider', yes_count: 0, no_count: 0, is_flagged: false },
-    { topic_id: 'close', yes_count: 2, no_count: 0, is_flagged: true },
-  ]
-  const s = splitForPanel(votes, new Set(['blood', 'dog', 'kid', 'spider', 'close']), topics)
+  const m = indexMedia([{ id: 'x', tmdb_kind: 'movie', tmdb_id: 1, season: -1, lookup_status: 'matched' }])
+  const v = indexVotes([
+    { media_id: 'x', topic_id: 'blood', yes_count: 125, no_count: 1 },
+    { media_id: 'x', topic_id: 'dog', yes_count: 7, no_count: 195 },
+    { media_id: 'x', topic_id: 'spider', yes_count: 0, no_count: 0 },
+    { media_id: 'x', topic_id: 'close', yes_count: 2, no_count: 0 },
+  ])
+  const film = { tmdb_verified: true, tmdb_id: 1, tmdb_kind: 'movie' }
+  const t = filmTriggerState(film, { media: m, votes: v, myTopics: new Set(['blood', 'dog', 'kid', 'spider', 'close']) })
+  const s = splitForPanel(t.items, topics)
   assert.deepEqual(s.flagged.map((x) => x.topic.id), ['blood'])
   // Nothing is dropped: a weak yes is listed, labelled for what it is.
   assert.deepEqual(s.unsure.map((x) => x.topic.id), ['close'])
   assert.deepEqual(s.votedNo.map((x) => x.topic.id), ['dog'])
   // No row, and a row of 0 and 0, are both "no answer yet" — never "no".
-  assert.deepEqual(s.noAnswer.map((x) => x.topic.id), ['kid', 'spider'])
+  assert.deepEqual(s.noAnswer.map((x) => x.topic.id).sort(), ['kid', 'spider'])
+})
+
+// ---------------------------------------------------------------- seasons fall back to the show (2026-11-16)
+
+const showMedia = indexMedia([
+  { id: 's1', tmdb_kind: 'tv', tmdb_id: 95, season: 1, lookup_status: 'matched' },
+  { id: 'all', tmdb_kind: 'tv', tmdb_id: 95, season: -1, lookup_status: 'matched' },
+])
+
+test('a thin season uses the whole show, trigger by trigger, and says so', () => {
+  const votes = indexVotes([
+    { media_id: 's1', topic_id: 'blood', yes_count: 1, no_count: 0 }, // too thin
+    { media_id: 'all', topic_id: 'blood', yes_count: 40, no_count: 2 },
+  ])
+  const t = filmTriggerState(buffyS1, { media: showMedia, votes, myTopics: new Set(['blood']) })
+  assert.equal(t.count, 1)
+  assert.equal(t.items[0].fromSeries, true)
+  assert.equal(t.usedSeries, true)
+})
+
+test("a season's own clear answer wins over the whole show (Buffy S1, a dog dies)", () => {
+  const votes = indexVotes([
+    { media_id: 's1', topic_id: 'dog', yes_count: 0, no_count: 24 },
+    { media_id: 'all', topic_id: 'dog', yes_count: 57, no_count: 10 },
+  ])
+  const t = filmTriggerState(buffyS1, { media: showMedia, votes, myTopics: new Set(['dog']) })
+  assert.deepEqual([t.count, t.noCount, t.items[0].fromSeries], [0, 1, false])
+})
+
+test('an empty season with no show answer is "not enough votes", not clear (The Stand)', () => {
+  const t = filmTriggerState(buffyS1, {
+    media: indexMedia([{ id: 's1', tmdb_kind: 'tv', tmdb_id: 95, season: 1, lookup_status: 'matched' }]),
+    votes: new Map(),
+    myTopics: new Set(['dog', 'blood']),
+  })
+  assert.equal(t.state, 'checked')
+  assert.equal(t.count, 0)
+  assert.equal(showsNotEnoughVotes(t), true)
+})
+
+test('a film with a clear no on a trigger and nothing flagged is clear, not thin', () => {
+  const t = at(alien, new Set(['dog']))
+  assert.deepEqual([t.count, t.noCount, showsNotEnoughVotes(t)], [0, 1, false])
 })
 
 test('search finds by name, then keywords, then category, ignoring accents', () => {

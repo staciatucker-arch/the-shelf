@@ -24,12 +24,10 @@ function Credit() {
 }
 
 export default function FilmTriggers({ film, triggers, onOpenSettings }) {
-  const { media, flagged, myTopics, topicsById, checkFilms, votesFor, loaded, error: loadError } = triggers
-  const s = filmTriggerState(film, { media, flagged, myTopics })
+  const { media, votes, myTopics, topicsById, checkFilms, loaded, error: loadError } = triggers
+  const s = filmTriggerState(film, { media, votes, myTopics })
 
   const [open, setOpen] = useState(false)
-  const [votes, setVotes] = useState(null)
-  const [voteError, setVoteError] = useState(null)
   const [showNo, setShowNo] = useState(false)
   const [showUnsure, setShowUnsure] = useState(false)
   const [showUnknown, setShowUnknown] = useState(false)
@@ -41,19 +39,13 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   // A different answer (a check just ran, or another film): start closed.
   useEffect(() => {
     setOpen(false)
-    setVotes(null)
     setShowNo(false)
     setShowUnsure(false)
     setShowUnknown(false)
   }, [mediaId, film.id])
 
-  async function reveal() {
+  function reveal() {
     setOpen(true)
-    if (votes || !mediaId) return
-    setVoteError(null)
-    const result = await votesFor(mediaId)
-    if (result.error) setVoteError(result.error)
-    else setVotes(result.votes)
   }
 
   async function checkNow() {
@@ -126,7 +118,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
     )
   }
 
-  const split = votes ? splitForPanel(votes, myTopics, topicsById) : null
+  const split = splitForPanel(s.items, topicsById)
   const nameProps = (t) => ({
     showSpoilers: false,
     revealed: revealed.has(t.id),
@@ -147,6 +139,10 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
               <span aria-hidden="true">⚠ </span>
               {s.count === 1 ? '1 of your triggers is flagged' : `${s.count} of your triggers are flagged`}
             </>
+          ) : s.thin ? (
+            // None of your triggers has a clear answer either way (Stacia,
+            // 2026-11-16) — never phrased so it could read as an all-clear.
+            'Not enough votes yet for your triggers'
           ) : (
             'None of your triggers are flagged'
           )}
@@ -158,22 +154,15 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
         )}
       </div>
 
-      {open && voteError && (
-        <p className="error" role="alert">
-          Could not load the details: {voteError}
-        </p>
-      )}
-      {open && !voteError && !split && <p className="muted reviews-note">Loading…</p>}
-
-      {open && split && (
+      {open && (
         <>
           {split.flagged.length > 0 && (
             <ul className="trigger-list">
-              {split.flagged.map(({ topic, yes, no }) => (
+              {split.flagged.map(({ topic, yes, no, fromSeries }) => (
                 <li key={topic.id}>
                   <TopicName topic={topic} {...nameProps(topic)} />
                   <span className="muted trigger-votes">
-                    {yes} yes · {no} no
+                    {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
                   </span>
                 </li>
               ))}
@@ -193,11 +182,11 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
               </p>
               {showUnsure && (
                 <ul className="trigger-list quiet">
-                  {split.unsure.map(({ topic, yes, no }) => (
+                  {split.unsure.map(({ topic, yes, no, fromSeries }) => (
                     <li key={topic.id}>
                       <TopicName topic={topic} {...nameProps(topic)} />
                       <span className="muted trigger-votes">
-                        {yes} yes · {no} no
+                        {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
                       </span>
                     </li>
                   ))}
@@ -216,11 +205,11 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
               </p>
               {showNo && (
                 <ul className="trigger-list quiet">
-                  {split.votedNo.map(({ topic, yes, no }) => (
+                  {split.votedNo.map(({ topic, yes, no, fromSeries }) => (
                     <li key={topic.id}>
                       <TopicName topic={topic} {...nameProps(topic)} />
                       <span className="muted trigger-votes">
-                        {yes} yes · {no} no
+                        {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
                       </span>
                     </li>
                   ))}
@@ -256,7 +245,11 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
       )}
 
       {s.row.tmdb_kind === 'tv' && Number(s.row.season) >= 0 && (
-        <p className="muted form-hint">Season votes on DoesTheDogDie can include votes for the whole show.</p>
+        <p className="muted form-hint">
+          Season votes on DoesTheDogDie can include votes for the whole show.
+          {s.usedSeries &&
+            ` Where this season has fewer than ${MIN_VOTES} votes on a trigger, the whole series’ votes are used, marked “whole series”.`}
+        </p>
       )}
       {s.row.tmdb_kind === 'tv' && Number(s.row.season) < 0 && (
         <p className="muted form-hint">

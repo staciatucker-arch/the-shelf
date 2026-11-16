@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { flaggedByMedia, indexMedia } from '../lib/triggers.js'
+import { indexMedia, indexVotes } from '../lib/triggers.js'
 
 // Everything the trigger screens read, for the signed-in person.
 //
 //   topics    DoesTheDogDie's topics (281), with the starter list marked
 //   myTopics  the topic ids this person chose — their rows only
 //   media     current answers (under 30 days old) by lookup key
-//   flagged   for each answer, which of MY topics are flagged
+//   votes     for each answer, the yes / no counts on MY topics — all of
+//             them, not only flagged ones: a season falls back to its
+//             show per trigger, and a thin answer must be told apart
 //
 // Reads only. The two writes — choosing a topic, removing one — each name
 // one row, wait for the database, and only then change what is on screen.
@@ -32,7 +34,7 @@ export function useTriggers(userId) {
   const [topics, setTopics] = useState(null)
   const [myTopics, setMyTopics] = useState(new Set())
   const [media, setMedia] = useState(new Map())
-  const [flagged, setFlagged] = useState(new Map())
+  const [votes, setVotes] = useState(new Map())
   const [error, setError] = useState(null)
   const [loaded, setLoaded] = useState(false)
 
@@ -45,9 +47,6 @@ export function useTriggers(userId) {
             supabase
               .from('v_dtdd_votes')
               .select('media_id,topic_id,yes_count,no_count')
-              // DoesTheDogDie's "more yes than no" is the outer net; the
-              // stricter rule (lib/triggers.js, verdict) is applied here.
-              .eq('is_flagged', true)
               .in('topic_id', [...mine])
               .order('media_id'),
           ),
@@ -55,7 +54,7 @@ export function useTriggers(userId) {
     const problem = m.error ?? v.error
     if (problem) return problem
     setMedia(indexMedia(m.data))
-    setFlagged(flaggedByMedia(v.data))
+    setVotes(indexVotes(v.data))
     return null
   }, [])
 
@@ -84,7 +83,7 @@ export function useTriggers(userId) {
     setTopics(null)
     setMyTopics(new Set())
     setMedia(new Map())
-    setFlagged(new Map())
+    setVotes(new Map())
     setLoaded(false)
     load()
   }, [load])
@@ -126,20 +125,6 @@ export function useTriggers(userId) {
     [myTopics, loadAnswers],
   )
 
-  /** One answer's votes on my topics, for the film panel. */
-  const votesFor = useCallback(
-    async (mediaId) => {
-      if (myTopics.size === 0) return { votes: [], error: null }
-      const { data, error: problem } = await supabase
-        .from('v_dtdd_votes')
-        .select('topic_id,yes_count,no_count,is_flagged')
-        .eq('media_id', mediaId)
-        .in('topic_id', [...myTopics])
-      return problem ? { votes: null, error: problem.message } : { votes: data, error: null }
-    },
-    [myTopics],
-  )
-
   const topicsById = useMemo(() => new Map((topics ?? []).map((t) => [t.id, t])), [topics])
 
   return {
@@ -149,10 +134,9 @@ export function useTriggers(userId) {
     topicsById,
     myTopics,
     media,
-    flagged,
+    votes,
     reload: load,
     toggle,
     checkFilms,
-    votesFor,
   }
 }

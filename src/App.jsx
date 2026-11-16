@@ -546,7 +546,7 @@ export default function App() {
 
   const triggerFor = (film) =>
     triggers.loaded
-      ? filmTriggerState(film, { media: triggers.media, flagged: triggers.flagged, myTopics: triggers.myTopics })
+      ? filmTriggerState(film, { media: triggers.media, votes: triggers.votes, myTopics: triggers.myTopics })
       : null
   const cardFor = (film) => (
     <FilmCard key={film.id} film={film} trigger={triggerFor(film)} onOpen={() => setOpenFilmId(film.id)} />

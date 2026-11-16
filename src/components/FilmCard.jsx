@@ -1,5 +1,5 @@
 import { displayTitle, displayYear } from '../lib/collection.js'
-import { showsNotChecked } from '../lib/triggers.js'
+import { showsNotChecked, showsNotEnoughVotes } from '../lib/triggers.js'
 
 /**
  * One tile in the grid. Opening a film is FilmDetail's job — a tile stays a
@@ -33,6 +33,13 @@ export default function FilmCard({ film, trigger = null, onOpen }) {
             <span className="trigger-tag">
               ⚠ {trigger.count} {trigger.count === 1 ? 'trigger' : 'triggers'}
             </span>
+          </span>
+        )}
+        {/* Checked, but none of your triggers has a clear answer either
+            way (Stacia, 2026-11-16): never a blank, which reads as clear. */}
+        {showsNotEnoughVotes(trigger) && (
+          <span className="badge-row">
+            <span className="not-checked-tag">not enough votes</span>
           </span>
         )}
         {trigger && showsNotChecked(trigger.state) && (

@@ -58,13 +58,12 @@ export function indexMedia(rows) {
   return new Map((rows ?? []).map((r) => [mediaKey(r), r]))
 }
 
-/** Flagged topic ids per lookup id, from v_dtdd_votes rows, by Stacia's rule. */
-export function flaggedByMedia(votes) {
+/** Vote counts by lookup and topic, from v_dtdd_votes rows. */
+export function indexVotes(rows) {
   const out = new Map()
-  for (const v of votes ?? []) {
-    if (verdict(v.yes_count, v.no_count) !== 'flagged') continue
-    if (!out.has(v.media_id)) out.set(v.media_id, new Set())
-    out.get(v.media_id).add(v.topic_id)
+  for (const v of rows ?? []) {
+    if (!out.has(v.media_id)) out.set(v.media_id, new Map())
+    out.get(v.media_id).set(v.topic_id, { yes: Number(v.yes_count) || 0, no: Number(v.no_count) || 0 })
   }
   return out
 }
@@ -77,12 +76,19 @@ export function flaggedByMedia(votes) {
  *   'unchecked'    matched, but no current answer (new, or not run yet)
  *   'not-listed'   looked up; DoesTheDogDie has no entry for it
  *   'error'        the last lookup failed
- *   'checked'      an answer exists; `count` of your topics are flagged
+ *   'checked'      an answer exists — see `count`, `noCount`, `items`
  *
- * Every state except 'checked' with count > 0 must render as something
- * other than a warning, and none of them may render as "safe".
+ * For a TV season, each trigger uses the season's own votes when the season
+ * has at least MIN_VOTES on it; otherwise the whole show's, marked
+ * `fromSeries` (Stacia, 2026-11-16 — DoesTheDogDie's season answers are
+ * often thin or empty). A season's own clear answer always wins: Buffy S1's
+ * "a dog dies" is 0 yes / 24 no for the season, though the show says yes.
+ *
+ * `thin` is true when an answer exists but none of your triggers has a clear
+ * answer either way — the cover then says "not enough votes", because a
+ * blank cover must only ever mean "checked, and clear".
  */
-export function filmTriggerState(film, { media, flagged, myTopics }) {
+export function filmTriggerState(film, { media, votes, myTopics }) {
   if (!myTopics || myTopics.size === 0) return { state: 'none-chosen', count: 0 }
   const key = lookupKey(film)
   if (!key) return { state: 'unmatched', count: 0 }
@@ -90,10 +96,38 @@ export function filmTriggerState(film, { media, flagged, myTopics }) {
   if (!row) return { state: 'unchecked', count: 0, key }
   if (row.lookup_status === 'no_match') return { state: 'not-listed', count: 0, key, row }
   if (row.lookup_status !== 'matched') return { state: 'error', count: 0, key, row }
-  const hit = flagged?.get(row.id)
-  let count = 0
-  if (hit) for (const t of myTopics) if (hit.has(t)) count += 1
-  return { state: 'checked', count, key, row }
+
+  const isSeason = row.tmdb_kind === 'tv' && Number(row.season) >= 0
+  const showRow = isSeason ? media.get(`tv:${Number(row.tmdb_id)}:-1`) : null
+  const usableShow = showRow?.lookup_status === 'matched' ? showRow : null
+  const own = votes?.get(row.id)
+  const show = usableShow ? votes?.get(usableShow.id) : null
+
+  const items = []
+  for (const topicId of myTopics) {
+    let v = own?.get(topicId) ?? { yes: 0, no: 0 }
+    let fromSeries = false
+    if (isSeason && v.yes + v.no < MIN_VOTES && show) {
+      const w = show.get(topicId)
+      if (w && w.yes + w.no > v.yes + v.no) {
+        v = w
+        fromSeries = true
+      }
+    }
+    items.push({ topicId, yes: v.yes, no: v.no, verdict: verdict(v.yes, v.no), fromSeries })
+  }
+  const count = items.filter((i) => i.verdict === 'flagged').length
+  const noCount = items.filter((i) => i.verdict === 'no').length
+  return {
+    state: 'checked',
+    count,
+    noCount,
+    thin: count === 0 && noCount === 0,
+    items,
+    key,
+    row,
+    usedSeries: items.some((i) => i.fromSeries),
+  }
 }
 
 /** True when a cover should carry the quiet "not checked" mark. */
@@ -116,24 +150,21 @@ export function scopeLabel(film, row) {
 /**
  * One film's answer, split for the panel: your flagged topics, your topics
  * with too few or too close votes to say, your topics where clearly more
- * voted no, and your topics nobody has answered yet.
- * `votes` are v_dtdd_votes rows for this one lookup.
+ * voted no, and your topics nobody has answered yet. Takes the `items` from
+ * filmTriggerState.
  */
-export function splitForPanel(votes, myTopics, topicsById) {
-  const byTopic = new Map((votes ?? []).map((v) => [v.topic_id, v]))
+export function splitForPanel(items, topicsById) {
   const flagged = []
   const unsure = []
   const votedNo = []
   const noAnswer = []
-  for (const id of myTopics ?? []) {
-    const topic = topicsById?.get(id)
+  for (const item of items ?? []) {
+    const topic = topicsById?.get(item.topicId)
     if (!topic) continue
-    const v = byTopic.get(id)
-    const entry = { topic, yes: v?.yes_count ?? 0, no: v?.no_count ?? 0 }
-    const said = verdict(entry.yes, entry.no)
-    if (said === 'unanswered') noAnswer.push({ topic })
-    else if (said === 'flagged') flagged.push(entry)
-    else if (said === 'no') votedNo.push(entry)
+    const entry = { topic, yes: item.yes, no: item.no, fromSeries: item.fromSeries }
+    if (item.verdict === 'unanswered') noAnswer.push(entry)
+    else if (item.verdict === 'flagged') flagged.push(entry)
+    else if (item.verdict === 'no') votedNo.push(entry)
     else unsure.push(entry)
   }
   const byName = (a, b) => a.topic.name.localeCompare(b.topic.name)
@@ -145,6 +176,11 @@ export function splitForPanel(votes, myTopics, topicsById) {
     votedNo: votedNo.sort(byName),
     noAnswer: noAnswer.sort(byName),
   }
+}
+
+/** True when a checked film has no clear answer on any of your triggers. */
+export function showsNotEnoughVotes(t) {
+  return Boolean(t && t.state === 'checked' && t.thin)
 }
 
 /**
