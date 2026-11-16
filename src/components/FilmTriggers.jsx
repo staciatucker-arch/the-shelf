@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { MIN_LEAD, MIN_VOTES, checkedOn, filmTriggerState, scopeLabel, splitForPanel } from '../lib/triggers.js'
+import {
+  MIN_LEAD,
+  MIN_VOTES,
+  checkedOn,
+  filmTriggerState,
+  scopeLabel,
+  splitForPanel,
+  summaryCounts,
+} from '../lib/triggers.js'
 import { TopicName } from './TriggerSettings.jsx'
 
 // ⚠ WORDING IS A DRAFT (2026-11-15) — Stacia writes the UI copy.
@@ -119,6 +127,14 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   }
 
   const split = splitForPanel(s.items, topicsById)
+  const counts = summaryCounts(s)
+  const countLine = [
+    counts.no > 0 && `${counts.no} more voted no`,
+    counts.unsure > 0 && `${counts.unsure} not enough votes`,
+    counts.unanswered > 0 && `${counts.unanswered} no answer yet`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   const nameProps = (t) => ({
     showSpoilers: false,
     revealed: revealed.has(t.id),
@@ -139,14 +155,18 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
               <span aria-hidden="true">⚠ </span>
               {s.count === 1 ? '1 of your triggers is flagged' : `${s.count} of your triggers are flagged`}
             </>
-          ) : s.thin ? (
-            // None of your triggers has a clear answer either way (Stacia,
-            // 2026-11-16) — never phrased so it could read as an all-clear.
-            'Not enough votes yet for your triggers'
+          ) : counts.mostlyUnclear ? (
+            // Nothing flagged and most of your triggers unclear (Dana,
+            // 2026-11-16) — must not lead with "none flagged", which reads
+            // as an all-clear. Wording: Dana's pick.
+            `Not enough votes yet for ${counts.unclear} of your ${counts.total} triggers`
           ) : (
             'None of your triggers are flagged'
           )}
         </p>
+        {/* The rest, counted, before any tap (Dana, 2026-11-16). Counts
+            only — nothing is named until Details. Zeros are left out. */}
+        {countLine && <p className="trigger-counts muted">{countLine}</p>}
         {!open && (
           <button type="button" className="ghost form-action" onClick={reveal}>
             {s.count > 0 ? 'Show which' : 'Details'}

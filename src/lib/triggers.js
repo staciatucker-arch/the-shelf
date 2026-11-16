@@ -178,6 +178,32 @@ export function splitForPanel(items, topicsById) {
   }
 }
 
+/**
+ * The counts the panel shows before anything is tapped (Dana, 2026-11-16):
+ * counts only, never a name. `unclear` is "not enough votes" plus "no
+ * answer yet" — both mean nobody can say. `mostlyUnclear` decides the
+ * headline: nothing flagged and more than half your triggers unclear (The
+ * Descent: 0 flagged, 2 clear no, 5 thin) must not lead with "none flagged".
+ */
+export function summaryCounts(t) {
+  const items = t?.items ?? []
+  const n = (v) => items.filter((i) => i.verdict === v).length
+  const flagged = n('flagged')
+  const no = n('no')
+  const unsure = n('unsure')
+  const unanswered = n('unanswered')
+  const unclear = unsure + unanswered
+  return {
+    flagged,
+    no,
+    unsure,
+    unanswered,
+    unclear,
+    total: items.length,
+    mostlyUnclear: flagged === 0 && unclear * 2 > items.length,
+  }
+}
+
 /** True when a checked film has no clear answer on any of your triggers. */
 export function showsNotEnoughVotes(t) {
   return Boolean(t && t.state === 'checked' && t.thin)

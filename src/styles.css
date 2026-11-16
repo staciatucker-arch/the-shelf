@@ -1988,6 +1988,7 @@ button.danger {
 .trigger-summary { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin: 0.3rem 0 0.5rem; }
 .trigger-count { margin: 0; font-weight: 700; }
 .trigger-count.is-flagged { color: var(--orange); }
+.trigger-counts { margin: 0; flex-basis: 100%; font-size: 0.92rem; }
 .trigger-status { margin: 0.3rem 0 0.6rem; }
 .trigger-list {
   list-style: none;

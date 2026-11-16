@@ -6,6 +6,7 @@ import {
   filmTriggerState,
   indexVotes,
   showsNotEnoughVotes,
+  summaryCounts,
   indexMedia,
   lookupKey,
   scopeLabel,
@@ -176,4 +177,26 @@ test('topics group by category, and the featured ones exclude spoilers', () => {
   ]
   assert.deepEqual(topicsByCategory(topics).map((g) => g.category), ['Animal Death', 'Fear', 'Spoiler'])
   assert.deepEqual(featuredTopics(topics).map((t) => t.name), ['a dog dies', 'a cat dies'])
+})
+
+// ---------------------------------------------------------------- counts up front (Dana, 2026-11-16)
+
+const itemsOf = (spec) => ({
+  items: Object.entries(spec).flatMap(([verdict, n]) => Array.from({ length: n }, () => ({ verdict }))),
+})
+
+test('The Descent: nothing flagged and mostly unclear leads with "not enough votes"', () => {
+  const c = summaryCounts(itemsOf({ no: 2, unsure: 5 }))
+  assert.deepEqual([c.flagged, c.no, c.unclear, c.total, c.mostlyUnclear], [0, 2, 5, 7, true])
+})
+
+test('mostly clear keeps "none flagged", and "no answer yet" counts as unclear', () => {
+  assert.equal(summaryCounts(itemsOf({ no: 6, unsure: 1 })).mostlyUnclear, false)
+  assert.equal(summaryCounts(itemsOf({ no: 3, unanswered: 4 })).mostlyUnclear, true)
+  // Exactly half is not "more than half".
+  assert.equal(summaryCounts(itemsOf({ no: 2, unsure: 2 })).mostlyUnclear, false)
+})
+
+test('anything flagged is never "mostly unclear"', () => {
+  assert.equal(summaryCounts(itemsOf({ flagged: 1, unsure: 6 })).mostlyUnclear, false)
 })

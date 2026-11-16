@@ -16,7 +16,6 @@ import WatchNext from './components/WatchNext.jsx'
 import AddedNotice from './components/AddedNotice.jsx'
 import TriggerSettings from './components/TriggerSettings.jsx'
 import { useTriggers } from './components/useTriggers.js'
-import { filmTriggerState } from './lib/triggers.js'
 import { isClockSkewError, withClockSkewRetry } from './lib/loadRetry.js'
 import { EMPTY_OPTIONS, loadOptions } from './lib/options.js'
 import { ownedObjectPath } from './lib/poster.js'
@@ -544,12 +543,8 @@ export default function App() {
     )
   }
 
-  const triggerFor = (film) =>
-    triggers.loaded
-      ? filmTriggerState(film, { media: triggers.media, votes: triggers.votes, myTopics: triggers.myTopics })
-      : null
   const cardFor = (film) => (
-    <FilmCard key={film.id} film={film} trigger={triggerFor(film)} onOpen={() => setOpenFilmId(film.id)} />
+    <FilmCard key={film.id} film={film} onOpen={() => setOpenFilmId(film.id)} />
   )
 
   // Looked up from the live list rather than held as its own copy, so an open

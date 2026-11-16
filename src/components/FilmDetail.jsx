@@ -192,15 +192,16 @@ export default function FilmDetail({ film, userId, triggers = null, onOpenTrigge
               </div>
             )}
 
-            {/* Triggers (2026-11-15), above Ratings as in Dana's mock-up. */}
-            {triggers && (
-              <FilmTriggers film={film} triggers={triggers} onOpenSettings={onOpenTriggerSettings} />
-            )}
-
             {/* Ratings and comments (2026-11-08), above the money and dates
                 (Stacia: "ratings should be above $ info"). Keyed by film so
                 moving to another film starts a fresh draft. */}
             {userId && <FilmReviews key={film.id} filmId={film.id} userId={userId} />}
+
+            {/* Triggers, under Ratings (Stacia, 2026-11-16) — the only place
+                they appear now that covers carry no trigger tags. */}
+            {triggers && (
+              <FilmTriggers film={film} triggers={triggers} onOpenSettings={onOpenTriggerSettings} />
+            )}
 
             {/* Two rows, each one a theme: what it is worth and what we plan
                 to do with it, then where it came from and its life since. */}
