@@ -14,6 +14,8 @@ import WishForm from './components/WishForm.jsx'
 import WishlistPanel, { WishRow } from './components/WishlistPanel.jsx'
 import WatchNext from './components/WatchNext.jsx'
 import SharePanel from './components/SharePanel.jsx'
+import ShareSelectBar from './components/ShareSelectBar.jsx'
+import { pickedFilms, togglePick } from './lib/share.js'
 import AddedNotice from './components/AddedNotice.jsx'
 import TriggerSettings from './components/TriggerSettings.jsx'
 import { useTriggers } from './components/useTriggers.js'
@@ -126,9 +128,14 @@ export default function App() {
   // After a film is added that is also on the wishlist: { film, match }.
   const [addedNotice, setAddedNotice] = useState(null)
   const [watchNextOpen, setWatchNextOpen] = useState(false)
-  // The share card: null when closed, else { film } — the film it was opened
-  // from, or null when opened from the top row's Share icon.
+  // The share card: null when closed, else { films } — the one film whose
+  // panel it was opened from, or the covers picked in select mode.
   const [share, setShare] = useState(null)
+  // Select mode (Stacia, 2026-11-21): the top row's Share icon keeps you on
+  // the shelf, and a tap on a cover picks it. null when off, else the picked
+  // film ids in order, plus the search as it was, to put back on leaving.
+  const [selecting, setSelecting] = useState(null)
+  const [pickMessage, setPickMessage] = useState('')
   // "Move to your Shelf": the wish the add form was started from, if any.
   const [movingWishId, setMovingWishId] = useState(null)
   // What was in the search box when Add film was tapped: the form starts with
@@ -266,6 +273,7 @@ export default function App() {
     setAddedNotice(null)
     setWatchNextOpen(false)
     setShare(null)
+    setSelecting(null)
     setMovingWishId(null)
     setAddTitle('')
     setUserMenuOpen(false)
@@ -548,9 +556,33 @@ export default function App() {
     )
   }
 
-  const cardFor = (film) => (
-    <FilmCard key={film.id} film={film} onOpen={() => setOpenFilmId(film.id)} />
-  )
+  const cardFor = (film) => {
+    if (!selecting) {
+      return <FilmCard key={film.id} film={film} onOpen={() => setOpenFilmId(film.id)} />
+    }
+    const index = selecting.picks.indexOf(film.id)
+    return (
+      <FilmCard
+        key={film.id}
+        film={film}
+        selecting
+        pickNumber={index < 0 ? null : index + 1}
+        onOpen={() => {
+          const next = togglePick(selecting.picks, film.id)
+          // ⚠ Draft wording (2026-11-21).
+          setPickMessage(next.full ? 'That’s 3 — tap a picked cover to swap it out.' : '')
+          setSelecting((sel) => sel && { ...sel, picks: next.picks })
+        }}
+      />
+    )
+  }
+
+  // Leaving select mode puts the search back as it was (Dana).
+  function endSelecting() {
+    setQuery(selecting?.queryBefore ?? '')
+    setPickMessage('')
+    setSelecting(null)
+  }
 
   // Looked up from the live list rather than held as its own copy, so an open
   // panel always shows the current row rather than a snapshot taken on tap.
@@ -631,7 +663,14 @@ export default function App() {
               type="button"
               className="ghost icon-button share-button"
               aria-label="Share"
-              onClick={() => setShare({ film: null })}
+              aria-pressed={selecting != null}
+              onClick={() => {
+                if (selecting) return
+                setOpenFilmId(null)
+                setFiltersOpen(false)
+                setPickMessage('')
+                setSelecting({ picks: [], queryBefore: query })
+              }}
             >
               <ShareIcon />
             </button>
@@ -681,7 +720,13 @@ export default function App() {
             {/* While searching, this line is what stays above a phone's
                 keyboard, so it names what was found rather than counting it
                 (Stacia, 2026-11-14, from Dana's review). */}
-            {searching ? (
+            {selecting ? (
+              /* ⚠ Draft wording (2026-11-21). Says the mode out loud: a tap
+                 on a cover now picks it rather than opening it (Dana). */
+              <p className="select-hint" role="status">
+                Tap up to 3 covers to share. Search works as usual.
+              </p>
+            ) : searching ? (
               <p className="muted result-count search-answer" aria-live="polite">
                 {searchAnswer(
                   [...visible.rows, ...visible.unknowns],
@@ -719,7 +764,7 @@ export default function App() {
                   {/* Beside its pair below, and offered on the same terms:
                       only when the wishlist has nothing either — a wish
                       already there is moved, not re-entered. */}
-                  {wishHits.length === 0 && !wishError && (
+                  {wishHits.length === 0 && !wishError && !selecting && (
                     <button
                       type="button"
                       className="form-action search-add"
@@ -751,7 +796,7 @@ export default function App() {
               </>
             )}
 
-            {searching && (
+            {searching && !selecting && (
               <section className="wish-results">
                 <h2 className="section-divider search-divider">On your wishlist ({wishHits.length})</h2>
                 {wishError && (
@@ -813,7 +858,21 @@ export default function App() {
         <p className="build-stamp muted">{__BUILD_STAMP__}</p>
       </main>
 
-      {films && (
+      {films && selecting && (
+        <ShareSelectBar
+          count={selecting.picks.length}
+          message={pickMessage}
+          hidden={searchFocused}
+          onCancel={endSelecting}
+          onOk={() => {
+            const chosen = pickedFilms(selecting.picks, films)
+            endSelecting()
+            if (chosen.length) setShare({ films: chosen })
+          }}
+        />
+      )}
+
+      {films && !selecting && (
         <nav className={'bottom-bar' + (searchFocused ? ' is-hidden' : '')} aria-label="Main">
           <button
             type="button"
@@ -855,7 +914,7 @@ export default function App() {
             hidden={Boolean(editingFilm) || triggerSettingsOpen || Boolean(share)}
             onClose={() => setOpenFilmId(null)}
             onEdit={() => setEditingFilmId(openFilm.id)}
-            onShare={() => setShare({ film: openFilm })}
+            onShare={() => setShare({ films: [openFilm] })}
           />
         </ErrorBoundary>
       )}
@@ -869,9 +928,8 @@ export default function App() {
           dismissLabel="Close"
         >
           <SharePanel
-            films={films ?? []}
+            films={share.films}
             userId={session.user.id}
-            initialFilm={share.film}
             onClose={() => setShare(null)}
           />
         </ErrorBoundary>

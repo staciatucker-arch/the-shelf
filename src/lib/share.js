@@ -14,7 +14,7 @@
 // Links are wrapped in <…>, which Discord shows as a plain link with no
 // preview card (Stacia, 2026-11-21: "Plain links").
 
-import { displayTitle, displayYear, searchText } from './collection.js'
+import { displayTitle, displayYear } from './collection.js'
 import { starText } from './reviews.js'
 
 /** At most this many films in one share (Stacia, 2026-11-21). */
@@ -23,10 +23,11 @@ export const SHARE_MAX = 3
 /** Discord refuses a message longer than this. */
 export const DISCORD_LIMIT = 2000
 
-// ⚠ The two headings are Stacia's (2026-11-08); the emoji are a draft.
+// ⚠ The two labels are Stacia's ("Movie night?" 2026-11-08; "Check this
+// out." replaced "We recommend" 2026-11-21); the emoji are a draft.
 export const SHARE_KINDS = [
   { id: 'movie-night', label: 'Movie night?', heading: 'Movie night? 🍿' },
-  { id: 'recommend', label: 'We recommend', heading: 'We recommend 🎬' },
+  { id: 'recommend', label: 'Check this out.', heading: 'Check this out. 🎬' },
 ]
 
 export function shareKind(id) {
@@ -77,13 +78,21 @@ export function reviewLine(name, review) {
 }
 
 /**
- * Add a film to the chosen list: no repeats, never more than SHARE_MAX,
- * shelf films only (wishes have no `id` in `films`; the caller passes films).
+ * Tap a cover in select mode: picked → unpicked, or added at the end.
+ * Returns { picks, full } — full is true when the tap was refused because
+ * SHARE_MAX are already picked, so the screen can say so rather than
+ * silently ignore it (Dana, 2026-11-21).
  */
-export function addToShare(chosen, film) {
-  if (!film || chosen.some((f) => f.id === film.id)) return chosen
-  if (chosen.length >= SHARE_MAX) return chosen
-  return [...chosen, film]
+export function togglePick(picks, id) {
+  if (picks.includes(id)) return { picks: picks.filter((p) => p !== id), full: false }
+  if (picks.length >= SHARE_MAX) return { picks, full: true }
+  return { picks: [...picks, id], full: false }
+}
+
+/** The picked films, in the order picked, skipping any deleted meanwhile. */
+export function pickedFilms(picks, films) {
+  const byId = new Map(films.map((f) => [f.id, f]))
+  return picks.map((id) => byId.get(id)).filter(Boolean)
 }
 
 /**
@@ -136,17 +145,4 @@ export function otherNames(profiles, myId) {
     .filter((p) => p.id !== myId)
     .map((p) => p.display_name)
     .sort((a, b) => a.localeCompare(b))
-}
-
-/**
- * Films for the picker: a title search over the shelf (box-set contents
- * included, like the main search), leaving out ones already chosen.
- */
-export function shareCandidates(films, query, chosen, { max = 8 } = {}) {
-  const needle = String(query ?? '').trim().toLowerCase()
-  if (!needle) return []
-  const taken = new Set(chosen.map((f) => f.id))
-  return films
-    .filter((f) => !taken.has(f.id) && searchText(f).includes(needle))
-    .slice(0, max)
 }

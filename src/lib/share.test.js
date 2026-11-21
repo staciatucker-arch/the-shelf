@@ -5,13 +5,13 @@ import assert from 'node:assert/strict'
 
 import {
   SHARE_MAX,
-  addToShare,
   filmLine,
   otherNames,
+  pickedFilms,
   reviewLine,
-  shareCandidates,
   shareMessage,
   tmdbLink,
+  togglePick,
 } from './share.js'
 
 const ME = 'me-id'
@@ -69,11 +69,18 @@ test('review line: stars, comment, either, or nothing', () => {
   assert.equal(reviewLine('pagong', { rating: null, comment: '  ' }), null)
 })
 
-test('never more than three films, never the same film twice', () => {
-  let chosen = []
-  for (const f of [alien, alien, buffy, unverified, boxSet]) chosen = addToShare(chosen, f)
-  assert.equal(chosen.length, SHARE_MAX)
-  assert.deepEqual(chosen.map((f) => f.id), ['f1', 'f2', 'f3'])
+test('picking: up to three, tap again to unpick, a fourth is refused and said', () => {
+  let state = { picks: [], full: false }
+  for (const id of ['f1', 'f2', 'f3']) state = togglePick(state.picks, id)
+  assert.deepEqual(state, { picks: ['f1', 'f2', 'f3'], full: false })
+  assert.deepEqual(togglePick(state.picks, 'f4'), { picks: ['f1', 'f2', 'f3'], full: true })
+  assert.deepEqual(togglePick(state.picks, 'f2'), { picks: ['f1', 'f3'], full: false })
+  assert.equal(SHARE_MAX, 3)
+})
+
+test('picked films keep their order and drop a film deleted meanwhile', () => {
+  const films = [alien, buffy, unverified]
+  assert.deepEqual(pickedFilms(['f3', 'gone', 'f1'], films).map((f) => f.id), ['f3', 'f1'])
 })
 
 const reviews = [
@@ -101,7 +108,7 @@ test('the other person is left out unless the box is ticked', () => {
   const without = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME })
   assert.ok(!without.includes('pagong'))
   const withHer = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME, includeOthers: true })
-  assert.ok(withHer.startsWith('We recommend'))
+  assert.ok(withHer.startsWith('Check this out.'))
   assert.ok(withHer.includes('nanoedith ★★★★☆ “Still terrifying.”\npagong ★★★★★\n<https'))
   assert.ok(withHer.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
 })
@@ -118,10 +125,6 @@ test('blank note leaves no blank line under the heading', () => {
   assert.equal(text, 'Movie night? 🍿\n\nMatrix Triple Feature')
 })
 
-test('other names and the picker', () => {
+test('other names', () => {
   assert.deepEqual(otherNames(profiles, ME), ['pagong'])
-  const films = [alien, buffy, unverified, boxSet]
-  assert.deepEqual(shareCandidates(films, '', []), [])
-  assert.deepEqual(shareCandidates(films, 'reloaded', []).map((f) => f.id), ['f4'])
-  assert.deepEqual(shareCandidates(films, 'a', [alien]).map((f) => f.id), ['f2', 'f4'])
 })
