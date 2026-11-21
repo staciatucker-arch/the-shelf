@@ -2086,7 +2086,8 @@ button.danger {
    picks it; a picked cover has a thick emerald edge and its number in the
    top corner, clear of the title. The bottom bar becomes Cancel · N of 3 · OK.
    Then a stripped-down modal (Stacia's option B): the kind, the tick box,
-   and the message in a box that can be edited freely. */
+   and the message in a box that can be edited freely; the switch and tick
+   box edit it in place. */
 .film-card.is-selecting .film-art { outline: 2px dashed var(--field-line); outline-offset: -2px; }
 .film-card.is-picked .film-art { outline: 4px solid var(--accent); outline-offset: -4px; }
 .pick-mark {
@@ -2126,15 +2127,6 @@ button.danger {
 .share-kind { margin: 0; }
 .share-kind.is-on { background: var(--accent); color: #260F26; border-color: var(--accent); font-weight: 700; }
 .share-others { margin: 0.4rem 0 0.2rem; }
-.share-ask {
-  margin: 0.6rem 0;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--orange);
-  border-radius: var(--radius);
-}
-.share-ask p { margin: 0 0 0.5rem; }
-.share-ask-actions { display: flex; gap: 0.6rem; }
-.share-ask-actions .form-action { flex: 1; margin: 0; }
 .share-text { min-height: 8rem; line-height: 1.45; }
 .share-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.6rem; }
 .share-actions .form-action { flex: 1 1 8rem; margin-top: 0; }

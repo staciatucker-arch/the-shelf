@@ -1,7 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { lockScroll } from '../lib/scrollLock.js'
-import { DISCORD_LIMIT, SHARE_KINDS, otherNames, shareMessage } from '../lib/share.js'
+import {
+  DISCORD_LIMIT,
+  SHARE_KINDS,
+  otherNames,
+  setOthersInText,
+  shareMessage,
+  switchHeading,
+} from '../lib/share.js'
 import { useBackToClose } from './useBackToClose.js'
 
 // ⚠ WORDING IS A DRAFT (2026-11-21) except "Movie night?" and "Check this
@@ -38,8 +45,9 @@ function copyTheOldWay(text) {
  *     in there — there is no separate Note field);
  *   - Share… (the phone's share menu, where there is one) and Copy.
  *
- * Once the text has been edited by hand, changing the switch or the tick box
- * asks before replacing it, so nothing typed is lost without a yes.
+ * The switch and the tick box edit the text in place (Stacia, 2026-11-21):
+ * the switch swaps only the heading, the tick box adds or removes only the
+ * other person's rating lines. Anything typed stays, and nothing asks.
  *
  * It writes nothing. The starting text comes from lib/share.js, which never
  * includes a cover link, money or trigger data.
@@ -49,8 +57,6 @@ export default function SharePanel({ films, userId, onClose }) {
   const [includeOthers, setIncludeOthers] = useState(false)
   const [data, setData] = useState({ status: 'loading', reviews: [], profiles: [], error: null })
   const [text, setText] = useState('')
-  const [generated, setGenerated] = useState('')
-  const [pending, setPending] = useState(null)
   const [sent, setSent] = useState({ status: 'idle', error: null })
   const boxRef = useRef(null)
 
@@ -89,24 +95,13 @@ export default function SharePanel({ films, userId, onClose }) {
     }
   }, [ids])
 
-  function build(nextKind, nextOthers) {
-    return shareMessage({
-      kind: nextKind,
-      films,
-      reviews: data.reviews,
-      profiles: data.profiles,
-      myId: userId,
-      includeOthers: nextOthers,
-    })
-  }
-
-  // The first text, once the ratings are in.
+  // The first text, once the ratings are in. Later changes are edits in
+  // place (below), never a rebuild.
   useEffect(() => {
     if (data.status !== 'ready') return
-    const first = build(kind, includeOthers)
-    setText(first)
-    setGenerated(first)
-    // Only when the data arrives; later changes go through `apply`.
+    setText(
+      shareMessage({ kind, films, reviews: data.reviews, profiles: data.profiles, myId: userId, includeOthers }),
+    )
   }, [data.status])
 
   // The box grows to show all of its text, like the comment box on a film.
@@ -117,24 +112,20 @@ export default function SharePanel({ films, userId, onClose }) {
     box.style.height = `${box.scrollHeight + 2}px`
   }, [text])
 
-  const edited = text !== generated
-
-  function apply(nextKind, nextOthers) {
+  function changeKind(nextKind) {
+    if (data.status !== 'ready' || nextKind === kind) return
+    setText((t) => switchHeading(t, kind, nextKind, films.length))
     setKind(nextKind)
-    setIncludeOthers(nextOthers)
-    const next = build(nextKind, nextOthers)
-    setText(next)
-    setGenerated(next)
-    setPending(null)
     setSent({ status: 'idle', error: null })
   }
 
-  // A switch or the tick box: straight in if the text is untouched, else ask.
-  function change(nextKind, nextOthers) {
+  function changeOthers(include) {
     if (data.status !== 'ready') return
-    if (nextKind === kind && nextOthers === includeOthers) return
-    if (edited) setPending({ kind: nextKind, includeOthers: nextOthers })
-    else apply(nextKind, nextOthers)
+    setText((t) =>
+      setOthersInText(t, { films, reviews: data.reviews, profiles: data.profiles, myId: userId, include }),
+    )
+    setIncludeOthers(include)
+    setSent({ status: 'idle', error: null })
   }
 
   const others = otherNames(data.profiles, userId)
@@ -202,7 +193,7 @@ export default function SharePanel({ films, userId, onClose }) {
                 role="radio"
                 aria-checked={kind === k.id}
                 className={`ghost share-kind${kind === k.id ? ' is-on' : ''}`}
-                onClick={() => change(k.id, includeOthers)}
+                onClick={() => changeKind(k.id)}
                 disabled={!ready}
               >
                 {k.label}
@@ -216,24 +207,10 @@ export default function SharePanel({ films, userId, onClose }) {
                 type="checkbox"
                 checked={includeOthers}
                 disabled={!ready}
-                onChange={(e) => change(kind, e.target.checked)}
+                onChange={(e) => changeOthers(e.target.checked)}
               />
               Include {others.join(' and ')}’s {others.length > 1 ? 'ratings' : 'rating'}
             </label>
-          )}
-
-          {pending && (
-            <div className="share-ask" role="alertdialog" aria-label="Replace your changes?">
-              <p>You’ve changed the message. Replace it with the new one?</p>
-              <div className="share-ask-actions">
-                <button type="button" className="ghost form-action" onClick={() => setPending(null)}>
-                  Keep my text
-                </button>
-                <button type="button" className="form-action" onClick={() => apply(pending.kind, pending.includeOthers)}>
-                  Replace
-                </button>
-              </div>
-            </div>
           )}
 
           {data.status === 'error' && (
