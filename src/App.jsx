@@ -13,9 +13,17 @@ import OptionsManager from './components/OptionsManager.jsx'
 import WishForm from './components/WishForm.jsx'
 import WishlistPanel, { WishRow } from './components/WishlistPanel.jsx'
 import WatchNext from './components/WatchNext.jsx'
-import SharePanel from './components/SharePanel.jsx'
 import ShareSelectBar from './components/ShareSelectBar.jsx'
-import { pickedFilms, togglePick } from './lib/share.js'
+import {
+  otherNames,
+  pickedFilms,
+  readShareSettings,
+  saveShareSettings,
+  shareMessage,
+  togglePick,
+} from './lib/share.js'
+import { useShareData } from './components/useShareData.js'
+import { sendText } from './components/sendText.js'
 import AddedNotice from './components/AddedNotice.jsx'
 import TriggerSettings from './components/TriggerSettings.jsx'
 import { useTriggers } from './components/useTriggers.js'
@@ -93,6 +101,15 @@ const SAVE_UNKNOWN =
   'If you were part-way through saving, whether it went through is unknown: ' +
   'reload and check the film before entering it again.'
 
+/** The browser's storage, or null where it is refused (private windows). */
+function browserStorage() {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const [session, setSession] = useState(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -128,9 +145,14 @@ export default function App() {
   // After a film is added that is also on the wishlist: { film, match }.
   const [addedNotice, setAddedNotice] = useState(null)
   const [watchNextOpen, setWatchNextOpen] = useState(false)
-  // The share card: null when closed, else { films } — the one film whose
-  // panel it was opened from, or the covers picked in select mode.
-  const [share, setShare] = useState(null)
+  // Sharing (Stacia, 2026-11-21, after Dana): no message box. Share in the
+  // select bar, or on a film's panel, sends the text straight to the phone's
+  // share menu, or copies it where there is none. A short line says what
+  // happened. `shareNotice` is that line; `sharing` stops a double tap.
+  const [shareNotice, setShareNotice] = useState('')
+  const [sharing, setSharing] = useState(false)
+  // Whose ratings go in: each person's own setting, remembered on the phone.
+  const [shareSettings, setShareSettings] = useState({ includeMine: true, includeOthers: false })
   // Select mode (Stacia, 2026-11-21): the top row's Share icon keeps you on
   // the shelf, and a tap on a cover picks it. null when off, else the picked
   // film ids in order, plus the search as it was, to put back on leaving.
@@ -171,6 +193,58 @@ export default function App() {
   // Triggers: this person's chosen topics and the current answers. Keyed on
   // the person, like everything else (lib/session.js).
   const triggers = useTriggers(userId)
+
+  useEffect(() => {
+    if (userId) setShareSettings(readShareSettings(browserStorage(), userId))
+  }, [userId])
+
+  function changeShareSettings(next) {
+    setShareSettings(next)
+    saveShareSettings(browserStorage(), userId, next)
+  }
+
+  const shareData = useShareData(Boolean(selecting) || Boolean(openFilmId) || userMenuOpen)
+
+  // Build the text and hand it to the phone, straight from the tap: the
+  // ratings are already loaded (useShareData), because a phone only opens
+  // its share menu or writes the clipboard right after a tap.
+  // ⚠ Draft wording (2026-11-21).
+  async function shareFilms(chosen, { fromSelect = false } = {}) {
+    if (sharing || chosen.length === 0) return
+    if (shareData.status !== 'ready') {
+      setShareNotice(
+        shareData.status === 'error'
+          ? `Couldn’t load ratings: ${shareData.error}`
+          : 'Still loading ratings — try again in a moment.',
+      )
+      return
+    }
+    const text = shareMessage({
+      films: chosen,
+      reviews: shareData.reviews,
+      profiles: shareData.profiles,
+      myId: userId,
+      ...shareSettings,
+    })
+    setSharing(true)
+    const result = await sendText(text)
+    setSharing(false)
+    // Closing the share menu without sending keeps the picks (Dana).
+    if (result === 'cancelled') return
+    if (result === 'failed') {
+      setShareNotice('Couldn’t share or copy. Try again.')
+      return
+    }
+    setShareNotice(result === 'copied' ? '✓ Copied — paste it into Discord or a message.' : '✓ Shared.')
+    if (fromSelect) endSelecting()
+  }
+
+  // The short "Copied" line fades after a few seconds.
+  useEffect(() => {
+    if (!shareNotice) return undefined
+    const t = setTimeout(() => setShareNotice(''), 4000)
+    return () => clearTimeout(t)
+  }, [shareNotice])
   const [triggerSettingsOpen, setTriggerSettingsOpen] = useState(false)
 
   useEffect(() => {
@@ -272,7 +346,7 @@ export default function App() {
     setFocusWishId(null)
     setAddedNotice(null)
     setWatchNextOpen(false)
-    setShare(null)
+    setShareNotice('')
     setSelecting(null)
     setMovingWishId(null)
     setAddTitle('')
@@ -577,14 +651,13 @@ export default function App() {
     )
   }
 
-  // Into select mode: empty from the top row's icon, or with the films
-  // already chosen from the share box's "Edit films" (Stacia, 2026-11-21),
-  // carrying its switch and tick boxes so OK comes back to the same choices.
-  function startSelecting(picks, settings = null) {
+  // Into select mode, from the top row's Share icon.
+  function startSelecting(picks) {
     setOpenFilmId(null)
     setFiltersOpen(false)
     setPickMessage('')
-    setSelecting({ picks, queryBefore: query, settings })
+    setShareNotice('')
+    setSelecting({ picks, queryBefore: query })
   }
 
   // Leaving select mode puts the search back as it was (Dana).
@@ -702,6 +775,9 @@ export default function App() {
               setUserMenuOpen(false)
               setTriggerSettingsOpen(true)
             }}
+            shareSettings={shareSettings}
+            otherNames={shareData.status === 'ready' ? otherNames(shareData.profiles, userId) : []}
+            onShareSettings={changeShareSettings}
             onSignOut={() => supabase.auth.signOut()}
             onClose={closeUserMenu}
           />
@@ -864,17 +940,20 @@ export default function App() {
         <p className="build-stamp muted">{__BUILD_STAMP__}</p>
       </main>
 
+      {shareNotice && (
+        <p className={'share-toast' + (selecting ? ' above-select' : '')} role="status">
+          {shareNotice}
+        </p>
+      )}
+
       {films && selecting && (
         <ShareSelectBar
           count={selecting.picks.length}
           message={pickMessage}
           hidden={searchFocused}
           onCancel={endSelecting}
-          onOk={() => {
-            const chosen = pickedFilms(selecting.picks, films)
-            endSelecting()
-            if (chosen.length) setShare({ films: chosen, settings: selecting.settings })
-          }}
+          busy={sharing}
+          onOk={() => shareFilms(pickedFilms(selecting.picks, films), { fromSelect: true })}
         />
       )}
 
@@ -917,34 +996,14 @@ export default function App() {
             userId={session.user.id}
             triggers={triggers}
             onOpenTriggerSettings={() => setTriggerSettingsOpen(true)}
-            hidden={Boolean(editingFilm) || triggerSettingsOpen || Boolean(share)}
+            hidden={Boolean(editingFilm) || triggerSettingsOpen}
             onClose={() => setOpenFilmId(null)}
             onEdit={() => setEditingFilmId(openFilm.id)}
-            onShare={() => setShare({ films: [openFilm] })}
+            onShare={() => shareFilms([openFilm])}
           />
         </ErrorBoundary>
       )}
 
-      {share && (
-        <ErrorBoundary
-          overlay
-          title="Sharing stopped working."
-          detail="The rest of the collection is fine. Sharing saves nothing, so nothing has changed."
-          onDismiss={() => setShare(null)}
-          dismissLabel="Close"
-        >
-          <SharePanel
-            films={share.films}
-            userId={session.user.id}
-            initial={share.settings}
-            onClose={() => setShare(null)}
-            onEditFilms={(settings) => {
-              setShare(null)
-              startSelecting(share.films.map((f) => f.id), settings)
-            }}
-          />
-        </ErrorBoundary>
-      )}
 
       {editingFilm && (
         <ErrorBoundary

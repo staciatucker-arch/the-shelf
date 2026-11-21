@@ -2121,16 +2121,22 @@ button.danger {
 .share-select-count { flex: 1; text-align: center; font-weight: 700; white-space: nowrap; }
 .share-select-message { flex-basis: 100%; margin: 0 0 0.4rem; text-align: center; color: var(--orange); font-size: 0.92rem; }
 .share-button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-
-.share-body { display: block; }
-.share-films { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.8rem; }
-.share-films-list { margin: 0; font-weight: 700; min-width: 0; }
-.share-edit-films { margin: 0; flex: none; }
-.share-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.6rem; }
-.share-kind { margin: 0; }
-.share-kind.is-on { background: var(--accent); color: #260F26; border-color: var(--accent); font-weight: 700; }
-.share-others { margin: 0.4rem 0 0.2rem; }
-.share-text { min-height: 8rem; line-height: 1.45; }
-.share-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.6rem; }
-.share-actions .form-action { flex: 1 1 8rem; margin-top: 0; }
-.share-status { margin: 0.5rem 0 0; }
+/* The "Copied" line after a share: just above whichever bar is showing. */
+.share-toast {
+  position: fixed;
+  left: 1rem;
+  right: 1rem;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  z-index: 7;
+  margin: 0 auto;
+  max-width: 28rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.user-menu .menu-check { margin: 0 0 0.4rem; }
+.user-menu .menu-check + .ghost { margin-top: 0.4rem; }

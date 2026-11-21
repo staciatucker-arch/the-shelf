@@ -8,7 +8,17 @@ import StatsBar from './StatsBar.jsx'
  *
  * Closes on a tap outside it or Escape.
  */
-export default function UserMenu({ email, stats, triggerCount = null, onTriggers, onSignOut, onClose }) {
+export default function UserMenu({
+  email,
+  stats,
+  triggerCount = null,
+  onTriggers,
+  shareSettings = null,
+  otherNames = [],
+  onShareSettings,
+  onSignOut,
+  onClose,
+}) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -47,6 +57,32 @@ export default function UserMenu({ email, stats, triggerCount = null, onTriggers
             {triggerCount == null ? '' : `${triggerCount} chosen`} ›
           </span>
         </button>
+      )}
+      {/* Whose ratings a share carries (Stacia, 2026-11-21): mine on and
+          the others' off to start, each person's own choice, remembered on
+          this phone. ⚠ Draft wording. */}
+      {shareSettings && onShareSettings && (
+        <>
+          <h3 className="group-label menu-label">Sharing</h3>
+          <label className="check-item menu-check">
+            <input
+              type="checkbox"
+              checked={shareSettings.includeMine}
+              onChange={(e) => onShareSettings({ ...shareSettings, includeMine: e.target.checked })}
+            />
+            Include my rating
+          </label>
+          {otherNames.length > 0 && (
+            <label className="check-item menu-check">
+              <input
+                type="checkbox"
+                checked={shareSettings.includeOthers}
+                onChange={(e) => onShareSettings({ ...shareSettings, includeOthers: e.target.checked })}
+              />
+              Include {otherNames.join(' and ')}’s {otherNames.length > 1 ? 'ratings' : 'rating'}
+            </label>
+          )}
+        </>
       )}
       <button type="button" className="ghost" onClick={onSignOut}>
         Sign out

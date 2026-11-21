@@ -7,12 +7,17 @@
 //   - each film's title and year/season
 //   - a TMDB link, only for a CONFIRMED match (`tmdb_verified`) — roughly one
 //     inherited id in twelve pointed at a different film
-//   - the sender's own rating and comment; other people's only when the
-//     sender ticks the box (Stacia: "With tick box")
+//   - the sender's own rating and comment, and other people's, each only
+//     when that person's setting says so (person menu; mine on, others off
+//     by default — Stacia, 2026-11-21)
 //   - never a cover link (`poster_url`), never trigger data, never money
 //
 // Links are wrapped in <…>, which Discord shows as a plain link with no
 // preview card (Stacia, 2026-11-21: "Plain links").
+//
+// There is no message box (Stacia, after Dana's review, 2026-11-21): pick
+// covers, tap Share, and the phone's share menu opens with the text — or it
+// is copied where there is no share menu. Editing happens in Discord.
 
 import { displayTitle, displayYear } from './collection.js'
 import { starText } from './reviews.js'
@@ -20,31 +25,15 @@ import { starText } from './reviews.js'
 /** At most this many films in one share (Stacia, 2026-11-21). */
 export const SHARE_MAX = 3
 
-/** Discord refuses a message longer than this. */
-export const DISCORD_LIMIT = 2000
-
-// The two button labels and the "Check out…" headings are Stacia's
-// ("Movie night?" 2026-11-08; "Check this out." and its headings
-// 2026-11-21). ⚠ The emoji are a draft.
-export const SHARE_KINDS = [
-  { id: 'movie-night', label: 'Movie night?', heading: () => 'Movie night? 🍿' },
-  {
-    id: 'recommend',
-    label: 'Check this out.',
-    heading: (count) =>
-      count === 1
-        ? 'Check out this title from our shelf! 🎬'
-        : 'Check out these titles from our shelf! 🎬',
-  },
-]
-
-export function shareKind(id) {
-  return SHARE_KINDS.find((k) => k.id === id) ?? SHARE_KINDS[0]
-}
-
-/** The message's first line for this kind and number of films. */
-export function shareHeading(kind, count) {
-  return shareKind(kind).heading(count)
+/**
+ * The message's first line (Stacia, 2026-11-21): "our shelf" when more than
+ * one person shares the household, "my shelf" when only one does; "this
+ * title" for one film, "these titles" for more. ⚠ The emoji is a draft.
+ */
+export function shareHeading(count, householdSize) {
+  const whose = householdSize > 1 ? 'our' : 'my'
+  const what = count === 1 ? 'this title' : 'these titles'
+  return `Check out ${what} from ${whose} shelf! 🎬`
 }
 
 /**
@@ -108,17 +97,6 @@ export function pickedFilms(picks, films) {
   return picks.map((id) => byId.get(id)).filter(Boolean)
 }
 
-/**
- * The message itself.
- *
- *   kind           'movie-night' | 'recommend'
- *   note           free text from the sender, may be blank
- *   films          the chosen films, in the order chosen
- *   reviews        film_reviews rows for those films (any people)
- *   profiles       [{ id, display_name }]
- *   myId           the sender
- *   includeOthers  the tick box
- */
 /** One film's rating lines: the sender's, and everyone else's by name. */
 function ratingLines(film, reviews, names, myId) {
   const forFilm = reviews.filter((r) => r.film_id === film.id)
@@ -134,20 +112,19 @@ function ratingLines(film, reviews, names, myId) {
   }
 }
 
-export function shareMessage({
-  kind,
-  note = '',
-  films = [],
-  reviews = [],
-  profiles = [],
-  myId,
-  includeMine = true,
-  includeOthers = false,
-}) {
+/**
+ * The message itself.
+ *
+ *   films          the chosen films, in the order chosen
+ *   reviews        film_reviews rows (any films, any people)
+ *   profiles       [{ id, display_name }] — the household
+ *   myId           the sender
+ *   includeMine    the sender's setting for their own rating
+ *   includeOthers  the sender's setting for everyone else's
+ */
+export function shareMessage({ films = [], reviews = [], profiles = [], myId, includeMine = true, includeOthers = false }) {
   const names = new Map(profiles.map((p) => [p.id, p.display_name]))
-  const lines = [shareHeading(kind, films.length)]
-  const cleanNote = String(note ?? '').trim()
-  if (cleanNote) lines.push(cleanNote)
+  const lines = [shareHeading(films.length, profiles.length)]
 
   for (const film of films) {
     lines.push('')
@@ -170,63 +147,33 @@ export function otherNames(profiles, myId) {
     .sort((a, b) => a.localeCompare(b))
 }
 
-// ---------------------------------------------------------------- edit in place
-// The message box can be edited freely, and the switch and tick box change
-// only their own lines (Stacia, 2026-11-21: no "replace your changes?"
-// question). Each looks for the exact line it wrote; if the person has
-// changed or deleted that line, it is left alone — a switch never rewrites
-// what someone typed.
+// ------------------------------------------------------------ the two settings
+// Whose ratings go in, remembered per person on each phone — a display
+// preference, like the money line's open/closed, so the browser keeps it.
+// A browser that refuses storage gets the defaults.
 
-/**
- * Swap the heading for another kind's. The old heading is replaced wherever
- * it starts a line, keeping anything typed after it on that line ("Movie
- * night? 🍿 Friday at ours?"). Not found → the text is returned unchanged.
- */
-export function switchHeading(text, fromKind, toKind, count) {
-  const from = shareHeading(fromKind, count)
-  const to = shareHeading(toKind, count)
-  const lines = String(text).split('\n')
-  const i = lines.findIndex((line) => line.startsWith(from))
-  if (i === -1) return text
-  lines[i] = to + lines[i].slice(from.length)
-  return lines.join('\n')
+export const SHARE_DEFAULTS = { includeMine: true, includeOthers: false }
+
+function settingsKey(userId) {
+  return `shelf.share.${userId}`
 }
 
-/**
- * Add or remove one group of rating lines — the sender's own ('mine') or
- * everyone else's ('others') — film by film (Stacia, 2026-11-21: a tick box
- * for each). Each film is found by its title line. The sender's line goes
- * straight under the title; others' go under the sender's if it is there.
- * Removals take out only lines that match exactly, within that film's block
- * (up to the next blank line), so anything typed stays.
- */
-export function setRatingsInText(text, { films, reviews, profiles, myId, who, include }) {
-  const names = new Map(profiles.map((p) => [p.id, p.display_name]))
-  const lines = String(text).split('\n')
-  let from = 0
-
-  for (const film of films) {
-    const at = lines.indexOf(filmLine(film), from)
-    if (at === -1) continue
-    from = at + 1
-
-    const rated = ratingLines(film, reviews, names, myId)
-    const group = who === 'mine' ? (rated.mine ? [rated.mine] : []) : rated.others
-    if (!group.length) continue
-
-    let end = at + 1
-    while (end < lines.length && lines[end].trim() !== '') end += 1
-    const block = lines.slice(at + 1, end)
-
-    if (include) {
-      const missing = group.filter((l) => !block.includes(l))
-      if (!missing.length) continue
-      const pos = who === 'others' && lines[at + 1] === rated.mine ? at + 2 : at + 1
-      lines.splice(pos, 0, ...missing)
-    } else {
-      const kept = block.filter((l) => !group.includes(l))
-      lines.splice(at + 1, block.length, ...kept)
+export function readShareSettings(storage, userId) {
+  try {
+    const raw = JSON.parse(storage.getItem(settingsKey(userId)) ?? 'null')
+    return {
+      includeMine: typeof raw?.includeMine === 'boolean' ? raw.includeMine : SHARE_DEFAULTS.includeMine,
+      includeOthers: typeof raw?.includeOthers === 'boolean' ? raw.includeOthers : SHARE_DEFAULTS.includeOthers,
     }
+  } catch {
+    return { ...SHARE_DEFAULTS }
   }
-  return lines.join('\n')
+}
+
+export function saveShareSettings(storage, userId, settings) {
+  try {
+    storage.setItem(settingsKey(userId), JSON.stringify(settings))
+  } catch {
+    // Not remembered on this phone; the defaults come back next time.
+  }
 }

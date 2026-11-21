@@ -1,4 +1,4 @@
-// Tests for the share card's message. Run with `npm test`.
+// Tests for the share message. Run with `npm test`.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -8,11 +8,11 @@ import {
   filmLine,
   otherNames,
   pickedFilms,
+  readShareSettings,
   reviewLine,
-  setRatingsInText,
+  saveShareSettings,
   shareHeading,
   shareMessage,
-  switchHeading,
   tmdbLink,
   togglePick,
 } from './share.js'
@@ -86,96 +86,66 @@ test('picked films keep their order and drop a film deleted meanwhile', () => {
   assert.deepEqual(pickedFilms(['f3', 'gone', 'f1'], films).map((f) => f.id), ['f3', 'f1'])
 })
 
+test('heading: our / my shelf by household size, this title / these titles by count', () => {
+  assert.equal(shareHeading(1, 2), 'Check out this title from our shelf! 🎬')
+  assert.equal(shareHeading(3, 2), 'Check out these titles from our shelf! 🎬')
+  assert.equal(shareHeading(2, 1), 'Check out these titles from my shelf! 🎬')
+  assert.equal(shareHeading(1, 1), 'Check out this title from my shelf! 🎬')
+})
+
 const reviews = [
   { film_id: 'f1', profile_id: ME, rating: 4, comment: 'Still terrifying.' },
   { film_id: 'f1', profile_id: HER, rating: 5, comment: null },
   { film_id: 'f3', profile_id: HER, rating: 2, comment: 'Long.' },
 ]
+const base = { films: [alien, unverified], reviews, profiles, myId: ME }
 
-test('the message: heading, note, films, own rating, plain links', () => {
-  const text = shareMessage({
-    kind: 'movie-night',
-    note: '  Friday at ours?  ',
-    films: [alien, unverified],
-    reviews,
-    profiles,
-    myId: ME,
-  })
+test('the default message: heading, films, my rating, plain links, not hers', () => {
   assert.equal(
-    text,
-    ['Movie night? 🍿', 'Friday at ours?', '', 'Alien (1979)', 'nanoedith ★★★★☆ “Still terrifying.”', '<https://www.themoviedb.org/movie/348>', '', 'Dune (1984)'].join('\n'),
+    shareMessage(base),
+    [
+      'Check out these titles from our shelf! 🎬',
+      '',
+      'Alien (1979)',
+      'nanoedith ★★★★☆ “Still terrifying.”',
+      '<https://www.themoviedb.org/movie/348>',
+      '',
+      'Dune (1984)',
+    ].join('\n'),
   )
 })
 
-test('the other person is left out unless the box is ticked', () => {
-  const without = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME })
-  assert.ok(!without.includes('pagong'))
-  const withHer = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME, includeOthers: true })
-  assert.ok(withHer.startsWith('Check out these titles from our shelf!'))
-  assert.ok(withHer.includes('nanoedith ★★★★☆ “Still terrifying.”\npagong ★★★★★\n<https'))
-  assert.ok(withHer.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
+test('each setting adds or leaves out its own lines', () => {
+  const both = shareMessage({ ...base, includeOthers: true })
+  assert.ok(both.includes('nanoedith ★★★★☆ “Still terrifying.”\npagong ★★★★★\n<https'))
+  assert.ok(both.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
+  const neither = shareMessage({ ...base, includeMine: false })
+  assert.ok(!neither.includes('nanoedith') && !neither.includes('pagong'))
+  const hersOnly = shareMessage({ ...base, includeMine: false, includeOthers: true })
+  assert.ok(hersOnly.includes('Alien (1979)\npagong ★★★★★'))
 })
 
 test('never a cover link, money, or anything not on the list', () => {
-  const text = shareMessage({ kind: 'movie-night', films: [alien], reviews, profiles, myId: ME, includeOthers: true })
+  const text = shareMessage({ ...base, films: [alien], includeOthers: true })
   assert.ok(!text.includes('supabase'))
   assert.ok(!text.includes('posters'))
   assert.ok(!text.includes('12.5'))
-})
-
-test('blank note leaves no blank line under the heading', () => {
-  const text = shareMessage({ kind: 'movie-night', note: '   ', films: [boxSet], reviews: [], profiles, myId: ME })
-  assert.equal(text, 'Movie night? 🍿\n\nMatrix Triple Feature')
 })
 
 test('other names', () => {
   assert.deepEqual(otherNames(profiles, ME), ['pagong'])
 })
 
-test('Check this out. heading says title or titles', () => {
-  assert.equal(shareHeading('recommend', 1), 'Check out this title from our shelf! 🎬')
-  assert.equal(shareHeading('recommend', 3), 'Check out these titles from our shelf! 🎬')
-  assert.equal(shareHeading('movie-night', 2), 'Movie night? 🍿')
-})
-
-const base = { films: [alien, unverified], reviews, profiles, myId: ME }
-
-test('switching kind swaps only the heading and keeps a typed note on that line', () => {
-  const start = shareMessage({ kind: 'movie-night', ...base })
-  const typed = start.replace('Movie night? 🍿', 'Movie night? 🍿 Friday at ours?') + '\nBring snacks'
-  const swapped = switchHeading(typed, 'movie-night', 'recommend', 2)
-  assert.ok(swapped.startsWith('Check out these titles from our shelf! 🎬 Friday at ours?'))
-  assert.ok(swapped.endsWith('Bring snacks'))
-  assert.equal(switchHeading(swapped, 'recommend', 'movie-night', 2), typed)
-  // Heading deleted by hand → nothing to swap, nothing touched.
-  const noHeading = typed.split('\n').slice(1).join('\n')
-  assert.equal(switchHeading(noHeading, 'movie-night', 'recommend', 2), noHeading)
-})
-
-test('the tick box adds and removes the other lines in place, keeping edits', () => {
-  const start = shareMessage({ kind: 'movie-night', ...base }) + '\nSee you then!'
-  const on = setRatingsInText(start, { ...base, who: 'others', include: true })
-  assert.equal(on, shareMessage({ kind: 'movie-night', ...base, includeOthers: true }) + '\nSee you then!')
-  // Ticking twice adds nothing more.
-  assert.equal(setRatingsInText(on, { ...base, who: 'others', include: true }), on)
-  assert.equal(setRatingsInText(on, { ...base, who: 'others', include: false }), start)
-})
-
-test('the tick box leaves a film alone if its title line was changed', () => {
-  const start = shareMessage({ kind: 'movie-night', ...base }).replace('Alien (1979)', 'ALIEN!!')
-  const on = setRatingsInText(start, { ...base, who: 'others', include: true })
-  assert.ok(!on.includes('pagong ★★★★★'))
-  assert.ok(on.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
-})
-
-test('my own rating can be left out, and ticked back in under the title', () => {
-  const withMine = shareMessage({ kind: 'movie-night', ...base })
-  const without = shareMessage({ kind: 'movie-night', ...base, includeMine: false })
-  assert.ok(!without.includes('nanoedith'))
-  assert.equal(setRatingsInText(withMine, { ...base, who: 'mine', include: false }), without)
-  assert.equal(setRatingsInText(without, { ...base, who: 'mine', include: true }), withMine)
-  // Both ticked, in either order, gives the same text as building it whole.
-  const both = shareMessage({ kind: 'movie-night', ...base, includeOthers: true })
-  const othersFirst = setRatingsInText(without, { ...base, who: 'others', include: true })
-  assert.equal(setRatingsInText(othersFirst, { ...base, who: 'mine', include: true }), both)
+test('settings: defaults, remembered per person, survive a broken store', () => {
+  const store = new Map()
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+  assert.deepEqual(readShareSettings(storage, ME), { includeMine: true, includeOthers: false })
+  saveShareSettings(storage, ME, { includeMine: false, includeOthers: true })
+  assert.deepEqual(readShareSettings(storage, ME), { includeMine: false, includeOthers: true })
+  assert.deepEqual(readShareSettings(storage, HER), { includeMine: true, includeOthers: false })
+  const broken = { getItem: () => { throw new Error('no') }, setItem: () => { throw new Error('no') } }
+  assert.deepEqual(readShareSettings(broken, ME), { includeMine: true, includeOthers: false })
+  saveShareSettings(broken, ME, { includeMine: false, includeOthers: false })
+  store.set('shelf.share.' + ME, '{not json')
+  assert.deepEqual(readShareSettings(storage, ME), { includeMine: true, includeOthers: false })
 })
