@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { displayTitle } from '../lib/collection.js'
 import { lockScroll } from '../lib/scrollLock.js'
 import {
   DISCORD_LIMIT,
@@ -52,10 +53,10 @@ function copyTheOldWay(text) {
  * It writes nothing. The starting text comes from lib/share.js, which never
  * includes a cover link, money or trigger data.
  */
-export default function SharePanel({ films, userId, onClose }) {
-  const [kind, setKind] = useState(SHARE_KINDS[0].id)
-  const [includeMine, setIncludeMine] = useState(true)
-  const [includeOthers, setIncludeOthers] = useState(false)
+export default function SharePanel({ films, userId, initial = null, onClose, onEditFilms }) {
+  const [kind, setKind] = useState(initial?.kind ?? SHARE_KINDS[0].id)
+  const [includeMine, setIncludeMine] = useState(initial?.includeMine ?? true)
+  const [includeOthers, setIncludeOthers] = useState(initial?.includeOthers ?? false)
   const [data, setData] = useState({ status: 'loading', reviews: [], profiles: [], error: null })
   const [text, setText] = useState('')
   const [sent, setSent] = useState({ status: 'idle', error: null })
@@ -189,6 +190,24 @@ export default function SharePanel({ films, userId, onClose }) {
         </div>
 
         <div className="detail-body share-body">
+          {/* Which films, and the way back to change them (Stacia,
+              2026-11-21): back and Cancel throw picks away, so this is the
+              only way to add or swap one. The switch and tick boxes go back
+              and forth with it; the message is rebuilt on return.
+              ⚠ Draft wording. */}
+          <div className="share-films">
+            <p className="share-films-list">{films.map((f) => displayTitle(f.title)).join(' · ')}</p>
+            {onEditFilms && (
+              <button
+                type="button"
+                className="ghost share-edit-films"
+                onClick={() => onEditFilms({ kind, includeMine, includeOthers })}
+              >
+                Edit films
+              </button>
+            )}
+          </div>
+
           <div className="share-kinds" role="radiogroup" aria-label="Kind of share">
             {SHARE_KINDS.map((k) => (
               <button

@@ -577,6 +577,16 @@ export default function App() {
     )
   }
 
+  // Into select mode: empty from the top row's icon, or with the films
+  // already chosen from the share box's "Edit films" (Stacia, 2026-11-21),
+  // carrying its switch and tick boxes so OK comes back to the same choices.
+  function startSelecting(picks, settings = null) {
+    setOpenFilmId(null)
+    setFiltersOpen(false)
+    setPickMessage('')
+    setSelecting({ picks, queryBefore: query, settings })
+  }
+
   // Leaving select mode puts the search back as it was (Dana).
   function endSelecting() {
     setQuery(selecting?.queryBefore ?? '')
@@ -665,11 +675,7 @@ export default function App() {
               aria-label="Share"
               aria-pressed={selecting != null}
               onClick={() => {
-                if (selecting) return
-                setOpenFilmId(null)
-                setFiltersOpen(false)
-                setPickMessage('')
-                setSelecting({ picks: [], queryBefore: query })
+                if (!selecting) startSelecting([])
               }}
             >
               <ShareIcon />
@@ -867,7 +873,7 @@ export default function App() {
           onOk={() => {
             const chosen = pickedFilms(selecting.picks, films)
             endSelecting()
-            if (chosen.length) setShare({ films: chosen })
+            if (chosen.length) setShare({ films: chosen, settings: selecting.settings })
           }}
         />
       )}
@@ -930,7 +936,12 @@ export default function App() {
           <SharePanel
             films={share.films}
             userId={session.user.id}
+            initial={share.settings}
             onClose={() => setShare(null)}
+            onEditFilms={(settings) => {
+              setShare(null)
+              startSelecting(share.films.map((f) => f.id), settings)
+            }}
           />
         </ErrorBoundary>
       )}
