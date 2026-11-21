@@ -45,7 +45,7 @@ function Detail({ label, children }) {
  * phone the expansion pushed everything else around. Here the rest of the
  * collection stays put and comes back untouched when the panel closes.
  */
-export default function FilmDetail({ film, userId, triggers = null, onOpenTriggerSettings, onClose, onEdit, hidden = false }) {
+export default function FilmDetail({ film, userId, triggers = null, onOpenTriggerSettings, onClose, onEdit, onShare, hidden = false }) {
   // The phone's back gesture closes this panel rather than leaving the app.
   // This is the panel it matters most for: its X is in the top corner, and
   // Android's back arrow is at the bottom of the screen under your thumb.
@@ -115,6 +115,12 @@ export default function FilmDetail({ film, userId, triggers = null, onOpenTrigge
             {year && <p className="detail-year muted">{year}</p>}
           </div>
           <div className="detail-head-actions">
+            {/* ⚠ Draft wording (2026-11-21). */}
+            {onShare && (
+              <button type="button" className="ghost detail-edit" onClick={onShare}>
+                Share
+              </button>
+            )}
             {onEdit && (
               <button type="button" className="ghost detail-edit" onClick={onEdit}>
                 Edit

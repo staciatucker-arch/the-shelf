@@ -4,7 +4,7 @@ import Login from './components/Login.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import UpdateBanner from './components/UpdateBanner.jsx'
 import UserMenu from './components/UserMenu.jsx'
-import { FilterIcon, SortIcon, UserIcon } from './components/icons.jsx'
+import { FilterIcon, ShareIcon, SortIcon, UserIcon } from './components/icons.jsx'
 import FilterPanel from './components/FilterPanel.jsx'
 import FilmCard from './components/FilmCard.jsx'
 import FilmDetail from './components/FilmDetail.jsx'
@@ -13,6 +13,7 @@ import OptionsManager from './components/OptionsManager.jsx'
 import WishForm from './components/WishForm.jsx'
 import WishlistPanel, { WishRow } from './components/WishlistPanel.jsx'
 import WatchNext from './components/WatchNext.jsx'
+import SharePanel from './components/SharePanel.jsx'
 import AddedNotice from './components/AddedNotice.jsx'
 import TriggerSettings from './components/TriggerSettings.jsx'
 import { useTriggers } from './components/useTriggers.js'
@@ -125,6 +126,9 @@ export default function App() {
   // After a film is added that is also on the wishlist: { film, match }.
   const [addedNotice, setAddedNotice] = useState(null)
   const [watchNextOpen, setWatchNextOpen] = useState(false)
+  // The share card: null when closed, else { film } — the film it was opened
+  // from, or null when opened from the top row's Share icon.
+  const [share, setShare] = useState(null)
   // "Move to your Shelf": the wish the add form was started from, if any.
   const [movingWishId, setMovingWishId] = useState(null)
   // What was in the search box when Add film was tapped: the form starts with
@@ -261,6 +265,7 @@ export default function App() {
     setFocusWishId(null)
     setAddedNotice(null)
     setWatchNextOpen(false)
+    setShare(null)
     setMovingWishId(null)
     setAddTitle('')
     setUserMenuOpen(false)
@@ -624,6 +629,15 @@ export default function App() {
 
             <button
               type="button"
+              className="ghost icon-button share-button"
+              aria-label="Share"
+              onClick={() => setShare({ film: null })}
+            >
+              <ShareIcon />
+            </button>
+
+            <button
+              type="button"
               className="ghost icon-button user-button"
               aria-label="Account"
               aria-expanded={userMenuOpen}
@@ -838,9 +852,27 @@ export default function App() {
             userId={session.user.id}
             triggers={triggers}
             onOpenTriggerSettings={() => setTriggerSettingsOpen(true)}
-            hidden={Boolean(editingFilm) || triggerSettingsOpen}
+            hidden={Boolean(editingFilm) || triggerSettingsOpen || Boolean(share)}
             onClose={() => setOpenFilmId(null)}
             onEdit={() => setEditingFilmId(openFilm.id)}
+            onShare={() => setShare({ film: openFilm })}
+          />
+        </ErrorBoundary>
+      )}
+
+      {share && (
+        <ErrorBoundary
+          overlay
+          title="Sharing stopped working."
+          detail="The rest of the collection is fine. Sharing saves nothing, so nothing has changed."
+          onDismiss={() => setShare(null)}
+          dismissLabel="Close"
+        >
+          <SharePanel
+            films={films ?? []}
+            userId={session.user.id}
+            initialFilm={share.film}
+            onClose={() => setShare(null)}
           />
         </ErrorBoundary>
       )}

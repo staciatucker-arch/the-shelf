@@ -1,0 +1,127 @@
+// Tests for the share card's message. Run with `npm test`.
+
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+
+import {
+  SHARE_MAX,
+  addToShare,
+  filmLine,
+  otherNames,
+  reviewLine,
+  shareCandidates,
+  shareMessage,
+  tmdbLink,
+} from './share.js'
+
+const ME = 'me-id'
+const HER = 'her-id'
+const profiles = [
+  { id: ME, display_name: 'nanoedith' },
+  { id: HER, display_name: 'pagong' },
+]
+
+const alien = {
+  id: 'f1',
+  title: 'Alien',
+  release_year: 1979,
+  tmdb_id: 348,
+  tmdb_kind: 'movie',
+  tmdb_verified: true,
+  poster_url: 'https://example.supabase.co/storage/v1/object/public/posters/alien.jpg',
+  cost: 12.5,
+}
+const buffy = {
+  id: 'f2',
+  title: 'Buffy the Vampire Slayer S1',
+  season: 'Season 1',
+  season_number: 1,
+  tmdb_id: 95,
+  tmdb_kind: 'tv',
+  tmdb_verified: true,
+}
+const unverified = { id: 'f3', title: 'Dune', release_year: 1984, tmdb_id: 841, tmdb_kind: 'movie', tmdb_verified: false }
+const boxSet = {
+  id: 'f4',
+  title: 'Matrix Triple Feature\nThe Matrix,\nThe Matrix Reloaded,\nThe Matrix Revolutions',
+  type: 'Box set',
+}
+
+test('TMDB link only for a confirmed match, list from tmdb_kind', () => {
+  assert.equal(tmdbLink(alien), 'https://www.themoviedb.org/movie/348')
+  assert.equal(tmdbLink(buffy), 'https://www.themoviedb.org/tv/95/season/1')
+  assert.equal(tmdbLink({ ...buffy, season_number: null }), 'https://www.themoviedb.org/tv/95')
+  assert.equal(tmdbLink(unverified), null)
+  assert.equal(tmdbLink(boxSet), null)
+  assert.equal(tmdbLink({ ...alien, tmdb_kind: null }), null)
+})
+
+test('title line uses the display title and year or season', () => {
+  assert.equal(filmLine(alien), 'Alien (1979)')
+  assert.equal(filmLine(buffy), 'Buffy the Vampire Slayer S1 (Season 1)')
+  assert.equal(filmLine(boxSet), 'Matrix Triple Feature')
+})
+
+test('review line: stars, comment, either, or nothing', () => {
+  assert.equal(reviewLine('nanoedith', { rating: 4, comment: 'Still\n\nterrifying.' }), 'nanoedith ★★★★☆ “Still terrifying.”')
+  assert.equal(reviewLine('nanoedith', { rating: 5, comment: null }), 'nanoedith ★★★★★')
+  assert.equal(reviewLine('pagong', { rating: null, comment: 'Loved it' }), 'pagong: “Loved it”')
+  assert.equal(reviewLine('pagong', { rating: null, comment: '  ' }), null)
+})
+
+test('never more than three films, never the same film twice', () => {
+  let chosen = []
+  for (const f of [alien, alien, buffy, unverified, boxSet]) chosen = addToShare(chosen, f)
+  assert.equal(chosen.length, SHARE_MAX)
+  assert.deepEqual(chosen.map((f) => f.id), ['f1', 'f2', 'f3'])
+})
+
+const reviews = [
+  { film_id: 'f1', profile_id: ME, rating: 4, comment: 'Still terrifying.' },
+  { film_id: 'f1', profile_id: HER, rating: 5, comment: null },
+  { film_id: 'f3', profile_id: HER, rating: 2, comment: 'Long.' },
+]
+
+test('the message: heading, note, films, own rating, plain links', () => {
+  const text = shareMessage({
+    kind: 'movie-night',
+    note: '  Friday at ours?  ',
+    films: [alien, unverified],
+    reviews,
+    profiles,
+    myId: ME,
+  })
+  assert.equal(
+    text,
+    ['Movie night? 🍿', 'Friday at ours?', '', 'Alien (1979)', 'nanoedith ★★★★☆ “Still terrifying.”', '<https://www.themoviedb.org/movie/348>', '', 'Dune (1984)'].join('\n'),
+  )
+})
+
+test('the other person is left out unless the box is ticked', () => {
+  const without = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME })
+  assert.ok(!without.includes('pagong'))
+  const withHer = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME, includeOthers: true })
+  assert.ok(withHer.startsWith('We recommend'))
+  assert.ok(withHer.includes('nanoedith ★★★★☆ “Still terrifying.”\npagong ★★★★★\n<https'))
+  assert.ok(withHer.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
+})
+
+test('never a cover link, money, or anything not on the list', () => {
+  const text = shareMessage({ kind: 'movie-night', films: [alien], reviews, profiles, myId: ME, includeOthers: true })
+  assert.ok(!text.includes('supabase'))
+  assert.ok(!text.includes('posters'))
+  assert.ok(!text.includes('12.5'))
+})
+
+test('blank note leaves no blank line under the heading', () => {
+  const text = shareMessage({ kind: 'movie-night', note: '   ', films: [boxSet], reviews: [], profiles, myId: ME })
+  assert.equal(text, 'Movie night? 🍿\n\nMatrix Triple Feature')
+})
+
+test('other names and the picker', () => {
+  assert.deepEqual(otherNames(profiles, ME), ['pagong'])
+  const films = [alien, buffy, unverified, boxSet]
+  assert.deepEqual(shareCandidates(films, '', []), [])
+  assert.deepEqual(shareCandidates(films, 'reloaded', []).map((f) => f.id), ['f4'])
+  assert.deepEqual(shareCandidates(films, 'a', [alien]).map((f) => f.id), ['f2', 'f4'])
+})
