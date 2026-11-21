@@ -9,7 +9,7 @@ import {
   otherNames,
   pickedFilms,
   reviewLine,
-  setOthersInText,
+  setRatingsInText,
   shareHeading,
   shareMessage,
   switchHeading,
@@ -111,7 +111,7 @@ test('the other person is left out unless the box is ticked', () => {
   const without = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME })
   assert.ok(!without.includes('pagong'))
   const withHer = shareMessage({ kind: 'recommend', films: [alien, unverified], reviews, profiles, myId: ME, includeOthers: true })
-  assert.ok(withHer.startsWith('Check out these titles from my collection!'))
+  assert.ok(withHer.startsWith('Check out these titles from our shelf!'))
   assert.ok(withHer.includes('nanoedith ★★★★☆ “Still terrifying.”\npagong ★★★★★\n<https'))
   assert.ok(withHer.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
 })
@@ -133,8 +133,8 @@ test('other names', () => {
 })
 
 test('Check this out. heading says title or titles', () => {
-  assert.equal(shareHeading('recommend', 1), 'Check out this title from my collection! 🎬')
-  assert.equal(shareHeading('recommend', 3), 'Check out these titles from my collection! 🎬')
+  assert.equal(shareHeading('recommend', 1), 'Check out this title from our shelf! 🎬')
+  assert.equal(shareHeading('recommend', 3), 'Check out these titles from our shelf! 🎬')
   assert.equal(shareHeading('movie-night', 2), 'Movie night? 🍿')
 })
 
@@ -144,7 +144,7 @@ test('switching kind swaps only the heading and keeps a typed note on that line'
   const start = shareMessage({ kind: 'movie-night', ...base })
   const typed = start.replace('Movie night? 🍿', 'Movie night? 🍿 Friday at ours?') + '\nBring snacks'
   const swapped = switchHeading(typed, 'movie-night', 'recommend', 2)
-  assert.ok(swapped.startsWith('Check out these titles from my collection! 🎬 Friday at ours?'))
+  assert.ok(swapped.startsWith('Check out these titles from our shelf! 🎬 Friday at ours?'))
   assert.ok(swapped.endsWith('Bring snacks'))
   assert.equal(switchHeading(swapped, 'recommend', 'movie-night', 2), typed)
   // Heading deleted by hand → nothing to swap, nothing touched.
@@ -154,16 +154,28 @@ test('switching kind swaps only the heading and keeps a typed note on that line'
 
 test('the tick box adds and removes the other lines in place, keeping edits', () => {
   const start = shareMessage({ kind: 'movie-night', ...base }) + '\nSee you then!'
-  const on = setOthersInText(start, { ...base, include: true })
+  const on = setRatingsInText(start, { ...base, who: 'others', include: true })
   assert.equal(on, shareMessage({ kind: 'movie-night', ...base, includeOthers: true }) + '\nSee you then!')
   // Ticking twice adds nothing more.
-  assert.equal(setOthersInText(on, { ...base, include: true }), on)
-  assert.equal(setOthersInText(on, { ...base, include: false }), start)
+  assert.equal(setRatingsInText(on, { ...base, who: 'others', include: true }), on)
+  assert.equal(setRatingsInText(on, { ...base, who: 'others', include: false }), start)
 })
 
 test('the tick box leaves a film alone if its title line was changed', () => {
   const start = shareMessage({ kind: 'movie-night', ...base }).replace('Alien (1979)', 'ALIEN!!')
-  const on = setOthersInText(start, { ...base, include: true })
+  const on = setRatingsInText(start, { ...base, who: 'others', include: true })
   assert.ok(!on.includes('pagong ★★★★★'))
   assert.ok(on.includes('Dune (1984)\npagong ★★☆☆☆ “Long.”'))
+})
+
+test('my own rating can be left out, and ticked back in under the title', () => {
+  const withMine = shareMessage({ kind: 'movie-night', ...base })
+  const without = shareMessage({ kind: 'movie-night', ...base, includeMine: false })
+  assert.ok(!without.includes('nanoedith'))
+  assert.equal(setRatingsInText(withMine, { ...base, who: 'mine', include: false }), without)
+  assert.equal(setRatingsInText(without, { ...base, who: 'mine', include: true }), withMine)
+  // Both ticked, in either order, gives the same text as building it whole.
+  const both = shareMessage({ kind: 'movie-night', ...base, includeOthers: true })
+  const othersFirst = setRatingsInText(without, { ...base, who: 'others', include: true })
+  assert.equal(setRatingsInText(othersFirst, { ...base, who: 'mine', include: true }), both)
 })

@@ -5,7 +5,7 @@ import {
   DISCORD_LIMIT,
   SHARE_KINDS,
   otherNames,
-  setOthersInText,
+  setRatingsInText,
   shareMessage,
   switchHeading,
 } from '../lib/share.js'
@@ -39,8 +39,8 @@ function copyTheOldWay(text) {
  * 2026-11-21). The films are already chosen — on the shelf in select mode,
  * or the one film whose panel it was opened from. What is left:
  *
- *   - "Movie night?" / "Check this out." and the tick box for the other
- *     person's rating, which write the message;
+ *   - "Movie night?" / "Check this out." and a tick box each for your own
+ *     rating and the other person's, which write the message;
  *   - the message itself, in a box that can be edited freely (the note goes
  *     in there — there is no separate Note field);
  *   - Share… (the phone's share menu, where there is one) and Copy.
@@ -54,6 +54,7 @@ function copyTheOldWay(text) {
  */
 export default function SharePanel({ films, userId, onClose }) {
   const [kind, setKind] = useState(SHARE_KINDS[0].id)
+  const [includeMine, setIncludeMine] = useState(true)
   const [includeOthers, setIncludeOthers] = useState(false)
   const [data, setData] = useState({ status: 'loading', reviews: [], profiles: [], error: null })
   const [text, setText] = useState('')
@@ -100,7 +101,7 @@ export default function SharePanel({ films, userId, onClose }) {
   useEffect(() => {
     if (data.status !== 'ready') return
     setText(
-      shareMessage({ kind, films, reviews: data.reviews, profiles: data.profiles, myId: userId, includeOthers }),
+      shareMessage({ kind, films, reviews: data.reviews, profiles: data.profiles, myId: userId, includeMine, includeOthers }),
     )
   }, [data.status])
 
@@ -119,12 +120,15 @@ export default function SharePanel({ films, userId, onClose }) {
     setSent({ status: 'idle', error: null })
   }
 
-  function changeOthers(include) {
+  // A tick box for your own rating and one for everyone else's (Stacia,
+  // 2026-11-21). Each adds or removes only its own lines.
+  function changeRatings(who, include) {
     if (data.status !== 'ready') return
     setText((t) =>
-      setOthersInText(t, { films, reviews: data.reviews, profiles: data.profiles, myId: userId, include }),
+      setRatingsInText(t, { films, reviews: data.reviews, profiles: data.profiles, myId: userId, who, include }),
     )
-    setIncludeOthers(include)
+    if (who === 'mine') setIncludeMine(include)
+    else setIncludeOthers(include)
     setSent({ status: 'idle', error: null })
   }
 
@@ -201,13 +205,23 @@ export default function SharePanel({ films, userId, onClose }) {
             ))}
           </div>
 
+          {/* ⚠ Draft wording (2026-11-21). */}
+          <label className="check-item share-others">
+            <input
+              type="checkbox"
+              checked={includeMine}
+              disabled={!ready}
+              onChange={(e) => changeRatings('mine', e.target.checked)}
+            />
+            Include my rating
+          </label>
           {others.length > 0 && (
             <label className="check-item share-others">
               <input
                 type="checkbox"
                 checked={includeOthers}
                 disabled={!ready}
-                onChange={(e) => changeOthers(e.target.checked)}
+                onChange={(e) => changeRatings('others', e.target.checked)}
               />
               Include {others.join(' and ')}’s {others.length > 1 ? 'ratings' : 'rating'}
             </label>

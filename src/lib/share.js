@@ -33,8 +33,8 @@ export const SHARE_KINDS = [
     label: 'Check this out.',
     heading: (count) =>
       count === 1
-        ? 'Check out this title from my collection! 🎬'
-        : 'Check out these titles from my collection! 🎬',
+        ? 'Check out this title from our shelf! 🎬'
+        : 'Check out these titles from our shelf! 🎬',
   },
 ]
 
@@ -119,7 +119,31 @@ export function pickedFilms(picks, films) {
  *   myId           the sender
  *   includeOthers  the tick box
  */
-export function shareMessage({ kind, note = '', films = [], reviews = [], profiles = [], myId, includeOthers = false }) {
+/** One film's rating lines: the sender's, and everyone else's by name. */
+function ratingLines(film, reviews, names, myId) {
+  const forFilm = reviews.filter((r) => r.film_id === film.id)
+  const mine = forFilm.find((r) => r.profile_id === myId)
+  return {
+    mine: mine ? reviewLine(names.get(myId) ?? 'Me', mine) : null,
+    others: forFilm
+      .filter((r) => r.profile_id !== myId)
+      .map((r) => ({ name: names.get(r.profile_id) ?? 'Someone', r }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(({ name, r }) => reviewLine(name, r))
+      .filter(Boolean),
+  }
+}
+
+export function shareMessage({
+  kind,
+  note = '',
+  films = [],
+  reviews = [],
+  profiles = [],
+  myId,
+  includeMine = true,
+  includeOthers = false,
+}) {
   const names = new Map(profiles.map((p) => [p.id, p.display_name]))
   const lines = [shareHeading(kind, films.length)]
   const cleanNote = String(note ?? '').trim()
@@ -128,23 +152,9 @@ export function shareMessage({ kind, note = '', films = [], reviews = [], profil
   for (const film of films) {
     lines.push('')
     lines.push(filmLine(film))
-
-    const forFilm = reviews.filter((r) => r.film_id === film.id)
-    const mine = forFilm.find((r) => r.profile_id === myId)
-    const mineLine = mine ? reviewLine(names.get(myId) ?? 'Me', mine) : null
-    if (mineLine) lines.push(mineLine)
-
-    if (includeOthers) {
-      forFilm
-        .filter((r) => r.profile_id !== myId)
-        .map((r) => ({ name: names.get(r.profile_id) ?? 'Someone', r }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(({ name, r }) => {
-          const line = reviewLine(name, r)
-          if (line) lines.push(line)
-        })
-    }
-
+    const rated = ratingLines(film, reviews, names, myId)
+    if (includeMine && rated.mine) lines.push(rated.mine)
+    if (includeOthers) lines.push(...rated.others)
     const link = tmdbLink(film)
     if (link) lines.push(`<${link}>`)
   }
@@ -183,43 +193,38 @@ export function switchHeading(text, fromKind, toKind, count) {
 }
 
 /**
- * Add or remove the other people's rating lines, film by film. Each film is
- * found by its title line; additions go after the sender's own line if it is
- * still there, else straight under the title; removals take out only lines
- * that match exactly, within that film's block (up to the next blank line).
+ * Add or remove one group of rating lines — the sender's own ('mine') or
+ * everyone else's ('others') — film by film (Stacia, 2026-11-21: a tick box
+ * for each). Each film is found by its title line. The sender's line goes
+ * straight under the title; others' go under the sender's if it is there.
+ * Removals take out only lines that match exactly, within that film's block
+ * (up to the next blank line), so anything typed stays.
  */
-export function setOthersInText(text, { films, reviews, profiles, myId, include }) {
+export function setRatingsInText(text, { films, reviews, profiles, myId, who, include }) {
   const names = new Map(profiles.map((p) => [p.id, p.display_name]))
   const lines = String(text).split('\n')
   let from = 0
 
   for (const film of films) {
-    const title = filmLine(film)
-    const at = lines.indexOf(title, from)
+    const at = lines.indexOf(filmLine(film), from)
     if (at === -1) continue
     from = at + 1
 
-    const forFilm = reviews.filter((r) => r.film_id === film.id)
-    const mine = forFilm.find((r) => r.profile_id === myId)
-    const mineLine = mine ? reviewLine(names.get(myId) ?? 'Me', mine) : null
-    const otherLines = forFilm
-      .filter((r) => r.profile_id !== myId)
-      .map((r) => ({ name: names.get(r.profile_id) ?? 'Someone', r }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ name, r }) => reviewLine(name, r))
-      .filter(Boolean)
+    const rated = ratingLines(film, reviews, names, myId)
+    const group = who === 'mine' ? (rated.mine ? [rated.mine] : []) : rated.others
+    if (!group.length) continue
 
     let end = at + 1
     while (end < lines.length && lines[end].trim() !== '') end += 1
     const block = lines.slice(at + 1, end)
 
     if (include) {
-      const missing = otherLines.filter((l) => !block.includes(l))
+      const missing = group.filter((l) => !block.includes(l))
       if (!missing.length) continue
-      const pos = lines[at + 1] === mineLine ? at + 2 : at + 1
+      const pos = who === 'others' && lines[at + 1] === rated.mine ? at + 2 : at + 1
       lines.splice(pos, 0, ...missing)
     } else {
-      const kept = block.filter((l) => !otherLines.includes(l))
+      const kept = block.filter((l) => !group.includes(l))
       lines.splice(at + 1, block.length, ...kept)
     }
   }
