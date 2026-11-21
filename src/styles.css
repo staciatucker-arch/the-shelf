@@ -167,6 +167,7 @@ h1 {
 .user-menu .user-email { margin: 0 0 0.6rem; font-size: 0.85rem; word-break: break-all; }
 .user-menu .stats { margin-bottom: 0.6rem; }
 .user-menu > button { width: 100%; margin: 0; }
+.user-menu .menu-label { margin: 0.2rem 0 0.35rem; }
 
 /* The three ways in, at the bottom of the screen. Hidden while the search
    box has the keyboard, so the results get that room. */
@@ -1978,11 +1979,21 @@ button.danger {
 .topic-hidden em { color: var(--muted); }
 
 /* The film panel's section. */
+/* Ruled off below, like Ratings. Ratings already draws the line above it,
+   so straight after Ratings it draws no top line of its own — otherwise two
+   lines stack between them (Stacia, 2026-11-21). */
 .film-triggers {
   border-top: 1px solid var(--line);
-  margin-top: 1rem;
-  padding-top: 0.8rem;
+  border-bottom: 1px solid var(--line);
+  margin: 1rem 0 1.1rem;
+  padding: 0.8rem 0 1.1rem;
 }
+.reviews + .film-triggers {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+.triggers-title { margin-top: 0; }
 .triggers-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 .trigger-scope { font-size: 0.85rem; }
 .trigger-summary { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; margin: 0.3rem 0 0.5rem; }

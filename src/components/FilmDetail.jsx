@@ -204,7 +204,9 @@ export default function FilmDetail({ film, userId, triggers = null, onOpenTrigge
             )}
 
             {/* Two rows, each one a theme: what it is worth and what we plan
-                to do with it, then where it came from and its life since. */}
+                to do with it, then where it came from and its life since.
+                Heading: Stacia's wording, 2026-11-21. */}
+            <h3 className="group-label reviews-title">Title Value</h3>
             <dl className="detail-grid">
               <Detail label="Spent">{money(film.cost, { decimals: 2 })}</Detail>
               <Detail label="Market">{money(film.market_value, { decimals: 2 })}</Detail>

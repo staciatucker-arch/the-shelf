@@ -31,7 +31,14 @@ export default function UserMenu({ email, stats, triggerCount = null, onTriggers
   return (
     <div className="user-menu" ref={ref} role="dialog" aria-label="Account">
       <p className="muted user-email">{email}</p>
-      {stats && <StatsBar stats={stats} />}
+      {/* Section labels: Stacia's wording, 2026-11-21. */}
+      {stats && (
+        <>
+          <h3 className="group-label menu-label">Collection Value</h3>
+          <StatsBar stats={stats} />
+        </>
+      )}
+      {onTriggers && <h3 className="group-label menu-label">Trigger Warnings</h3>}
       {/* ⚠ Draft wording (2026-11-15). */}
       {onTriggers && (
         <button type="button" className="ghost menu-triggers" onClick={onTriggers}>
