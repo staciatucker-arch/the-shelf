@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   MIN_LEAD,
   MIN_VOTES,
@@ -9,6 +9,7 @@ import {
   summaryCounts,
 } from '../lib/triggers.js'
 import { TopicName } from './TriggerSettings.jsx'
+import { useBackToClose } from './useBackToClose.js'
 
 // ⚠ WORDING IS A DRAFT (2026-11-15) — Stacia writes the UI copy.
 //
@@ -31,6 +32,48 @@ function Credit() {
   )
 }
 
+// The explanation, moved off the panel into a pop-up behind an ⓘ (Stacia,
+// after Dana, 2026-11-22): people learn how triggers work when they set them
+// up, so the panel no longer repeats it every time. Back, ×, Escape and a tap
+// outside all close the pop-up only, never the film's panel.
+function TriggerInfo({ onClose, children }) {
+  const closeRef = useRef(null)
+  useBackToClose(onClose, { id: 'trigger-info' })
+
+  useEffect(() => {
+    closeRef.current?.focus()
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    // Capture, so Escape closes this pop-up rather than the film's panel.
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
+  return (
+    <div className="trigger-info-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="trigger-info"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trigger-info-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="trigger-info-head">
+          <h3 id="trigger-info-title" className="group-label">About triggers</h3>
+          <button type="button" className="ghost trigger-info-close" ref={closeRef} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   const { media, votes, myTopics, topicsById, checkFilms, loaded, error: loadError } = triggers
   const s = filmTriggerState(film, { media, votes, myTopics })
@@ -42,6 +85,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   const [revealed, setRevealed] = useState(() => new Set())
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState(null)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const mediaId = s.row?.id ?? null
   // A different answer (a check just ran, or another film): start closed.
@@ -144,7 +188,18 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   return (
     <section className="film-triggers">
       <div className="triggers-head">
-        {heading}
+        <div className="triggers-title-row">
+          {heading}
+          <button
+            type="button"
+            className="trigger-info-button"
+            onClick={() => setInfoOpen(true)}
+            aria-label="About triggers"
+            aria-haspopup="dialog"
+          >
+            <span aria-hidden="true">ⓘ</span>
+          </button>
+        </div>
         <span className="muted trigger-scope">{scopeLabel(film, s.row)}</span>
       </div>
 
@@ -264,23 +319,31 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
         </>
       )}
 
-      {s.row.tmdb_kind === 'tv' && Number(s.row.season) >= 0 && (
-        <p className="muted form-hint">
-          Season votes on DoesTheDogDie can include votes for the whole show.
-          {s.usedSeries &&
-            ` Where this season has fewer than ${MIN_VOTES} votes on a trigger, the whole series’ votes are used, marked “whole series”.`}
-        </p>
-      )}
-      {s.row.tmdb_kind === 'tv' && Number(s.row.season) < 0 && (
-        <p className="muted form-hint">
-          No season is recorded, so these are for the whole series. Pick the season in Edit to see that season’s.
-        </p>
-      )}
+      {/* Kept on the panel (Dana, 2026-11-22): the one thing that must not
+          hide behind a tap is that a count is not an all-clear. */}
       <p className="muted form-hint">
-        Flagged means at least {MIN_VOTES} DoesTheDogDie users voted, with yes ahead by {MIN_LEAD} or
-        more. Votes can be incomplete or wrong — a trigger not flagged here may still be in it. Checked{' '}
-        {checkedOn(s.row.checked_at)}.
+        Votes can miss things. Checked {checkedOn(s.row.checked_at)}.
       </p>
+      {infoOpen && (
+        <TriggerInfo onClose={() => setInfoOpen(false)}>
+          {s.row.tmdb_kind === 'tv' && Number(s.row.season) >= 0 && (
+            <p className="muted form-hint">
+              Season votes on DoesTheDogDie can include votes for the whole show.
+              {s.usedSeries &&
+                ` Where this season has fewer than ${MIN_VOTES} votes on a trigger, the whole series’ votes are used, marked “whole series”.`}
+            </p>
+          )}
+          {s.row.tmdb_kind === 'tv' && Number(s.row.season) < 0 && (
+            <p className="muted form-hint">
+              No season is recorded, so these are for the whole series. Pick the season in Edit to see that season’s.
+            </p>
+          )}
+          <p className="muted form-hint">
+            Flagged means at least {MIN_VOTES} DoesTheDogDie users voted, with yes ahead by {MIN_LEAD} or
+            more. Votes can be incomplete or wrong — a trigger not flagged here may still be in it.
+          </p>
+        </TriggerInfo>
+      )}
       <Credit />
     </section>
   )
