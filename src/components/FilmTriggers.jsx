@@ -170,6 +170,9 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   }
 
   const split = splitForPanel(s.items, topicsById)
+  // Every trigger with any votes came from the whole series.
+  const answered = s.items.filter((i) => i.yes + i.no > 0)
+  const allFromSeries = answered.length > 0 && answered.every((i) => i.fromSeries)
   const counts = summaryCounts(s)
   const countLine = [
     counts.no > 0 && `${counts.no} more voted no`,
@@ -200,17 +203,17 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
           </button>
         </div>
         {/* Where the votes come from, by colour (Stacia, after Dana,
-            2026-11-22): green for a season's own votes, lavender for the
-            whole series. Orange stays for "flagged" only. A season where
-            some triggers fell back says so. */}
+            2026-11-22): green "Season N" when the season's own votes are
+            used, lavender "Whole series" otherwise. A season whose every
+            answered trigger fell back to the series says "Whole series" —
+            Angel S1 and S2 said "Season N · some whole series" when all of
+            it was the series, which Stacia found confusing. A real mix shows
+            the season; the details list marks each "whole series" trigger. */}
         {scopeLabel(film, s.row) &&
-          (Number(s.row.season) >= 0 ? (
-            <span className="trigger-scope is-season">
-              {scopeLabel(film, s.row)}
-              {s.usedSeries && <span className="trigger-scope-mix"> · some whole series</span>}
-            </span>
+          (Number(s.row.season) >= 0 && !allFromSeries ? (
+            <span className="trigger-scope is-season">{scopeLabel(film, s.row)}</span>
           ) : (
-            <span className="trigger-scope is-series">{scopeLabel(film, s.row)}</span>
+            <span className="trigger-scope is-series">Whole series</span>
           ))}
       </div>
 
