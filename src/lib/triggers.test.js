@@ -76,7 +76,7 @@ test('every way of not knowing is "not checked", never a clean answer', () => {
 })
 
 test('the scope is always said', () => {
-  assert.equal(scopeLabel(alien, { tmdb_kind: 'movie', season: -1 }), 'For the film')
+  assert.equal(scopeLabel(alien, { tmdb_kind: 'movie', season: -1 }), '')
   assert.equal(scopeLabel(buffyS1, { tmdb_kind: 'tv', season: 1 }), 'Season 1')
   assert.equal(scopeLabel(buffyAll, { tmdb_kind: 'tv', season: -1 }), 'Whole series')
 })

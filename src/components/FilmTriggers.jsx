@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   MIN_LEAD,
-  MIN_VOTES,
-  checkedOn,
   filmTriggerState,
   scopeLabel,
   splitForPanel,
   summaryCounts,
 } from '../lib/triggers.js'
 import { TopicName } from './TriggerSettings.jsx'
+import { useBackToClose } from './useBackToClose.js'
 
 // ⚠ WORDING IS A DRAFT (2026-11-15) — Stacia writes the UI copy.
 //
@@ -31,25 +30,69 @@ function Credit() {
   )
 }
 
+// The explanation, moved off the panel into a pop-up behind an ⓘ (Stacia,
+// after Dana, 2026-11-22): people learn how triggers work when they set them
+// up, so the panel no longer repeats it every time. Back, ×, Escape and a tap
+// outside all close the pop-up only, never the film's panel.
+// "Nov 15" — the order Stacia wrote it in the pop-up (2026-11-22).
+function checkedMonthDay(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function TriggerInfo({ onClose, children }) {
+  const closeRef = useRef(null)
+  useBackToClose(onClose, { id: 'trigger-info' })
+
+  useEffect(() => {
+    closeRef.current?.focus()
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    // Capture, so Escape closes this pop-up rather than the film's panel.
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
+  return (
+    <div className="trigger-info-overlay" role="presentation" onClick={onClose}>
+      <div
+        className="trigger-info"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trigger-info-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="trigger-info-head">
+          <h3 id="trigger-info-title" className="group-label">About triggers</h3>
+          <button type="button" className="ghost trigger-info-close" ref={closeRef} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   const { media, votes, myTopics, topicsById, checkFilms, loaded, error: loadError } = triggers
   const s = filmTriggerState(film, { media, votes, myTopics })
 
   const [open, setOpen] = useState(false)
-  const [showNo, setShowNo] = useState(false)
-  const [showUnsure, setShowUnsure] = useState(false)
-  const [showUnknown, setShowUnknown] = useState(false)
   const [revealed, setRevealed] = useState(() => new Set())
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState(null)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const mediaId = s.row?.id ?? null
   // A different answer (a check just ran, or another film): start closed.
   useEffect(() => {
     setOpen(false)
-    setShowNo(false)
-    setShowUnsure(false)
-    setShowUnknown(false)
   }, [mediaId, film.id])
 
   function reveal() {
@@ -127,6 +170,9 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   }
 
   const split = splitForPanel(s.items, topicsById)
+  // Every trigger with any votes came from the whole series.
+  const answered = s.items.filter((i) => i.yes + i.no > 0)
+  const allFromSeries = answered.length > 0 && answered.every((i) => i.fromSeries)
   const counts = summaryCounts(s)
   const countLine = [
     counts.no > 0 && `${counts.no} more voted no`,
@@ -144,8 +190,31 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   return (
     <section className="film-triggers">
       <div className="triggers-head">
-        {heading}
-        <span className="muted trigger-scope">{scopeLabel(film, s.row)}</span>
+        <div className="triggers-title-row">
+          {heading}
+          <button
+            type="button"
+            className="trigger-info-button"
+            onClick={() => setInfoOpen(true)}
+            aria-label="About triggers"
+            aria-haspopup="dialog"
+          >
+            <span aria-hidden="true">ⓘ</span>
+          </button>
+        </div>
+        {/* Where the votes come from, by colour (Stacia, after Dana,
+            2026-11-22): green "Season N" when the season's own votes are
+            used, lavender "Whole series" otherwise. A season whose every
+            answered trigger fell back to the series says "Whole series" —
+            Angel S1 and S2 said "Season N · some whole series" when all of
+            it was the series, which Stacia found confusing. A real mix shows
+            the season; the details list marks each "whole series" trigger. */}
+        {scopeLabel(film, s.row) &&
+          (Number(s.row.season) >= 0 && !allFromSeries ? (
+            <span className="trigger-scope is-season">{scopeLabel(film, s.row)}</span>
+          ) : (
+            <span className="trigger-scope is-series">Whole series</span>
+          ))}
       </div>
 
       <div className="trigger-summary">
@@ -176,87 +245,35 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
 
       {open && (
         <>
-          {split.flagged.length > 0 && (
-            <ul className="trigger-list">
-              {split.flagged.map(({ topic, yes, no, fromSeries }) => (
-                <li key={topic.id}>
-                  <TopicName topic={topic} {...nameProps(topic)} />
-                  <span className="muted trigger-votes">
-                    {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Close or thinly-voted answers: listed, never dropped (Stacia's
-              rule, 2026-11-15) — a real trigger with few votes is still
-              worth seeing. */}
-          {split.unsure.length > 0 && (
-            <div className="trigger-more">
-              <p>
-                {split.unsure.length} of your triggers: not enough votes yet{' '}
-                <button type="button" className="link-button" onClick={() => setShowUnsure((v) => !v)}>
-                  {showUnsure ? 'Hide' : 'Show'}
-                </button>
-              </p>
-              {showUnsure && (
-                <ul className="trigger-list quiet">
-                  {split.unsure.map(({ topic, yes, no, fromSeries }) => (
+          {/* Every group at once (Stacia, 2026-11-22): one tap shows it all,
+              instead of a Show per group. Close or thinly-voted answers are
+              listed, never dropped (Stacia's rule, 2026-11-15). */}
+          {[
+            ['Flagged', split.flagged, false],
+            ['Not enough votes', split.unsure, true],
+            ['Voted no', split.votedNo, true],
+            ['No answer yet', split.noAnswer, true],
+          ]
+            .filter(([, list]) => list.length > 0)
+            .map(([label, list, quiet]) => (
+              <div className="trigger-group" key={label}>
+                <h4 className="trigger-group-label">
+                  {label} <span className="muted">({list.length})</span>
+                </h4>
+                <ul className={quiet ? 'trigger-list quiet' : 'trigger-list'}>
+                  {list.map(({ topic, yes, no, fromSeries }) => (
                     <li key={topic.id}>
                       <TopicName topic={topic} {...nameProps(topic)} />
-                      <span className="muted trigger-votes">
-                        {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
-                      </span>
+                      {label !== 'No answer yet' && (
+                        <span className="muted trigger-votes">
+                          {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          )}
-
-          {split.votedNo.length > 0 && (
-            <div className="trigger-more">
-              <p>
-                {split.votedNo.length} of your triggers: more voted no{' '}
-                <button type="button" className="link-button" onClick={() => setShowNo((v) => !v)}>
-                  {showNo ? 'Hide' : 'Show'}
-                </button>
-              </p>
-              {showNo && (
-                <ul className="trigger-list quiet">
-                  {split.votedNo.map(({ topic, yes, no, fromSeries }) => (
-                    <li key={topic.id}>
-                      <TopicName topic={topic} {...nameProps(topic)} />
-                      <span className="muted trigger-votes">
-                        {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {split.noAnswer.length > 0 && (
-            <div className="trigger-more">
-              <p>
-                {split.noAnswer.length} of your triggers {split.noAnswer.length === 1 ? 'has' : 'have'} no answer yet{' '}
-                <button type="button" className="link-button" onClick={() => setShowUnknown((v) => !v)}>
-                  {showUnknown ? 'Hide' : 'Which?'}
-                </button>
-              </p>
-              {showUnknown && (
-                <ul className="trigger-list quiet">
-                  {split.noAnswer.map(({ topic }) => (
-                    <li key={topic.id}>
-                      <TopicName topic={topic} {...nameProps(topic)} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
 
           <button type="button" className="link-button trigger-hide" onClick={() => setOpen(false)}>
             Hide details
@@ -264,23 +281,30 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
         </>
       )}
 
-      {s.row.tmdb_kind === 'tv' && Number(s.row.season) >= 0 && (
-        <p className="muted form-hint">
-          Season votes on DoesTheDogDie can include votes for the whole show.
-          {s.usedSeries &&
-            ` Where this season has fewer than ${MIN_VOTES} votes on a trigger, the whole series’ votes are used, marked “whole series”.`}
-        </p>
+      {/* Kept on the panel (Dana, 2026-11-22): the one thing that must not
+          hide behind a tap is that a count is not an all-clear. The date is
+          in the pop-up. */}
+      <p className="muted form-hint">Based on viewer votes, which can miss things.</p>
+      {infoOpen && (
+        <TriggerInfo onClose={() => setInfoOpen(false)}>
+          {/* Stacia's own wording, 2026-11-22. */}
+          <div className="trigger-defs">
+            <p><strong>Flagged:</strong> yes votes ahead by {MIN_LEAD}+.</p>
+            <p><strong>Voted no:</strong> no votes ahead by {MIN_LEAD}+.</p>
+            <p><strong>Anything else:</strong> not enough votes, or too close to call.</p>
+          </div>
+          <p className="muted form-hint">Votes come from DoesTheDogDie users and can be wrong or missing.</p>
+          <p className="muted form-hint">
+            Checked {checkedMonthDay(s.row.checked_at)}. Answers are automatically re-checked about every two weeks.
+          </p>
+          {s.row.tmdb_kind === 'tv' && (
+            <p className="muted form-hint">
+              <strong>Shows:</strong> If there are not enough votes on a show’s individual season, triggers for the
+              whole series will be used.
+            </p>
+          )}
+        </TriggerInfo>
       )}
-      {s.row.tmdb_kind === 'tv' && Number(s.row.season) < 0 && (
-        <p className="muted form-hint">
-          No season is recorded, so these are for the whole series. Pick the season in Edit to see that season’s.
-        </p>
-      )}
-      <p className="muted form-hint">
-        Flagged means at least {MIN_VOTES} DoesTheDogDie users voted, with yes ahead by {MIN_LEAD} or
-        more. Votes can be incomplete or wrong — a trigger not flagged here may still be in it. Checked{' '}
-        {checkedOn(s.row.checked_at)}.
-      </p>
       <Credit />
     </section>
   )

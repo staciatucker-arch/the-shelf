@@ -2140,3 +2140,59 @@ button.danger {
 }
 .user-menu .menu-check { margin: 0 0 0.4rem; }
 .user-menu .menu-check + .ghost { margin-top: 0.4rem; }
+
+/* The ⓘ beside "Triggers for you" and its pop-up (Stacia, after Dana,
+   2026-11-22). The button is a full thumb-sized target (44 px) though the
+   mark itself is small. Pop-up sits with the duplicate question (38). */
+.triggers-title-row { display: flex; align-items: center; gap: 0.1rem; }
+.trigger-info-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.6rem 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.trigger-info-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; border-radius: 50%; }
+.trigger-info-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+.trigger-info {
+  width: min(26rem, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: 0.4rem 1rem 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.trigger-info-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.trigger-info-head .group-label { margin: 0; }
+.trigger-info-close { min-width: 44px; min-height: 44px; margin: 0 -0.5rem 0 0; padding: 0; font-size: 1.3rem; }
+.trigger-info .form-hint { font-size: 0.92rem; margin-top: 0.5rem; }
+.trigger-defs { margin: 0.6rem 0 0; font-size: 0.92rem; color: var(--muted); }
+.trigger-defs p { margin: 0 0 0.35rem; }
+.trigger-defs strong { color: var(--text); }
+/* Season / Whole series beside the heading, in green (Stacia, 2026-11-22). */
+.trigger-scope { font-weight: 700; text-align: right; }
+.trigger-scope.is-season { color: var(--accent); }
+.trigger-scope.is-series { color: var(--muted); font-weight: 400; }
+.trigger-group { margin-top: 0.6rem; }
+.trigger-group-label { margin: 0 0 0.25rem; font-size: 0.92rem; font-weight: 700; }
+/* The heading never breaks; a long scope ("Season 2 · some whole series")
+   drops to its own line instead. */
+.triggers-head { flex-wrap: wrap; }
+.triggers-title-row { flex-shrink: 0; white-space: nowrap; }

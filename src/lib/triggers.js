@@ -142,7 +142,9 @@ export function showsNotChecked(state) {
  */
 export function scopeLabel(film, row) {
   if (!row) return ''
-  if (row.tmdb_kind === 'movie') return 'For the film'
+  // A film says nothing here (Stacia, 2026-11-22): "For the film" told
+  // nobody anything. Only a series needs to say which part the votes cover.
+  if (row.tmdb_kind === 'movie') return ''
   if (Number(row.season) >= 0) return `Season ${row.season}`
   return 'Whole series'
 }
