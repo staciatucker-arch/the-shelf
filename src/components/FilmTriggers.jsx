@@ -199,7 +199,19 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
             <span aria-hidden="true">ⓘ</span>
           </button>
         </div>
-        {scopeLabel(film, s.row) && <span className="trigger-scope">{scopeLabel(film, s.row)}</span>}
+        {/* Where the votes come from, by colour (Stacia, after Dana,
+            2026-11-22): green for a season's own votes, lavender for the
+            whole series. Orange stays for "flagged" only. A season where
+            some triggers fell back says so. */}
+        {scopeLabel(film, s.row) &&
+          (Number(s.row.season) >= 0 ? (
+            <span className="trigger-scope is-season">
+              {scopeLabel(film, s.row)}
+              {s.usedSeries && <span className="trigger-scope-mix"> · some whole series</span>}
+            </span>
+          ) : (
+            <span className="trigger-scope is-series">{scopeLabel(film, s.row)}</span>
+          ))}
       </div>
 
       <div className="trigger-summary">

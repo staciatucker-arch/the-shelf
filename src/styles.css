@@ -2187,6 +2187,13 @@ button.danger {
 .trigger-defs p { margin: 0 0 0.35rem; }
 .trigger-defs strong { color: var(--text); }
 /* Season / Whole series beside the heading, in green (Stacia, 2026-11-22). */
-.trigger-scope { color: var(--accent); font-weight: 700; }
+.trigger-scope { font-weight: 700; text-align: right; }
+.trigger-scope.is-season { color: var(--accent); }
+.trigger-scope.is-series,
+.trigger-scope-mix { color: var(--muted); font-weight: 400; }
 .trigger-group { margin-top: 0.6rem; }
 .trigger-group-label { margin: 0 0 0.25rem; font-size: 0.92rem; font-weight: 700; }
+/* The heading never breaks; a long scope ("Season 2 · some whole series")
+   drops to its own line instead. */
+.triggers-head { flex-wrap: wrap; }
+.triggers-title-row { flex-shrink: 0; white-space: nowrap; }
