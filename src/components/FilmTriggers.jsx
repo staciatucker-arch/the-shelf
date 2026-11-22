@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   MIN_LEAD,
-  MIN_VOTES,
-  checkedOn,
   filmTriggerState,
   scopeLabel,
   splitForPanel,
@@ -36,6 +34,13 @@ function Credit() {
 // after Dana, 2026-11-22): people learn how triggers work when they set them
 // up, so the panel no longer repeats it every time. Back, ×, Escape and a tap
 // outside all close the pop-up only, never the film's panel.
+// "Nov 15" — the order Stacia wrote it in the pop-up (2026-11-22).
+function checkedMonthDay(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 function TriggerInfo({ onClose, children }) {
   const closeRef = useRef(null)
   useBackToClose(onClose, { id: 'trigger-info' })
@@ -79,9 +84,6 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   const s = filmTriggerState(film, { media, votes, myTopics })
 
   const [open, setOpen] = useState(false)
-  const [showNo, setShowNo] = useState(false)
-  const [showUnsure, setShowUnsure] = useState(false)
-  const [showUnknown, setShowUnknown] = useState(false)
   const [revealed, setRevealed] = useState(() => new Set())
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState(null)
@@ -91,9 +93,6 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
   // A different answer (a check just ran, or another film): start closed.
   useEffect(() => {
     setOpen(false)
-    setShowNo(false)
-    setShowUnsure(false)
-    setShowUnknown(false)
   }, [mediaId, film.id])
 
   function reveal() {
@@ -200,7 +199,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
             <span aria-hidden="true">ⓘ</span>
           </button>
         </div>
-        {scopeLabel(film, s.row) && <span className="muted trigger-scope">{scopeLabel(film, s.row)}</span>}
+        {scopeLabel(film, s.row) && <span className="trigger-scope">{scopeLabel(film, s.row)}</span>}
       </div>
 
       <div className="trigger-summary">
@@ -231,87 +230,35 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
 
       {open && (
         <>
-          {split.flagged.length > 0 && (
-            <ul className="trigger-list">
-              {split.flagged.map(({ topic, yes, no, fromSeries }) => (
-                <li key={topic.id}>
-                  <TopicName topic={topic} {...nameProps(topic)} />
-                  <span className="muted trigger-votes">
-                    {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Close or thinly-voted answers: listed, never dropped (Stacia's
-              rule, 2026-11-15) — a real trigger with few votes is still
-              worth seeing. */}
-          {split.unsure.length > 0 && (
-            <div className="trigger-more">
-              <p>
-                {split.unsure.length} of your triggers: not enough votes yet{' '}
-                <button type="button" className="link-button" onClick={() => setShowUnsure((v) => !v)}>
-                  {showUnsure ? 'Hide' : 'Show'}
-                </button>
-              </p>
-              {showUnsure && (
-                <ul className="trigger-list quiet">
-                  {split.unsure.map(({ topic, yes, no, fromSeries }) => (
+          {/* Every group at once (Stacia, 2026-11-22): one tap shows it all,
+              instead of a Show per group. Close or thinly-voted answers are
+              listed, never dropped (Stacia's rule, 2026-11-15). */}
+          {[
+            ['Flagged', split.flagged, false],
+            ['Not enough votes', split.unsure, true],
+            ['Voted no', split.votedNo, true],
+            ['No answer yet', split.noAnswer, true],
+          ]
+            .filter(([, list]) => list.length > 0)
+            .map(([label, list, quiet]) => (
+              <div className="trigger-group" key={label}>
+                <h4 className="trigger-group-label">
+                  {label} <span className="muted">({list.length})</span>
+                </h4>
+                <ul className={quiet ? 'trigger-list quiet' : 'trigger-list'}>
+                  {list.map(({ topic, yes, no, fromSeries }) => (
                     <li key={topic.id}>
                       <TopicName topic={topic} {...nameProps(topic)} />
-                      <span className="muted trigger-votes">
-                        {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
-                      </span>
+                      {label !== 'No answer yet' && (
+                        <span className="muted trigger-votes">
+                          {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          )}
-
-          {split.votedNo.length > 0 && (
-            <div className="trigger-more">
-              <p>
-                {split.votedNo.length} of your triggers: more voted no{' '}
-                <button type="button" className="link-button" onClick={() => setShowNo((v) => !v)}>
-                  {showNo ? 'Hide' : 'Show'}
-                </button>
-              </p>
-              {showNo && (
-                <ul className="trigger-list quiet">
-                  {split.votedNo.map(({ topic, yes, no, fromSeries }) => (
-                    <li key={topic.id}>
-                      <TopicName topic={topic} {...nameProps(topic)} />
-                      <span className="muted trigger-votes">
-                        {yes} yes · {no} no{fromSeries ? ' · whole series' : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {split.noAnswer.length > 0 && (
-            <div className="trigger-more">
-              <p>
-                {split.noAnswer.length} of your triggers {split.noAnswer.length === 1 ? 'has' : 'have'} no answer yet{' '}
-                <button type="button" className="link-button" onClick={() => setShowUnknown((v) => !v)}>
-                  {showUnknown ? 'Hide' : 'Which?'}
-                </button>
-              </p>
-              {showUnknown && (
-                <ul className="trigger-list quiet">
-                  {split.noAnswer.map(({ topic }) => (
-                    <li key={topic.id}>
-                      <TopicName topic={topic} {...nameProps(topic)} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
 
           <button type="button" className="link-button trigger-hide" onClick={() => setOpen(false)}>
             Hide details
@@ -325,32 +272,22 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
       <p className="muted form-hint">Based on viewer votes, which can miss things.</p>
       {infoOpen && (
         <TriggerInfo onClose={() => setInfoOpen(false)}>
-          {s.row.tmdb_kind === 'tv' && Number(s.row.season) >= 0 && (
-            <p className="muted form-hint">
-              Season votes on DoesTheDogDie can include votes for the whole show.
-              {s.usedSeries &&
-                ` Where this season has fewer than ${MIN_VOTES} votes on a trigger, the whole series’ votes are used, marked “whole series”.`}
-            </p>
-          )}
-          {s.row.tmdb_kind === 'tv' && Number(s.row.season) < 0 && (
-            <p className="muted form-hint">
-              No season is recorded, so these are for the whole series. Pick the season in Edit to see that season’s.
-            </p>
-          )}
-          {/* Definitions, one per word on the panel (Stacia, after Dana,
-              2026-11-22). MIN_VOTES needs no mention: a lead of MIN_LEAD
-              already means at least that many votes. */}
+          {/* Stacia's own wording, 2026-11-22. */}
           <div className="trigger-defs">
-            <p><strong>Flagged:</strong> at least {MIN_LEAD} more people voted yes than no.</p>
-            <p><strong>Voted no:</strong> at least {MIN_LEAD} more people voted no than yes.</p>
-            <p><strong>Not enough votes:</strong> too few votes, or too close to call.</p>
+            <p><strong>Flagged:</strong> yes votes ahead by {MIN_LEAD}+.</p>
+            <p><strong>Voted no:</strong> no votes ahead by {MIN_LEAD}+.</p>
+            <p><strong>Anything else:</strong> not enough votes, or too close to call.</p>
           </div>
           <p className="muted form-hint">Votes come from DoesTheDogDie users and can be wrong or missing.</p>
-          {/* The date lives here, not on the panel (Stacia, 2026-11-22): on
-              its own it made people wonder how often it is kept up to date. */}
           <p className="muted form-hint">
-            Checked {checkedOn(s.row.checked_at)}. Answers are re-checked automatically about every two weeks.
+            Checked {checkedMonthDay(s.row.checked_at)}. Answers are automatically re-checked about every two weeks.
           </p>
+          {s.row.tmdb_kind === 'tv' && (
+            <p className="muted form-hint">
+              <strong>Shows:</strong> If there are not enough votes on a show’s individual season, triggers for the
+              whole series will be used.
+            </p>
+          )}
         </TriggerInfo>
       )}
       <Credit />

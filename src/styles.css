@@ -2186,3 +2186,7 @@ button.danger {
 .trigger-defs { margin: 0.6rem 0 0; font-size: 0.92rem; color: var(--muted); }
 .trigger-defs p { margin: 0 0 0.35rem; }
 .trigger-defs strong { color: var(--text); }
+/* Season / Whole series beside the heading, in green (Stacia, 2026-11-22). */
+.trigger-scope { color: var(--accent); font-weight: 700; }
+.trigger-group { margin-top: 0.6rem; }
+.trigger-group-label { margin: 0 0 0.25rem; font-size: 0.92rem; font-weight: 700; }
