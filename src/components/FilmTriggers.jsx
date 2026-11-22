@@ -200,7 +200,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
             <span aria-hidden="true">ⓘ</span>
           </button>
         </div>
-        <span className="muted trigger-scope">{scopeLabel(film, s.row)}</span>
+        {scopeLabel(film, s.row) && <span className="muted trigger-scope">{scopeLabel(film, s.row)}</span>}
       </div>
 
       <div className="trigger-summary">
