@@ -322,7 +322,7 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
       {/* Kept on the panel (Dana, 2026-11-22): the one thing that must not
           hide behind a tap is that a count is not an all-clear. The date is
           in the pop-up. */}
-      <p className="muted form-hint">Votes can miss things.</p>
+      <p className="muted form-hint">Based on viewer votes, which can miss things.</p>
       {infoOpen && (
         <TriggerInfo onClose={() => setInfoOpen(false)}>
           {s.row.tmdb_kind === 'tv' && Number(s.row.season) >= 0 && (
@@ -337,10 +337,15 @@ export default function FilmTriggers({ film, triggers, onOpenSettings }) {
               No season is recorded, so these are for the whole series. Pick the season in Edit to see that season’s.
             </p>
           )}
-          <p className="muted form-hint">
-            Flagged means at least {MIN_VOTES} DoesTheDogDie users voted, with yes ahead by {MIN_LEAD} or
-            more. Votes can be incomplete or wrong — a trigger not flagged here may still be in it.
-          </p>
+          {/* Definitions, one per word on the panel (Stacia, after Dana,
+              2026-11-22). MIN_VOTES needs no mention: a lead of MIN_LEAD
+              already means at least that many votes. */}
+          <div className="trigger-defs">
+            <p><strong>Flagged:</strong> at least {MIN_LEAD} more people voted yes than no.</p>
+            <p><strong>Voted no:</strong> at least {MIN_LEAD} more people voted no than yes.</p>
+            <p><strong>Not enough votes:</strong> too few votes, or too close to call.</p>
+          </div>
+          <p className="muted form-hint">Votes come from DoesTheDogDie users and can be wrong or missing.</p>
           {/* The date lives here, not on the panel (Stacia, 2026-11-22): on
               its own it made people wonder how often it is kept up to date. */}
           <p className="muted form-hint">
